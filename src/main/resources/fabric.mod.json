@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"id": "circuitmod",
+	"version": "${version}",
+	"name": "circuitmod",
+	"description": "This mod adds some seriously kewl technology to the game",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/circuitmod/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"starduster.circuitmod.Circuitmod"
+		],
+		"client": [
+			"starduster.circuitmod.CircuitmodClient"
+		],
+		"fabric-datagen": [
+			"starduster.circuitmod.CircuitmodDataGenerator"
+		]
+	},
+	"mixins": [
+		"circuitmod.mixins.json",
+		{
+			"config": "circuitmod.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.12",
+		"minecraft": "~1.21.5",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
