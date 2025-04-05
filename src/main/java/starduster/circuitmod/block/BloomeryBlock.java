@@ -6,13 +6,9 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.state.StateManager;
-import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -26,27 +22,8 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 public class BloomeryBlock extends BlockWithEntity {
     public static final MapCodec<BloomeryBlock> CODEC = createCodec(BloomeryBlock::new);
     
-    // Block properties
-    public static final BooleanProperty LIT = Properties.LIT;
-    
     public BloomeryBlock(Settings settings) {
         super(settings);
-        // Set default state
-        this.setDefaultState(this.stateManager.getDefaultState()
-            .with(Properties.HORIZONTAL_FACING, Direction.NORTH)
-            .with(LIT, false));
-    }
-    
-    // Add properties to state manager
-    @Override
-    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        builder.add(Properties.HORIZONTAL_FACING, LIT);
-    }
-    
-    // Set facing direction when placed
-    @Override
-    public BlockState getPlacementState(ItemPlacementContext ctx) {
-        return this.getDefaultState().with(Properties.HORIZONTAL_FACING, ctx.getHorizontalPlayerFacing().getOpposite());
     }
     
     @Override
@@ -97,17 +74,7 @@ public class BloomeryBlock extends BlockWithEntity {
                         SoundCategory.BLOCKS, 1.0f, 1.0f);
                 }
                 
-                // Add some smoke and fire particles
-                Direction direction = state.get(Properties.HORIZONTAL_FACING);
-                Direction.Axis axis = direction.getAxis();
-                double horizontalOffset = random.nextDouble() * 0.6 - 0.3;
-                double xOffset = axis == Direction.Axis.X ? (double)direction.getOffsetX() * 0.52 : horizontalOffset;
-                double yOffset = random.nextDouble() * 0.6 - 0.3;
-                double zOffset = axis == Direction.Axis.Z ? (double)direction.getOffsetZ() * 0.52 : horizontalOffset;
                 
-                // Add particles - this will be fixed in a future PR once textures work
-                // world.addParticle(ParticleTypes.SMOKE, x + xOffset, y + yOffset, z + zOffset, 0.0, 0.0, 0.0);
-                // world.addParticle(ParticleTypes.FLAME, x + xOffset, y + yOffset, z + zOffset, 0.0, 0.0, 0.0);
             }
         }
     }
