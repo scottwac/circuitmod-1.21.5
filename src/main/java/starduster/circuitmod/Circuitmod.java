@@ -2,6 +2,7 @@ package starduster.circuitmod;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
@@ -13,6 +14,7 @@ import net.minecraft.util.Identifier;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.screen.ModScreenHandlers;
 
 import org.slf4j.Logger;
@@ -87,7 +89,17 @@ public class Circuitmod implements ModInitializer {
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
 		ModScreenHandlers.initialize();
+		ModNetworking.initialize();
 		
-		LOGGER.info("Hello Fabric world!");
+		// Register player connection/disconnection handlers for debugging
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			LOGGER.info("[SERVER] Player " + handler.player.getName().getString() + " connected! " +
+				"UUID: " + handler.player.getUuid());
+		});
+		
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+			LOGGER.info("[SERVER] Player " + handler.player.getName().getString() + " disconnected. " +
+				"UUID: " + handler.player.getUuid());
+		});
 	}
 }

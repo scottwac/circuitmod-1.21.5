@@ -321,12 +321,12 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             
             // If block entity doesn't exist or is no longer a power connectable
             if (!(be instanceof IPowerConnectable)) {
-                Circuitmod.LOGGER.info("Found invalid block at " + blockPos + " in network " + cable.network.getNetworkId() + ", scheduling removal");
+                Circuitmod.LOGGER.info("Found invalid block at " + blockPos + " in network " + cable.network.getNetworkId() + ", scheduling removal from network tracking");
                 invalidPositions.add(blockPos);
             } 
             // Or if it exists but has a different network
             else if (((IPowerConnectable) be).getNetwork() != cable.network) {
-                Circuitmod.LOGGER.info("Block at " + blockPos + " has a different network, scheduling removal");
+                Circuitmod.LOGGER.info("Block at " + blockPos + " has a different network, scheduling removal from network tracking");
                 invalidPositions.add(blockPos);
             }
         }
@@ -335,13 +335,13 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         if (!invalidPositions.isEmpty()) {
             for (BlockPos invalidPos : invalidPositions) {
                 cable.network.removeBlock(invalidPos);
-                Circuitmod.LOGGER.info("Removed invalid block at " + invalidPos + " from network " + cable.network.getNetworkId());
+                Circuitmod.LOGGER.info("Removed reference to block at " + invalidPos + " from network " + cable.network.getNetworkId() + " tracking");
             }
             
             // If we're still in the network after cleanup, rebuild from our position
             if (cable.network.getSize() > 0 && cable.network.getConnectedBlockPositions().contains(pos)) {
                 cable.network.rebuild(world, pos);
-                Circuitmod.LOGGER.info("Rebuilt network " + cable.network.getNetworkId() + " after removing invalid blocks");
+                Circuitmod.LOGGER.info("Rebuilt network " + cable.network.getNetworkId() + " after updating internal tracking");
             }
         }
     }

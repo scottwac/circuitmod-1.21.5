@@ -6,16 +6,37 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import starduster.circuitmod.Circuitmod;
 
 public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     // Use generic chest texture
     private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/generic_54.png");
+    // Green color for the mining speed text
+    private static final int MINING_SPEED_COLOR = 0xFF00FF00; // ARGB format (alpha, red, green, blue)
+    
+    // Direct mining speed tracking
+    private int displayedMiningSpeed = 0;
 
     public QuarryScreen(QuarryScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
         // Adjust the height since we're using only 3 rows, not 6 like the texture
         this.backgroundHeight = 168; // Default vanilla chest with 3 rows is 168
         this.playerInventoryTitleY = this.backgroundHeight - 94;
+    }
+    
+    @Override
+    protected void handledScreenTick() {
+        super.handledScreenTick();
+        // Update the displayed mining speed from the handler
+        int newSpeed = handler.getMiningSpeed();
+        Circuitmod.LOGGER.info("[CLIENT-SCREEN] handledScreenTick getting mining speed: " + newSpeed +
+            " (current displayed: " + displayedMiningSpeed + ")");
+            
+        if (newSpeed != displayedMiningSpeed) {
+            Circuitmod.LOGGER.info("[CLIENT-SCREEN] Updating displayed mining speed from " + 
+                displayedMiningSpeed + " to " + newSpeed);
+            displayedMiningSpeed = newSpeed;
+        }
     }
 
     @Override
@@ -34,6 +55,32 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         super.render(context, mouseX, mouseY, delta);
+        
+        // Refresh mining speed every render - this ensures we catch updates
+        int currentSpeed = handler.getMiningSpeed();
+        if (currentSpeed != displayedMiningSpeed) {
+            Circuitmod.LOGGER.info("[CLIENT-SCREEN] render() updating mining speed from " + 
+                displayedMiningSpeed + " to " + currentSpeed);
+            displayedMiningSpeed = currentSpeed;
+        }
+        
+        // Draw mining speed text in green above the inventory
+        // Use our cached value that gets updated each tick
+        Text miningSpeedText = Text.literal("Mining Speed: " + displayedMiningSpeed + " blocks/sec");
+        int x = (width - backgroundWidth) / 2 + 8;
+        int y = (height - backgroundHeight) / 2 + 6;
+        
+        Circuitmod.LOGGER.info("[CLIENT-SCREEN] Drawing mining speed text: " + displayedMiningSpeed);
+        
+        context.drawText(
+            textRenderer, 
+            miningSpeedText, 
+            x, 
+            y, 
+            MINING_SPEED_COLOR, 
+            false
+        );
+        
         drawMouseoverTooltip(context, mouseX, mouseY);
     }
 

@@ -5,22 +5,44 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 
 public class QuarryScreenHandler extends ScreenHandler {
     private final Inventory inventory;
+    private final PropertyDelegate propertyDelegate;
+    
+    // Property delegate indices
+    private static final int ENERGY_RECEIVED_INDEX = 0;
+    private static final int MINING_SPEED_INDEX = 1;
+    
+    // Direct mining speed tracking for more reliable updates
+    private int cachedMiningSpeed = 0;
     
     // Client constructor
     public QuarryScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(27));
+        this(syncId, playerInventory, new SimpleInventory(27), new PropertyDelegate() {
+            public int get(int index) { return 0; }
+            public void set(int index, int value) {}
+            public int size() { return 2; }
+        });
     }
     
     // Server constructor
-    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory) {
+    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate) {
         super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
         checkSize(inventory, 27);
         this.inventory = inventory;
+        this.propertyDelegate = propertyDelegate;
+        
+        // Add property delegate for synchronization
+        this.addProperties(propertyDelegate);
+        
+        // Initialize the cached value
+        if (propertyDelegate.size() > MINING_SPEED_INDEX) {
+            this.cachedMiningSpeed = propertyDelegate.get(MINING_SPEED_INDEX);
+        }
         
         // Make the inventory accessible to the player
         inventory.onOpen(playerInventory.player);
@@ -84,5 +106,43 @@ public class QuarryScreenHandler extends ScreenHandler {
         }
         
         return newStack;
+    }
+    
+    // Get mining speed for display
+    public int getMiningSpeed() {
+        // First try to get the latest value from the property delegate
+        int miningSpeed = this.propertyDelegate.get(MINING_SPEED_INDEX);
+        
+        starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Getting mining speed from property delegate: " + 
+            miningSpeed + " (cached: " + cachedMiningSpeed + ")");
+        
+        // Update our cached value if the property delegate has a non-zero value
+        if (miningSpeed > 0) {
+            starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Updating cached mining speed to: " + miningSpeed);
+            cachedMiningSpeed = miningSpeed;
+        } else if (cachedMiningSpeed > 0) {
+            // If property delegate returns 0 but we have a cached value, use that
+            // This helps maintain the display between updates
+            starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Using cached mining speed: " + cachedMiningSpeed + 
+                " (property delegate returned: " + miningSpeed + ")");
+            return cachedMiningSpeed;
+        }
+        
+        return miningSpeed;
+    }
+    
+    /**
+     * Update the mining speed directly
+     * This can be called from the block entity on the client side
+     * 
+     * @param miningSpeed The mining speed in blocks per second
+     */
+    public void updateMiningSpeed(int miningSpeed) {
+        this.cachedMiningSpeed = miningSpeed;
+    }
+    
+    // Get energy received for display
+    public int getEnergyReceived() {
+        return this.propertyDelegate.get(ENERGY_RECEIVED_INDEX);
     }
 } 

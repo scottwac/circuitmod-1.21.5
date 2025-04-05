@@ -90,9 +90,10 @@ public class EnergyNetwork {
     }
     
     /**
-     * Removes a block from this network.
+     * Removes a block from this network's tracking.
+     * This only affects the network's internal data structures, not the actual block in the world.
      * 
-     * @param pos The position of the block to remove
+     * @param pos The position of the block to remove from network tracking
      */
     public void removeBlock(BlockPos pos) {
         IPowerConnectable block = connectedBlocks.remove(pos);
@@ -111,7 +112,7 @@ public class EnergyNetwork {
             block.setNetwork(null);
             
             // Log the removal
-            Circuitmod.LOGGER.debug("Removed block at " + pos + " from energy network. Network size: " + connectedBlocks.size());
+            Circuitmod.LOGGER.debug("Removed block reference at " + pos + " from energy network tracking. Network size: " + connectedBlocks.size());
             
             // If the network is now empty, deactivate it
             if (connectedBlocks.isEmpty()) {
