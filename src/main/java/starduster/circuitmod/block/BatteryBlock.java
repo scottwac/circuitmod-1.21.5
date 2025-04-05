@@ -17,27 +17,27 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
-import starduster.circuitmod.block.entity.CreativeGeneratorBlockEntity;
+import starduster.circuitmod.block.entity.BatteryBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
 
-public class CreativeGeneratorBlock extends BlockWithEntity {
-    public static final MapCodec<CreativeGeneratorBlock> CODEC = createCodec(CreativeGeneratorBlock::new);
+public class BatteryBlock extends BlockWithEntity {
+    public static final MapCodec<BatteryBlock> CODEC = createCodec(BatteryBlock::new);
 
     @Override
-    public MapCodec<CreativeGeneratorBlock> getCodec() {
+    public MapCodec<BatteryBlock> getCodec() {
         return CODEC;
     }
 
-    public CreativeGeneratorBlock(Settings settings) {
+    public BatteryBlock(Settings settings) {
         super(settings);
     }
 
     @Nullable
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new CreativeGeneratorBlockEntity(pos, state);
+        return new BatteryBlockEntity(pos, state);
     }
 
     @Override
@@ -49,16 +49,31 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof CreativeGeneratorBlockEntity generator) {
-                // Display network info when right-clicked
-                player.sendMessage(Text.literal("§aCreative Generator Status:"), false);
+            if (blockEntity instanceof BatteryBlockEntity battery) {
+                // Display battery info when right-clicked
+                player.sendMessage(Text.literal("§6Battery Status:"), false);
                 
-                if (generator.getNetwork() != null) {
-                    player.sendMessage(Text.literal("§7Network ID: §a" + generator.getNetwork().getNetworkId()), false);
-                    player.sendMessage(Text.literal("§7Connected to network with " + generator.getNetwork().getSize() + " blocks"), false);
-                    player.sendMessage(Text.literal("§7Energy stored: " + generator.getNetwork().getStoredEnergy() + "/" + generator.getNetwork().getMaxStorage()), false);
-                    player.sendMessage(Text.literal("§7Last tick energy produced: " + generator.getNetwork().getLastTickEnergyProduced()), false);
-                    player.sendMessage(Text.literal("§7Last tick energy consumed: " + generator.getNetwork().getLastTickEnergyConsumed()), false);
+                // Battery specific info
+                String chargeStatus = battery.canCharge() ? "§aEnabled" : "§cDisabled";
+                String dischargeStatus = battery.canDischarge() ? "§aEnabled" : "§cDisabled";
+                int chargePercentage = (int)((float)battery.getStoredEnergy() / battery.getMaxCapacity() * 100);
+                
+                player.sendMessage(Text.literal("§7Stored energy: §e" + battery.getStoredEnergy() + "§7/§e" + battery.getMaxCapacity() 
+                    + " §7(§e" + chargePercentage + "%§7)"), false);
+                player.sendMessage(Text.literal("§7Max charge rate: §e" + battery.getMaxChargeRate() + "§7 energy/tick"), false);
+                player.sendMessage(Text.literal("§7Max discharge rate: §e" + battery.getMaxDischargeRate() + "§7 energy/tick"), false);
+                player.sendMessage(Text.literal("§7Charging: " + chargeStatus + "§7, Discharging: " + dischargeStatus), false);
+                
+                // Network information
+                if (battery.getNetwork() != null) {
+                    player.sendMessage(Text.literal("§7Network ID: §6" + battery.getNetwork().getNetworkId()), false);
+                    player.sendMessage(Text.literal("§7Connected to network with §6" + battery.getNetwork().getSize() + "§7 blocks"), false);
+                    player.sendMessage(Text.literal("§7Network energy: §6" + battery.getNetwork().getStoredEnergy() + "§7/§6" 
+                        + battery.getNetwork().getMaxStorage()), false);
+                    player.sendMessage(Text.literal("§7Last tick: §a+" + battery.getNetwork().getLastTickEnergyProduced() 
+                        + "§7 produced, §c-" + battery.getNetwork().getLastTickEnergyConsumed() + "§7 consumed"), false);
+                    player.sendMessage(Text.literal("§7Last tick battery activity: §a+" + battery.getNetwork().getLastTickEnergyStoredInBatteries() 
+                        + "§7 stored, §c-" + battery.getNetwork().getLastTickEnergyDrawnFromBatteries() + "§7 drawn"), false);
                 } else {
                     player.sendMessage(Text.literal("§cNot connected to any network!"), false);
                 }
@@ -75,7 +90,7 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
         if (!world.isClient) {
             // Check for adjacent power cables and connect to their network
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof CreativeGeneratorBlockEntity generator) {
+            if (blockEntity instanceof BatteryBlockEntity battery) {
                 // Look for adjacent networks
                 for (Direction dir : Direction.values()) {
                     BlockPos neighborPos = pos.offset(dir);
@@ -87,7 +102,7 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
                         
                         if (network != null) {
                             // Found a network, join it
-                            network.addBlock(pos, generator);
+                            network.addBlock(pos, battery);
                             break;
                         }
                     }
@@ -99,6 +114,6 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return validateTicker(type, ModBlockEntities.CREATIVE_GENERATOR_BLOCK_ENTITY, CreativeGeneratorBlockEntity::tick);
+        return validateTicker(type, ModBlockEntities.BATTERY_BLOCK_ENTITY, BatteryBlockEntity::tick);
     }
 } 

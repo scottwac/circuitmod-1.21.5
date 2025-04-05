@@ -50,6 +50,15 @@ public final class ModBlocks {
         Block.Settings.create()
             .strength(3.5f)
     );
+    
+    // Register battery block
+    public static final Block BATTERY = register(
+        "battery",
+        BatteryBlock::new,
+        Block.Settings.create()
+            .strength(3.5f)
+            .luminance(state -> 5) // Slight glow for battery
+    );
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
         final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);

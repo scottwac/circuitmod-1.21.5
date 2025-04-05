@@ -54,6 +54,7 @@ public class CreativeConsumerBlock extends BlockWithEntity {
                 player.sendMessage(Text.literal("§bCreative Consumer Status:"), false);
                 
                 if (consumer.getNetwork() != null) {
+                    player.sendMessage(Text.literal("§7Network ID: §b" + consumer.getNetwork().getNetworkId()), false);
                     player.sendMessage(Text.literal("§7Connected to network with " + consumer.getNetwork().getSize() + " blocks"), false);
                     player.sendMessage(Text.literal("§7Energy stored: " + consumer.getNetwork().getStoredEnergy() + "/" + consumer.getNetwork().getMaxStorage()), false);
                     player.sendMessage(Text.literal("§7Last tick energy produced: " + consumer.getNetwork().getLastTickEnergyProduced()), false);

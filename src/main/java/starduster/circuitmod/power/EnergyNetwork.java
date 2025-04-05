@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
@@ -19,15 +20,46 @@ public class EnergyNetwork {
     private boolean active = true;
     private int storedEnergy = 0;
     private int maxStorage = 10000; // Default value
+    private String networkId;
     
     // Track all components in this network
     private Map<BlockPos, IPowerConnectable> connectedBlocks = new HashMap<>();
     private List<IEnergyProducer> producers = new ArrayList<>();
     private List<IEnergyConsumer> consumers = new ArrayList<>();
+    private List<IEnergyStorage> batteries = new ArrayList<>();
     
     // Network statistics
     private int lastTickEnergyProduced = 0;
     private int lastTickEnergyConsumed = 0;
+    private int lastTickEnergyStoredInBatteries = 0;
+    private int lastTickEnergyDrawnFromBatteries = 0;
+    
+    /**
+     * Creates a new network with a random ID.
+     */
+    public EnergyNetwork() {
+        // Generate a unique ID for this network - use first 8 chars of UUID for readability
+        this.networkId = "NET-" + UUID.randomUUID().toString().substring(0, 8);
+        Circuitmod.LOGGER.info("Created new energy network with ID: " + networkId);
+    }
+    
+    /**
+     * Creates a new network with the specified ID.
+     * 
+     * @param networkId The ID to assign to this network
+     */
+    public EnergyNetwork(String networkId) {
+        this.networkId = networkId;
+    }
+    
+    /**
+     * Gets the unique ID of this network.
+     * 
+     * @return The network ID
+     */
+    public String getNetworkId() {
+        return networkId;
+    }
     
     /**
      * Adds a block to this network.
@@ -50,6 +82,9 @@ public class EnergyNetwork {
         if (block instanceof IEnergyConsumer) {
             consumers.add((IEnergyConsumer) block);
         }
+        if (block instanceof IEnergyStorage) {
+            batteries.add((IEnergyStorage) block);
+        }
         
         Circuitmod.LOGGER.debug("Added block at " + pos + " to energy network. Network size: " + connectedBlocks.size());
     }
@@ -67,6 +102,9 @@ public class EnergyNetwork {
             }
             if (block instanceof IEnergyConsumer) {
                 consumers.remove(block);
+            }
+            if (block instanceof IEnergyStorage) {
+                batteries.remove(block);
             }
             
             // If we removed a block, we need to check if the network should split
@@ -94,7 +132,7 @@ public class EnergyNetwork {
         // Clear the old network
         other.clear();
         
-        Circuitmod.LOGGER.info("Networks merged. New network size: " + connectedBlocks.size());
+        Circuitmod.LOGGER.info("Networks merged. Network " + other.networkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
     }
     
     /**
@@ -104,6 +142,7 @@ public class EnergyNetwork {
         connectedBlocks.clear();
         producers.clear();
         consumers.clear();
+        batteries.clear();
         storedEnergy = 0;
     }
     
@@ -193,6 +232,8 @@ public class EnergyNetwork {
         // Reset counters
         lastTickEnergyProduced = 0;
         lastTickEnergyConsumed = 0;
+        lastTickEnergyStoredInBatteries = 0;
+        lastTickEnergyDrawnFromBatteries = 0;
         
         // Step 1: Collect energy from producers
         for (IEnergyProducer producer : producers) {
@@ -213,7 +254,23 @@ public class EnergyNetwork {
             totalDemand += consumer.getEnergyDemand();
         }
         
-        // Step 3: Distribute energy to consumers
+        // Step 3: Check for energy surplus/deficit
+        int energySurplus = storedEnergy - totalDemand;
+        
+        // If we have a surplus, try to store in batteries
+        if (energySurplus > 0 && !batteries.isEmpty()) {
+            storeEnergyInBatteries(energySurplus);
+        }
+        
+        // If we have a deficit, try to get energy from batteries
+        int energyDeficit = totalDemand - storedEnergy;
+        if (energyDeficit > 0 && !batteries.isEmpty()) {
+            int energyFromBatteries = drawEnergyFromBatteries(energyDeficit);
+            storedEnergy += energyFromBatteries;
+            lastTickEnergyDrawnFromBatteries = energyFromBatteries;
+        }
+        
+        // Step 4: Distribute energy to consumers
         if (totalDemand <= storedEnergy) {
             // We have enough energy for everyone
             for (IEnergyConsumer consumer : consumers) {
@@ -240,6 +297,68 @@ public class EnergyNetwork {
                 }
             }
         }
+        
+        // Step 5: If we still have surplus energy after consumers, store in batteries
+        if (storedEnergy > 0 && !batteries.isEmpty()) {
+            storeEnergyInBatteries(storedEnergy);
+        }
+    }
+    
+    /**
+     * Attempts to store energy in batteries.
+     * 
+     * @param energyToStore Amount of energy to store
+     * @return Amount of energy actually stored
+     */
+    private int storeEnergyInBatteries(int energyToStore) {
+        int totalStored = 0;
+        int remainingToStore = energyToStore;
+        
+        // First pass: Try to charge each battery up to its max charge rate
+        for (IEnergyStorage battery : batteries) {
+            if (remainingToStore <= 0) break;
+            if (!battery.canCharge()) continue;
+            
+            int maxChargeRate = battery.getMaxChargeRate();
+            int toCharge = Math.min(remainingToStore, maxChargeRate);
+            
+            int stored = battery.chargeEnergy(toCharge);
+            totalStored += stored;
+            remainingToStore -= stored;
+            lastTickEnergyStoredInBatteries += stored;
+        }
+        
+        // Update network stored energy
+        storedEnergy -= totalStored;
+        if (storedEnergy < 0) storedEnergy = 0;
+        
+        return totalStored;
+    }
+    
+    /**
+     * Attempts to draw energy from batteries.
+     * 
+     * @param energyNeeded Amount of energy needed
+     * @return Amount of energy actually drawn
+     */
+    private int drawEnergyFromBatteries(int energyNeeded) {
+        int totalDrawn = 0;
+        int remainingNeeded = energyNeeded;
+        
+        // First pass: Try to discharge each battery up to its max discharge rate
+        for (IEnergyStorage battery : batteries) {
+            if (remainingNeeded <= 0) break;
+            if (!battery.canDischarge()) continue;
+            
+            int maxDischargeRate = battery.getMaxDischargeRate();
+            int toDischarge = Math.min(remainingNeeded, maxDischargeRate);
+            
+            int drawn = battery.dischargeEnergy(toDischarge);
+            totalDrawn += drawn;
+            remainingNeeded -= drawn;
+        }
+        
+        return totalDrawn;
     }
     
     /**
@@ -248,9 +367,17 @@ public class EnergyNetwork {
      * @param nbt The NBT compound to save to
      */
     public void writeToNbt(NbtCompound nbt) {
+        // Save basic properties
         nbt.putBoolean("active", active);
-        nbt.putInt("stored_energy", storedEnergy);
-        nbt.putInt("max_storage", maxStorage);
+        nbt.putInt("storedEnergy", storedEnergy);
+        nbt.putInt("maxStorage", maxStorage);
+        nbt.putString("networkId", networkId);
+        
+        // Save statistics
+        nbt.putInt("lastTickEnergyProduced", lastTickEnergyProduced);
+        nbt.putInt("lastTickEnergyConsumed", lastTickEnergyConsumed);
+        nbt.putInt("lastTickEnergyStoredInBatteries", lastTickEnergyStoredInBatteries);
+        nbt.putInt("lastTickEnergyDrawnFromBatteries", lastTickEnergyDrawnFromBatteries);
     }
     
     /**
@@ -259,73 +386,61 @@ public class EnergyNetwork {
      * @param nbt The NBT compound to load from
      */
     public void readFromNbt(NbtCompound nbt) {
+        // Load basic properties
         active = nbt.getBoolean("active").orElse(true);
-        storedEnergy = nbt.getInt("stored_energy").orElse(0);
-        maxStorage = nbt.getInt("max_storage").orElse(10000);
+        storedEnergy = nbt.getInt("storedEnergy").orElse(0);
+        maxStorage = nbt.getInt("maxStorage").orElse(10000);
+        
+        // Load network ID or generate a new one if not present
+        if (nbt.contains("networkId")) {
+            networkId = nbt.getString("networkId").orElse("NET-" + UUID.randomUUID().toString().substring(0, 8));
+        } else {
+            networkId = "NET-" + UUID.randomUUID().toString().substring(0, 8);
+            Circuitmod.LOGGER.info("Generated new network ID during NBT load: " + networkId);
+        }
+        
+        // Load statistics
+        lastTickEnergyProduced = nbt.getInt("lastTickEnergyProduced").orElse(0);
+        lastTickEnergyConsumed = nbt.getInt("lastTickEnergyConsumed").orElse(0);
+        lastTickEnergyStoredInBatteries = nbt.getInt("lastTickEnergyStoredInBatteries").orElse(0);
+        lastTickEnergyDrawnFromBatteries = nbt.getInt("lastTickEnergyDrawnFromBatteries").orElse(0);
     }
     
-    // Getters and setters
+    // Getters for network properties
     
-    /**
-     * Gets the stored energy amount.
-     * 
-     * @return The stored energy
-     */
-    public int getStoredEnergy() { 
-        return storedEnergy; 
-    }
-    
-    /**
-     * Gets the maximum storage capacity.
-     * 
-     * @return The max storage
-     */
-    public int getMaxStorage() { 
-        return maxStorage; 
-    }
-    
-    /**
-     * Gets the energy produced in the last tick.
-     * 
-     * @return The energy produced last tick
-     */
-    public int getLastTickEnergyProduced() { 
-        return lastTickEnergyProduced; 
-    }
-    
-    /**
-     * Gets the energy consumed in the last tick.
-     * 
-     * @return The energy consumed last tick
-     */
-    public int getLastTickEnergyConsumed() { 
-        return lastTickEnergyConsumed; 
-    }
-    
-    /**
-     * Sets the network's active state.
-     * 
-     * @param active Whether the network is active
-     */
-    public void setActive(boolean active) { 
-        this.active = active; 
-    }
-    
-    /**
-     * Checks if the network is active.
-     * 
-     * @return True if active, false otherwise
-     */
-    public boolean isActive() { 
-        return active; 
-    }
-    
-    /**
-     * Gets the size of this network.
-     * 
-     * @return The number of blocks in this network
-     */
     public int getSize() {
         return connectedBlocks.size();
+    }
+    
+    public int getStoredEnergy() {
+        return storedEnergy;
+    }
+    
+    public int getMaxStorage() {
+        return maxStorage;
+    }
+    
+    public int getLastTickEnergyProduced() {
+        return lastTickEnergyProduced;
+    }
+    
+    public int getLastTickEnergyConsumed() {
+        return lastTickEnergyConsumed;
+    }
+    
+    public int getLastTickEnergyStoredInBatteries() {
+        return lastTickEnergyStoredInBatteries;
+    }
+    
+    public int getLastTickEnergyDrawnFromBatteries() {
+        return lastTickEnergyDrawnFromBatteries;
+    }
+    
+    public boolean isActive() {
+        return active;
+    }
+    
+    public void setActive(boolean active) {
+        this.active = active;
     }
 } 

@@ -33,6 +33,9 @@ import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.PowerCableBlockEntity;
 import starduster.circuitmod.power.IPowerConnectable;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.hit.BlockHitResult;
 
 import java.util.Map;
 
@@ -235,5 +238,35 @@ public class PowerCableBlock extends BlockWithEntity {
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
         return world.isClient ? null : 
             validateTicker(type, ModBlockEntities.POWER_CABLE_BLOCK_ENTITY, PowerCableBlockEntity::tick);
+    }
+    
+    @Override
+    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+        if (!world.isClient) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof PowerCableBlockEntity cable) {
+                // Display cable and network info when right-clicked
+                player.sendMessage(Text.literal("§7Power Cable Status:"), false);
+                
+                if (cable.getNetwork() != null) {
+                    player.sendMessage(Text.literal("§7Network ID: §9" + cable.getNetwork().getNetworkId()), false);
+                    player.sendMessage(Text.literal("§7Connected to network with §9" + cable.getNetwork().getSize() + "§7 blocks"), false);
+                    player.sendMessage(Text.literal("§7Network energy: §9" + cable.getNetwork().getStoredEnergy() + "§7/§9" 
+                        + cable.getNetwork().getMaxStorage()), false);
+                    player.sendMessage(Text.literal("§7Last tick: §a+" + cable.getNetwork().getLastTickEnergyProduced() 
+                        + "§7 produced, §c-" + cable.getNetwork().getLastTickEnergyConsumed() + "§7 consumed"), false);
+                    
+                    // Show battery info if there are batteries on the network
+                    if (cable.getNetwork().getLastTickEnergyStoredInBatteries() > 0 || 
+                        cable.getNetwork().getLastTickEnergyDrawnFromBatteries() > 0) {
+                        player.sendMessage(Text.literal("§7Battery activity: §a+" + cable.getNetwork().getLastTickEnergyStoredInBatteries() 
+                            + "§7 stored, §c-" + cable.getNetwork().getLastTickEnergyDrawnFromBatteries() + "§7 drawn"), false);
+                    }
+                } else {
+                    player.sendMessage(Text.literal("§cNot connected to any network!"), false);
+                }
+            }
+        }
+        return ActionResult.SUCCESS;
     }
 } 
