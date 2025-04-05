@@ -35,12 +35,36 @@ public class Circuitmod implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		// Register our item group
+		// TODO Move the item groups to their own ModItemGroups class
 		Registry.register(Registries.ITEM_GROUP, ITEM_GROUP, FabricItemGroup.builder()
-			.displayName(Text.translatable("itemgroup." + MOD_ID + ".item_group"))
+			.displayName(Text.translatable("itemgroup." + MOD_ID + ".main"))
 			.icon(() -> new ItemStack(ModItems.LEAD_INGOT))
 			.entries((displayContext, entries) -> {
 				// Add all mod items to the creative tab
+				entries.add(ModItems.RAW_BAUXITE);
+				entries.add(ModItems.CRUSHED_BAUXITE);
+				entries.add(ModItems.ALUMINUM_INGOT);
+
+				entries.add(ModItems.GRAPHITE);
+				entries.add(ModItems.GRAPHITE_POWDER);
+
+				entries.add(ModItems.RAW_LEAD);
+				entries.add(ModItems.LEAD_POWDER);
 				entries.add(ModItems.LEAD_INGOT);
+
+				entries.add(ModItems.IRON_POLE);
+				entries.add(ModItems.STEEL_INGOT);
+
+				entries.add(ModItems.NATURAL_RUBBER);
+				entries.add(ModItems.SYNTHETIC_RUBBER);
+				entries.add(ModItems.PLASTIC_PELLET);
+				entries.add(ModItems.PLASTIC_BAR);
+
+				entries.add(ModItems.STONE_DUST);
+
+				entries.add(ModItems.ZIRCONIUM_POWDER);
+				entries.add(ModItems.ZIRCONIUM_INGOT);
+				entries.add(ModItems.ZIRCONIUM_TUBE);
 				// Add quarry block to the creative tab
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
