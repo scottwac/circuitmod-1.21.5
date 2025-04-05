@@ -23,6 +23,27 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(BloomeryBlockEntity::new, ModBlocks.BLOOMERY).build()
     );
 
+    // Add power cable block entity
+    public static final BlockEntityType<PowerCableBlockEntity> POWER_CABLE_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "power_cable"),
+        FabricBlockEntityTypeBuilder.create(PowerCableBlockEntity::new, ModBlocks.POWER_CABLE).build()
+    );
+
+    // Add creative generator block entity
+    public static final BlockEntityType<CreativeGeneratorBlockEntity> CREATIVE_GENERATOR_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "creative_generator"),
+        FabricBlockEntityTypeBuilder.create(CreativeGeneratorBlockEntity::new, ModBlocks.CREATIVE_GENERATOR).build()
+    );
+
+    // Add creative consumer block entity
+    public static final BlockEntityType<CreativeConsumerBlockEntity> CREATIVE_CONSUMER_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "creative_consumer"),
+        FabricBlockEntityTypeBuilder.create(CreativeConsumerBlockEntity::new, ModBlocks.CREATIVE_CONSUMER).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

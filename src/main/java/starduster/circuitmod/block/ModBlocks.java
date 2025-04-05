@@ -24,6 +24,32 @@ public final class ModBlocks {
             .strength(3.5f)
             .luminance(state -> 13) // Light when active, would need a blockstate for this
     );
+    
+    // Register power cable block
+    public static final Block POWER_CABLE = register(
+        "power_cable",
+        PowerCableBlock::new,
+        Block.Settings.create()
+            .strength(1.5f)
+            .nonOpaque() // So we can see through the cable
+    );
+    
+    // Register creative generator block
+    public static final Block CREATIVE_GENERATOR = register(
+        "creative_generator",
+        CreativeGeneratorBlock::new,
+        Block.Settings.create()
+            .strength(3.5f)
+            .luminance(state -> 5) // Slight glow
+    );
+    
+    // Register creative consumer block
+    public static final Block CREATIVE_CONSUMER = register(
+        "creative_consumer",
+        CreativeConsumerBlock::new,
+        Block.Settings.create()
+            .strength(3.5f)
+    );
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
         final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);

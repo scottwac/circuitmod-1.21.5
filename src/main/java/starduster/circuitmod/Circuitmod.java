@@ -44,6 +44,9 @@ public class Circuitmod implements ModInitializer {
 				// Add quarry block to the creative tab
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
+				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab
+				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
+				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 				
 				// Add more mod items here as they are created
 			})
