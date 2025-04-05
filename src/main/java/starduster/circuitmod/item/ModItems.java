@@ -1,6 +1,7 @@
 package starduster.circuitmod.item;
 
 import net.minecraft.item.Item;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -15,16 +16,12 @@ public final class ModItems {
     }
     
     // Define the lead ingot item
-    public static final Item LEAD_INGOT = register("lead_ingot", Item::new);
+    public static final Item LEAD_INGOT = register("lead_ingot", Item::new, new Item.Settings());
     
     // Registration helper
-    private static Item register(String id, Function<Item.Settings, Item> factory) {
-        // Create the item key
-        RegistryKey<Item> itemKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(Circuitmod.MOD_ID, id));
-        // Create settings with registry key
-        Item.Settings settings = new Item.Settings().registryKey(itemKey);
-        // Create and register the item
-        return Registry.register(Registries.ITEM, itemKey, factory.apply(settings));
+    public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {
+        final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod", path));
+        return Items.register(registryKey, factory, settings);
     }
     
     // Initialize method to be called from the main mod class
