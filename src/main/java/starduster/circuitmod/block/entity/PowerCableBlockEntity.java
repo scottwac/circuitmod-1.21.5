@@ -263,13 +263,13 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Process network energy transfers once per tick
             blockEntity.network.tick();
             
-            // Every 20 ticks (about 1 second), check for neighbors that aren't in a network
-            if (world.getTime() % 20 == 0) {
+            // Check for neighbors that aren't in a network every 5 ticks (increased frequency)
+            if (world.getTime() % 5 == 0) {
                 checkForUnconnectedNeighbors(world, pos, blockEntity);
             }
         } else {
-            // If we don't have a network, try to establish one
-            if (world.getTime() % 20 == 0) {
+            // If we don't have a network, try to establish one more frequently
+            if (world.getTime() % 5 == 0) {
                 blockEntity.updateNetworkConnections();
             }
         }
@@ -287,8 +287,13 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             BlockPos neighborPos = pos.offset(dir);
             BlockEntity be = world.getBlockEntity(neighborPos);
             
-            if (be instanceof IPowerConnectable && !(be instanceof PowerCableBlockEntity)) {
+            if (be instanceof IPowerConnectable) {
                 IPowerConnectable connectable = (IPowerConnectable) be;
+                
+                // Debug the neighbor's current state
+                Circuitmod.LOGGER.debug("Cable at " + pos + " checking neighbor at " + neighborPos + 
+                                       ": hasNetwork=" + (connectable.getNetwork() != null) +
+                                       ", canConnect=" + connectable.canConnectPower(dir.getOpposite()));
                 
                 // Check if the neighbor can connect to this side and doesn't have a network yet
                 if (connectable.getNetwork() == null && 
@@ -307,11 +312,13 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                          connectable.canConnectPower(dir.getOpposite()) && 
                          cable.canConnectPower(dir)) {
                     
-                    Circuitmod.LOGGER.info("Cable at " + pos + " found neighbor with different network at " + neighborPos);
+                    Circuitmod.LOGGER.info("Cable at " + pos + " found neighbor with different network at " + neighborPos + 
+                                          " (Network ID: " + connectable.getNetwork().getNetworkId() + ")");
                     
                     // Merge networks
                     cable.network.mergeWith(connectable.getNetwork());
-                    Circuitmod.LOGGER.info("Merged networks at " + pos);
+                    Circuitmod.LOGGER.info("Merged networks at " + pos + ": " + 
+                                          connectable.getNetwork().getNetworkId() + " -> " + cable.network.getNetworkId());
                 }
             }
         }

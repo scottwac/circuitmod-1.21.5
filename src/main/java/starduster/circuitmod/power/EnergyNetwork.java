@@ -19,7 +19,7 @@ import starduster.circuitmod.Circuitmod;
 public class EnergyNetwork {
     private boolean active = true;
     private int storedEnergy = 0;
-    private int maxStorage = 10000; // Default value
+    private int maxStorage = 1; // Limited to 1 energy unit buffer
     private String networkId;
     
     // Track all components in this network
@@ -389,7 +389,7 @@ public class EnergyNetwork {
         // Load basic properties
         active = nbt.getBoolean("active").orElse(true);
         storedEnergy = nbt.getInt("storedEnergy").orElse(0);
-        maxStorage = nbt.getInt("maxStorage").orElse(10000);
+        maxStorage = 1; // Always keep max storage at 1
         
         // Load network ID or generate a new one if not present
         if (nbt.contains("networkId")) {

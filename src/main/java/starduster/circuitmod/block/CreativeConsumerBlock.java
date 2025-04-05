@@ -23,6 +23,7 @@ import starduster.circuitmod.block.entity.PowerCableBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
 import starduster.circuitmod.Circuitmod;
+import net.minecraft.server.world.ServerWorld;
 
 public class CreativeConsumerBlock extends BlockWithEntity {
     public static final MapCodec<CreativeConsumerBlock> CODEC = createCodec(CreativeConsumerBlock::new);
@@ -138,5 +139,23 @@ public class CreativeConsumerBlock extends BlockWithEntity {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
         return validateTicker(type, ModBlockEntities.CREATIVE_CONSUMER_BLOCK_ENTITY, CreativeConsumerBlockEntity::tick);
+    }
+
+    @Override
+    protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            // Handle network updates when this block is removed
+            BlockEntity entity = world.getBlockEntity(pos);
+            if (entity instanceof CreativeConsumerBlockEntity consumer) {
+                EnergyNetwork network = consumer.getNetwork();
+                if (network != null) {
+                    // Remove this block from the network
+                    network.removeBlock(pos);
+                    Circuitmod.LOGGER.info("Consumer at " + pos + " removed from network " + network.getNetworkId());
+                }
+            }
+        }
+        
+        super.onStateReplaced(state, world, pos, moved);
     }
 } 
