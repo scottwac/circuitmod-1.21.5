@@ -235,43 +235,91 @@ public class EnergyNetwork {
         lastTickEnergyStoredInBatteries = 0;
         lastTickEnergyDrawnFromBatteries = 0;
         
-        // Step 1: Collect energy from producers
+        // Step 1: Calculate total energy production from all producers
+        int totalProduction = 0;
         for (IEnergyProducer producer : producers) {
-            int produced = producer.produceEnergy(maxStorage - storedEnergy);
-            storedEnergy += produced;
-            lastTickEnergyProduced += produced;
-            
-            // Stop if we're full
-            if (storedEnergy >= maxStorage) {
-                storedEnergy = maxStorage;
-                break;
-            }
+            // Just calculate what each producer can produce, but don't actually produce it yet
+            int canProduce = producer.getMaxOutput();
+            totalProduction += canProduce;
         }
         
-        // Step 2: Calculate total demand
+        // Step 2: Calculate total energy demand from all consumers
         int totalDemand = 0;
         for (IEnergyConsumer consumer : consumers) {
             totalDemand += consumer.getEnergyDemand();
         }
         
-        // Step 3: Check for energy surplus/deficit
-        int energySurplus = storedEnergy - totalDemand;
+        // Step 3: Determine energy flow
+        int actualProduction = 0;
+        int energyForConsumers = 0;
+        int energyForBatteries = 0;
+        int energyFromBatteries = 0;
         
-        // If we have a surplus, try to store in batteries
-        if (energySurplus > 0 && !batteries.isEmpty()) {
-            storeEnergyInBatteries(energySurplus);
+        if (totalProduction >= totalDemand) {
+            // We have enough production to meet demand
+            actualProduction = totalDemand; // Only produce what we need
+            energyForConsumers = totalDemand;
+            
+            // If we can produce more than needed, store excess in batteries
+            int excessProduction = totalProduction - totalDemand;
+            if (excessProduction > 0 && !batteries.isEmpty()) {
+                energyForBatteries = excessProduction;
+            }
+        } else {
+            // Not enough production, use all available production
+            actualProduction = totalProduction;
+            energyForConsumers = totalProduction;
+            
+            // Try to draw the deficit from batteries
+            int deficit = totalDemand - totalProduction;
+            if (deficit > 0 && !batteries.isEmpty()) {
+                energyFromBatteries = drawEnergyFromBatteries(deficit);
+                energyForConsumers += energyFromBatteries;
+            }
         }
         
-        // If we have a deficit, try to get energy from batteries
-        int energyDeficit = totalDemand - storedEnergy;
-        if (energyDeficit > 0 && !batteries.isEmpty()) {
-            int energyFromBatteries = drawEnergyFromBatteries(energyDeficit);
-            storedEnergy += energyFromBatteries;
-            lastTickEnergyDrawnFromBatteries = energyFromBatteries;
+        // Step 4: Actually produce energy from producers (up to what we need)
+        int remainingToCollect = actualProduction;
+        storedEnergy = 0; // Reset stored energy - we'll recalculate it
+        
+        for (IEnergyProducer producer : producers) {
+            if (remainingToCollect <= 0) break;
+            
+            int produced = producer.produceEnergy(remainingToCollect);
+            lastTickEnergyProduced += produced;
+            storedEnergy += produced;
+            remainingToCollect -= produced;
         }
         
-        // Step 4: Distribute energy to consumers
-        if (totalDemand <= storedEnergy) {
+        // Step 5: Store excess energy in batteries (if applicable)
+        if (energyForBatteries > 0) {
+            int realExcessProduction = totalProduction - actualProduction;
+            if (realExcessProduction > 0) {
+                // We need to actually produce this excess energy
+                int excessToCollect = realExcessProduction;
+                int excessCollected = 0;
+                
+                for (IEnergyProducer producer : producers) {
+                    if (excessToCollect <= 0) break;
+                    
+                    int produced = producer.produceEnergy(excessToCollect);
+                    excessCollected += produced;
+                    lastTickEnergyProduced += produced;
+                    excessToCollect -= produced;
+                }
+                
+                if (excessCollected > 0) {
+                    int stored = storeEnergyInBatteries(excessCollected);
+                    lastTickEnergyStoredInBatteries = stored;
+                }
+            }
+        }
+        
+        // Track energy from batteries
+        lastTickEnergyDrawnFromBatteries = energyFromBatteries;
+        
+        // Step 6: Distribute energy to consumers
+        if (energyForConsumers >= totalDemand) {
             // We have enough energy for everyone
             for (IEnergyConsumer consumer : consumers) {
                 int requested = consumer.getEnergyDemand();
@@ -279,9 +327,9 @@ public class EnergyNetwork {
                 storedEnergy -= provided;
                 lastTickEnergyConsumed += provided;
             }
-        } else if (storedEnergy > 0) {
+        } else if (energyForConsumers > 0) {
             // Not enough energy - distribute proportionally
-            float ratio = (float) storedEnergy / totalDemand;
+            float ratio = (float) energyForConsumers / totalDemand;
             
             for (IEnergyConsumer consumer : consumers) {
                 int requested = consumer.getEnergyDemand();
@@ -298,9 +346,20 @@ public class EnergyNetwork {
             }
         }
         
-        // Step 5: If we still have surplus energy after consumers, store in batteries
-        if (storedEnergy > 0 && !batteries.isEmpty()) {
-            storeEnergyInBatteries(storedEnergy);
+        // Ensure stored energy doesn't exceed our buffer
+        if (storedEnergy > maxStorage) {
+            // Try to put excess into batteries
+            if (!batteries.isEmpty()) {
+                int excess = storedEnergy - maxStorage;
+                int stored = storeEnergyInBatteries(excess);
+                lastTickEnergyStoredInBatteries += stored;
+                storedEnergy -= stored;
+            }
+            
+            // Cap at max storage regardless
+            if (storedEnergy > maxStorage) {
+                storedEnergy = maxStorage;
+            }
         }
     }
     

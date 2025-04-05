@@ -263,14 +263,85 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Process network energy transfers once per tick
             blockEntity.network.tick();
             
-            // Check for neighbors that aren't in a network every 5 ticks (increased frequency)
-            if (world.getTime() % 5 == 0) {
+            // Check for network integrity every tick
+            validateNetworkIntegrity(world, pos, blockEntity);
+            
+            // Check for neighbors that aren't in a network every 2 ticks (high frequency)
+            if (world.getTime() % 2 == 0) {
                 checkForUnconnectedNeighbors(world, pos, blockEntity);
             }
+            
+            // Periodically verify all network connections and remove invalid ones
+            if (world.getTime() % 10 == 0) {
+                validateNetworkConnections(world, blockEntity);
+            }
         } else {
-            // If we don't have a network, try to establish one more frequently
-            if (world.getTime() % 5 == 0) {
-                blockEntity.updateNetworkConnections();
+            // If we don't have a network, try to establish one every tick
+            blockEntity.updateNetworkConnections();
+        }
+    }
+    
+    /**
+     * Validates the integrity of the network, ensuring all blocks are properly connected.
+     */
+    private static void validateNetworkIntegrity(World world, BlockPos pos, PowerCableBlockEntity cable) {
+        if (cable.network == null) {
+            return;
+        }
+        
+        // Simple check - just verify our own connection
+        // This is fast and runs every tick
+        if (cable.getNetwork() != null && cable.getNetwork().getSize() > 0) {
+            if (!cable.getNetwork().getConnectedBlockPositions().contains(pos)) {
+                Circuitmod.LOGGER.info("Cable at " + pos + " not found in its own network, reconnecting...");
+                cable.updateNetworkConnections();
+            }
+        }
+    }
+    
+    /**
+     * Periodically validates all network connections, removing any invalid ones.
+     */
+    private static void validateNetworkConnections(World world, PowerCableBlockEntity cable) {
+        if (cable.network == null) {
+            return;
+        }
+        
+        BlockPos pos = cable.getPos();
+        Set<BlockPos> invalidPositions = new HashSet<>();
+        Set<BlockPos> connectedPositions = cable.network.getConnectedBlockPositions();
+        
+        // Check for invalid connections (blocks that no longer exist or are no longer connectable)
+        for (BlockPos blockPos : connectedPositions) {
+            if (!world.isChunkLoaded(blockPos.getX() >> 4, blockPos.getZ() >> 4)) {
+                continue; // Skip unloaded chunks
+            }
+            
+            BlockEntity be = world.getBlockEntity(blockPos);
+            
+            // If block entity doesn't exist or is no longer a power connectable
+            if (!(be instanceof IPowerConnectable)) {
+                Circuitmod.LOGGER.info("Found invalid block at " + blockPos + " in network " + cable.network.getNetworkId() + ", scheduling removal");
+                invalidPositions.add(blockPos);
+            } 
+            // Or if it exists but has a different network
+            else if (((IPowerConnectable) be).getNetwork() != cable.network) {
+                Circuitmod.LOGGER.info("Block at " + blockPos + " has a different network, scheduling removal");
+                invalidPositions.add(blockPos);
+            }
+        }
+        
+        // Remove invalid positions from the network
+        if (!invalidPositions.isEmpty()) {
+            for (BlockPos invalidPos : invalidPositions) {
+                cable.network.removeBlock(invalidPos);
+                Circuitmod.LOGGER.info("Removed invalid block at " + invalidPos + " from network " + cable.network.getNetworkId());
+            }
+            
+            // If we're still in the network after cleanup, rebuild from our position
+            if (cable.network.getSize() > 0 && cable.network.getConnectedBlockPositions().contains(pos)) {
+                cable.network.rebuild(world, pos);
+                Circuitmod.LOGGER.info("Rebuilt network " + cable.network.getNetworkId() + " after removing invalid blocks");
             }
         }
     }
