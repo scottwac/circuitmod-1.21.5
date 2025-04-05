@@ -5,10 +5,12 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.ChestBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
@@ -60,6 +62,22 @@ public class ItemPipeBlock extends BlockWithEntity {
         Direction.UP, UP,
         Direction.DOWN, DOWN
     );
+    
+    // Core shape for the center of the pipe
+    private static final VoxelShape CORE_SHAPE = Block.createCuboidShape(6.0, 6.0, 6.0, 10.0, 10.0, 10.0);
+    
+    // Shapes for each connection direction
+    private static final VoxelShape NORTH_SHAPE = Block.createCuboidShape(6.0, 6.0, 0.0, 10.0, 10.0, 6.0);
+    private static final VoxelShape EAST_SHAPE = Block.createCuboidShape(10.0, 6.0, 6.0, 16.0, 10.0, 10.0);
+    private static final VoxelShape SOUTH_SHAPE = Block.createCuboidShape(6.0, 6.0, 10.0, 10.0, 10.0, 16.0);
+    private static final VoxelShape WEST_SHAPE = Block.createCuboidShape(0.0, 6.0, 6.0, 6.0, 10.0, 10.0);
+    private static final VoxelShape UP_SHAPE = Block.createCuboidShape(6.0, 10.0, 6.0, 10.0, 16.0, 10.0);
+    private static final VoxelShape DOWN_SHAPE = Block.createCuboidShape(6.0, 0.0, 6.0, 10.0, 6.0, 10.0);
+    
+    // Special shape for when a pipe is above a chest - only use horizontal connections and center to allow chest to open
+    private static final VoxelShape ABOVE_CHEST_SHAPE = VoxelShapes.union(
+        CORE_SHAPE, NORTH_SHAPE, EAST_SHAPE, SOUTH_SHAPE, WEST_SHAPE
+    );
 
     @Override
     public MapCodec<ItemPipeBlock> getCodec() {
@@ -86,6 +104,48 @@ public class ItemPipeBlock extends BlockWithEntity {
     public BlockRenderType getRenderType(BlockState state) {
         return BlockRenderType.MODEL;
     }
+    
+    @Override
+    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        VoxelShape shape = CORE_SHAPE;
+        
+        // Add shapes for each connection
+        if (state.get(NORTH)) {
+            shape = VoxelShapes.union(shape, NORTH_SHAPE);
+        }
+        if (state.get(EAST)) {
+            shape = VoxelShapes.union(shape, EAST_SHAPE);
+        }
+        if (state.get(SOUTH)) {
+            shape = VoxelShapes.union(shape, SOUTH_SHAPE);
+        }
+        if (state.get(WEST)) {
+            shape = VoxelShapes.union(shape, WEST_SHAPE);
+        }
+        if (state.get(UP)) {
+            shape = VoxelShapes.union(shape, UP_SHAPE);
+        }
+        if (state.get(DOWN)) {
+            shape = VoxelShapes.union(shape, DOWN_SHAPE);
+        }
+        
+        return shape;
+    }
+    
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        // Check if this pipe is above a chest - if so, use a shape that won't block chest opening
+        BlockPos belowPos = pos.down();
+        BlockState belowState = world.getBlockState(belowPos);
+        
+        if (belowState.getBlock() instanceof ChestBlock) {
+            // Use the shape that doesn't extend downward
+            return ABOVE_CHEST_SHAPE;
+        }
+        
+        // Otherwise use the normal outline shape
+        return getOutlineShape(state, world, pos, context);
+    }
 
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
@@ -105,8 +165,6 @@ public class ItemPipeBlock extends BlockWithEntity {
             ItemPipeBlockEntity.tick(tickWorld, pos, tickState, blockEntity);
         });
     }
-    
-    
     
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
