@@ -1,6 +1,6 @@
 {
   "parent": "block/cube_all",
   "textures": {
-    "all": "circuitmod:block/creative_consumer"
+    "all": "circuitmod:block/tempblocks/creative_con"
   }
 } 

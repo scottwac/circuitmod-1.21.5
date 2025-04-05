@@ -1,6 +1,6 @@
 {
   "parent": "block/cube_all",
   "textures": {
-    "all": "circuitmod:block/creative_generator"
+    "all": "circuitmod:block/tempblocks/creative_gen"
   }
 } 
