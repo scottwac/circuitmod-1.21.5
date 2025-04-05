@@ -37,11 +37,17 @@ public class QuarryBlock extends BlockWithEntity {
         return new QuarryBlockEntity(pos, state);
     }
 
-    // Show message on right-click
+    // Update onUse to open the GUI
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
         if (!world.isClient) {
-            player.sendMessage(Text.literal("Quarry Block Activated!"), false);
+            // Access the block entity
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            
+            if (blockEntity instanceof QuarryBlockEntity) {
+                // Open the screen handler through the named screen handler factory
+                player.openHandledScreen((QuarryBlockEntity) blockEntity);
+            }
         }
         return ActionResult.SUCCESS;
     }

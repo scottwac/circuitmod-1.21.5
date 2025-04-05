@@ -13,7 +13,7 @@ import net.minecraft.util.Identifier;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
-
+import starduster.circuitmod.screen.ModScreenHandlers;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +57,7 @@ public class Circuitmod implements ModInitializer {
 		ModItems.initialize();
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
+		ModScreenHandlers.initialize();
 		
 		LOGGER.info("Hello Fabric world!");
 	}
