@@ -107,9 +107,17 @@ public class EnergyNetwork {
                 batteries.remove(block);
             }
             
-            // If we removed a block, we need to check if the network should split
-            // This would be called by the block being removed
+            // Clear the network reference from the block
+            block.setNetwork(null);
+            
+            // Log the removal
             Circuitmod.LOGGER.debug("Removed block at " + pos + " from energy network. Network size: " + connectedBlocks.size());
+            
+            // If the network is now empty, deactivate it
+            if (connectedBlocks.isEmpty()) {
+                active = false;
+                Circuitmod.LOGGER.info("Network " + networkId + " is now empty and inactive");
+            }
         }
     }
     

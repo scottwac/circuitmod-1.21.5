@@ -13,6 +13,7 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyStorage;
+import starduster.circuitmod.power.IPowerConnectable;
 
 public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
     // Default values - can be modified for different battery tiers
@@ -90,6 +91,12 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
     
     @Override
     public void setNetwork(EnergyNetwork network) {
+        // If we already have a network and it's different, properly disconnect
+        if (this.network != null && this.network != network) {
+            this.network.removeBlock(pos);
+            Circuitmod.LOGGER.info("Battery at " + pos + " disconnected from network " + this.network.getNetworkId());
+        }
+        
         this.network = network;
     }
     
@@ -197,33 +204,104 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
         markDirty();
     }
     
-    // Tick method
-    public static void tick(World world, BlockPos pos, BlockState state, BatteryBlockEntity blockEntity) {
-        if (world.isClient() || blockEntity.network == null) {
+    /**
+     * Attempts to find and join a network from adjacent connectable blocks.
+     * Should be called when this battery's network connection might have changed.
+     */
+    public void findAndJoinNetwork() {
+        if (world == null || world.isClient) return;
+        
+        boolean foundNetwork = false;
+        
+        // Look for adjacent networks
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            
+            if (be instanceof IPowerConnectable) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                EnergyNetwork network = connectable.getNetwork();
+                
+                if (network != null && network != this.network) {
+                    // Found a network, join it
+                    if (this.network != null) {
+                        // Remove from old network first
+                        this.network.removeBlock(pos);
+                        Circuitmod.LOGGER.info("Battery at " + pos + " left network " + this.network.getNetworkId());
+                    }
+                    
+                    network.addBlock(pos, this);
+                    foundNetwork = true;
+                    Circuitmod.LOGGER.info("Battery at " + pos + " joined existing network " + network.getNetworkId());
+                    break;
+                }
+            }
+        }
+        
+        // If no existing network was found, create a new one
+        if (!foundNetwork && (this.network == null)) {
+            Circuitmod.LOGGER.info("No existing network found for battery at " + pos + ", creating new network");
+            
+            // Create a new network
+            EnergyNetwork newNetwork = new EnergyNetwork();
+            newNetwork.addBlock(pos, this);
+            
+            // Try to add adjacent connectables to this new network
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.offset(dir);
+                BlockEntity be = world.getBlockEntity(neighborPos);
+                
+                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
+                    IPowerConnectable connectable = (IPowerConnectable) be;
+                    
+                    // Only add if it doesn't already have a network and can connect
+                    if (connectable.canConnectPower(dir.getOpposite()) && 
+                        this.canConnectPower(dir)) {
+                        
+                        newNetwork.addBlock(neighborPos, connectable);
+                        Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to new network " + newNetwork.getNetworkId());
+                    }
+                }
+            }
+            
+            Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " with battery at " + pos);
+        }
+    }
+
+    // Add network handling logic to the tick method
+    public static void tick(World world, BlockPos pos, BlockState state, BatteryBlockEntity entity) {
+        if (world.isClient() || entity.network == null) {
             return;
         }
         
         // Increment tick counter
-        blockEntity.tickCounter++;
+        entity.tickCounter++;
+        
+        // Periodically check if we should be in a network
+        if (entity.tickCounter % 20 == 0 && !world.isClient) {  // Check every second
+            if (entity.network == null) {
+                entity.findAndJoinNetwork();
+            }
+        }
         
         // Send status message every UPDATE_INTERVAL ticks
-        if (blockEntity.tickCounter >= UPDATE_INTERVAL) {
-            blockEntity.tickCounter = 0;
+        if (entity.tickCounter >= UPDATE_INTERVAL) {
+            entity.tickCounter = 0;
             
             // Get all players in a 32 block radius and send them the status message
             for (PlayerEntity player : ((ServerWorld)world).getPlayers(p -> 
                 p.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 1024)) {
                 
-                int chargePercentage = (int)((float)blockEntity.storedEnergy / blockEntity.maxCapacity * 100);
-                player.sendMessage(Text.literal("§6[Battery] §7Stored energy: §e" + blockEntity.storedEnergy + "§7/§e" + blockEntity.maxCapacity 
+                int chargePercentage = (int)((float)entity.storedEnergy / entity.maxCapacity * 100);
+                player.sendMessage(Text.literal("§6[Battery] §7Stored energy: §e" + entity.storedEnergy + "§7/§e" + entity.maxCapacity 
                     + " §7(§e" + chargePercentage + "%§7)"), false);
                 
-                if (blockEntity.network != null) {
-                    player.sendMessage(Text.literal("§7Network §6" + blockEntity.network.getNetworkId() + "§7: §e" 
-                        + blockEntity.network.getStoredEnergy() + "§7/§e" 
-                        + blockEntity.network.getMaxStorage() + " §7(§a+" 
-                        + blockEntity.network.getLastTickEnergyProduced() + "§7, §c-" 
-                        + blockEntity.network.getLastTickEnergyConsumed() + "§7)"), false);
+                if (entity.network != null) {
+                    player.sendMessage(Text.literal("§7Network §6" + entity.network.getNetworkId() + "§7: §e" 
+                        + entity.network.getStoredEnergy() + "§7/§e" 
+                        + entity.network.getMaxStorage() + " §7(§a+" 
+                        + entity.network.getLastTickEnergyProduced() + "§7, §c-" 
+                        + entity.network.getLastTickEnergyConsumed() + "§7)"), false);
                 }
             }
         }
