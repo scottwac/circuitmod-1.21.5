@@ -3,6 +3,7 @@
   "textures": {
     "front": "circuitmod:block/bloomery/bloomery_front",
     "side": "circuitmod:block/bloomery/bloomery_side",
-    "top": "circuitmod:block/bloomery/bloomery_top"
+    "top": "circuitmod:block/bloomery/bloomery_top",
+    "bottom": "circuitmod:block/bloomery/bloomery_top"
   }
 }

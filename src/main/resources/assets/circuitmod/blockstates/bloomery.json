@@ -4,20 +4,31 @@
       "model": "circuitmod:block/bloomery",
       "y": 90
     },
-
+    "facing=east,lit=true": {
+      "model": "circuitmod:block/bloomery",
+      "y": 90
+    },
     "facing=north,lit=false": {
       "model": "circuitmod:block/bloomery"
     },
-
+    "facing=north,lit=true": {
+      "model": "circuitmod:block/bloomery"
+    },
     "facing=south,lit=false": {
       "model": "circuitmod:block/bloomery",
       "y": 180
     },
-
+    "facing=south,lit=true": {
+      "model": "circuitmod:block/bloomery",
+      "y": 180
+    },
     "facing=west,lit=false": {
       "model": "circuitmod:block/bloomery",
       "y": 270
+    },
+    "facing=west,lit=true": {
+      "model": "circuitmod:block/bloomery",
+      "y": 270
     }
-
   }
 }

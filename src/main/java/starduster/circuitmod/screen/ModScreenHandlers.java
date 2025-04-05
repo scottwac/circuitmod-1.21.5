@@ -16,6 +16,14 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(QuarryScreenHandler::new, FeatureSet.empty())
         );
     
+    // Register bloomery screen handler
+    public static final ScreenHandlerType<BloomeryScreenHandler> BLOOMERY_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "bloomery"),
+            new ScreenHandlerType<>(BloomeryScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }

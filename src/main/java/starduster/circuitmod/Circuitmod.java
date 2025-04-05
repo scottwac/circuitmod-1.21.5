@@ -43,6 +43,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.LEAD_INGOT);
 				// Add quarry block to the creative tab
 				entries.add(ModBlocks.QUARRY_BLOCK);
+				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
 				
 				// Add more mod items here as they are created
 			})
