@@ -13,7 +13,9 @@ import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * BlockEntity for the power cable that connects energy producers and consumers.
@@ -55,12 +57,18 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             return;
         }
         
+        Circuitmod.LOGGER.info("Cable at " + pos + " removed. Handling network changes...");
+        
+        // Store connected blocks before removing this one (for notification)
+        Set<BlockPos> connectedPositions = new HashSet<>(network.getConnectedBlockPositions());
+        
         // Remove this block from the network
         network.removeBlock(pos);
         
         // If there are still blocks in the network, choose one to rebuild from
         if (network.getSize() > 0) {
             // Find an adjacent block that's still in the network to rebuild from
+            BlockPos rebuildFrom = null;
             for (Direction dir : Direction.values()) {
                 BlockPos neighborPos = pos.offset(dir);
                 BlockEntity be = world.getBlockEntity(neighborPos);
@@ -69,9 +77,43 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                     IPowerConnectable connectable = (IPowerConnectable) be;
                     if (connectable.getNetwork() == network) {
                         // Found a block still in the network, rebuild from it
-                        network.rebuild(world, neighborPos);
-                        return;
+                        rebuildFrom = neighborPos;
+                        break;
                     }
+                }
+            }
+            
+            if (rebuildFrom != null) {
+                // Get the disconnected blocks after rebuilding
+                Set<BlockPos> disconnectedPositions = network.rebuild(world, rebuildFrom);
+                
+                // Create new networks for disconnected blocks that are still valid
+                createNetworksForDisconnectedBlocks(disconnectedPositions);
+                
+                Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " rebuilt from " + rebuildFrom);
+            } else {
+                // No blocks adjacent to the removed cable are in the network
+                // We need to scan the entire network to find a valid block for rebuilding
+                boolean foundRebuildBlock = false;
+                for (BlockPos blockPos : connectedPositions) {
+                    if (blockPos.equals(pos)) continue; // Skip the removed cable
+                    
+                    BlockEntity be = world.getBlockEntity(blockPos);
+                    if (be instanceof IPowerConnectable) {
+                        // Rebuild from this block
+                        Set<BlockPos> disconnectedPositions = network.rebuild(world, blockPos);
+                        createNetworksForDisconnectedBlocks(disconnectedPositions);
+                        foundRebuildBlock = true;
+                        Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " rebuilt from non-adjacent block " + blockPos);
+                        break;
+                    }
+                }
+                
+                if (!foundRebuildBlock) {
+                    // If we can't find any valid block for rebuilding, the network is invalid
+                    // Clear it entirely and create new networks for all disconnected blocks
+                    createNetworksForDisconnectedBlocks(connectedPositions);
+                    Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " completely dissolved");
                 }
             }
         }
@@ -212,11 +254,142 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
      * Called every tick to update the network.
      */
     public static void tick(World world, BlockPos pos, BlockState state, PowerCableBlockEntity blockEntity) {
-        if (world.isClient() || blockEntity.network == null) {
+        if (world.isClient()) {
             return;
         }
         
-        // Process network energy transfers once per tick
-        blockEntity.network.tick();
+        // Check if we have a network
+        if (blockEntity.network != null) {
+            // Process network energy transfers once per tick
+            blockEntity.network.tick();
+            
+            // Every 20 ticks (about 1 second), check for neighbors that aren't in a network
+            if (world.getTime() % 20 == 0) {
+                checkForUnconnectedNeighbors(world, pos, blockEntity);
+            }
+        } else {
+            // If we don't have a network, try to establish one
+            if (world.getTime() % 20 == 0) {
+                blockEntity.updateNetworkConnections();
+            }
+        }
+    }
+    
+    /**
+     * Checks for neighboring blocks that should be connected to this network but aren't.
+     */
+    private static void checkForUnconnectedNeighbors(World world, BlockPos pos, PowerCableBlockEntity cable) {
+        if (cable.network == null) {
+            return;
+        }
+        
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            
+            if (be instanceof IPowerConnectable && !(be instanceof PowerCableBlockEntity)) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                
+                // Check if the neighbor can connect to this side and doesn't have a network yet
+                if (connectable.getNetwork() == null && 
+                    connectable.canConnectPower(dir.getOpposite()) && 
+                    cable.canConnectPower(dir)) {
+                    
+                    Circuitmod.LOGGER.info("Cable at " + pos + " found unconnected neighbor at " + neighborPos);
+                    
+                    // Add the block to our network
+                    cable.network.addBlock(neighborPos, connectable);
+                    Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to network " + cable.network.getNetworkId());
+                }
+                // If the neighbor has a different network, merge them
+                else if (connectable.getNetwork() != null && 
+                         connectable.getNetwork() != cable.network && 
+                         connectable.canConnectPower(dir.getOpposite()) && 
+                         cable.canConnectPower(dir)) {
+                    
+                    Circuitmod.LOGGER.info("Cable at " + pos + " found neighbor with different network at " + neighborPos);
+                    
+                    // Merge networks
+                    cable.network.mergeWith(connectable.getNetwork());
+                    Circuitmod.LOGGER.info("Merged networks at " + pos);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Creates new networks for disconnected blocks that are next to each other.
+     * 
+     * @param disconnectedPositions Positions of blocks that are disconnected from the network
+     */
+    private void createNetworksForDisconnectedBlocks(Set<BlockPos> disconnectedPositions) {
+        // Remove the position of this cable from the set as it's being removed
+        disconnectedPositions.remove(pos);
+        
+        // Make a copy for iterating
+        Set<BlockPos> remainingPositions = new HashSet<>(disconnectedPositions);
+        
+        while (!remainingPositions.isEmpty()) {
+            // Get the first position
+            BlockPos startPos = remainingPositions.iterator().next();
+            BlockEntity be = world.getBlockEntity(startPos);
+            
+            if (be instanceof IPowerConnectable) {
+                // Create a new network
+                EnergyNetwork newNetwork = new EnergyNetwork();
+                Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " for disconnected blocks");
+                
+                // Flood fill from this position to find all connected blocks
+                Set<BlockPos> visited = new HashSet<>();
+                floodFillDisconnected(startPos, remainingPositions, visited, newNetwork);
+                
+                // Remove all visited positions from the remaining set
+                remainingPositions.removeAll(visited);
+            } else {
+                // If there's no IPowerConnectable at this position, remove it
+                remainingPositions.remove(startPos);
+            }
+        }
+    }
+    
+    /**
+     * Performs a flood fill on disconnected blocks to group them into new networks.
+     * 
+     * @param currentPos Current position to check
+     * @param remainingPositions Set of positions still needing assignment
+     * @param visited Set of positions already visited
+     * @param newNetwork The new network to add blocks to
+     */
+    private void floodFillDisconnected(BlockPos currentPos, Set<BlockPos> remainingPositions, 
+                                       Set<BlockPos> visited, EnergyNetwork newNetwork) {
+        // Mark as visited
+        visited.add(currentPos);
+        
+        // Add to new network
+        BlockEntity be = world.getBlockEntity(currentPos);
+        if (be instanceof IPowerConnectable) {
+            IPowerConnectable connectable = (IPowerConnectable) be;
+            connectable.setNetwork(null); // Clear old network reference
+            newNetwork.addBlock(currentPos, connectable);
+        }
+        
+        // Check neighbors that are in the disconnected set
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = currentPos.offset(dir);
+            
+            if (remainingPositions.contains(neighborPos) && !visited.contains(neighborPos)) {
+                BlockEntity neighborBe = world.getBlockEntity(neighborPos);
+                
+                if (neighborBe instanceof IPowerConnectable) {
+                    IPowerConnectable neighbor = (IPowerConnectable) neighborBe;
+                    IPowerConnectable current = (IPowerConnectable) be;
+                    
+                    // Check if they can connect to each other
+                    if (neighbor.canConnectPower(dir.getOpposite()) && current.canConnectPower(dir)) {
+                        floodFillDisconnected(neighborPos, remainingPositions, visited, newNetwork);
+                    }
+                }
+            }
+        }
     }
 } 

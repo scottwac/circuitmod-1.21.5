@@ -19,8 +19,10 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.CreativeGeneratorBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.block.entity.PowerCableBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.Circuitmod;
 
 public class CreativeGeneratorBlock extends BlockWithEntity {
     public static final MapCodec<CreativeGeneratorBlock> CODEC = createCodec(CreativeGeneratorBlock::new);
@@ -76,6 +78,9 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
             // Check for adjacent power cables and connect to their network
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof CreativeGeneratorBlockEntity generator) {
+                // First, try to find an existing network to join
+                boolean foundNetwork = false;
+                
                 // Look for adjacent networks
                 for (Direction dir : Direction.values()) {
                     BlockPos neighborPos = pos.offset(dir);
@@ -88,9 +93,42 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
                         if (network != null) {
                             // Found a network, join it
                             network.addBlock(pos, generator);
+                            foundNetwork = true;
+                            Circuitmod.LOGGER.info("Generator at " + pos + " joined existing network " + network.getNetworkId());
                             break;
                         }
                     }
+                }
+                
+                // If no existing network was found, create a new one with any adjacent IPowerConnectable blocks
+                if (!foundNetwork) {
+                    Circuitmod.LOGGER.info("No existing network found for generator at " + pos + ", checking for other connectables");
+                    
+                    // Create a new network
+                    EnergyNetwork newNetwork = new EnergyNetwork();
+                    newNetwork.addBlock(pos, generator);
+                    
+                    // Try to add adjacent connectables to this new network
+                    for (Direction dir : Direction.values()) {
+                        BlockPos neighborPos = pos.offset(dir);
+                        BlockEntity be = world.getBlockEntity(neighborPos);
+                        
+                        if (be instanceof IPowerConnectable && !(be instanceof PowerCableBlockEntity)) {
+                            IPowerConnectable connectable = (IPowerConnectable) be;
+                            
+                            // Only add if it doesn't already have a network
+                            if (connectable.getNetwork() == null && 
+                                // Check both sides can connect
+                                connectable.canConnectPower(dir.getOpposite()) && 
+                                generator.canConnectPower(dir)) {
+                                
+                                newNetwork.addBlock(neighborPos, connectable);
+                                Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to new network " + newNetwork.getNetworkId());
+                            }
+                        }
+                    }
+                    
+                    Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " with generator at " + pos);
                 }
             }
         }

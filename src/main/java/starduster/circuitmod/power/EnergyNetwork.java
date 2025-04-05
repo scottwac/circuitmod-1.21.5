@@ -443,4 +443,13 @@ public class EnergyNetwork {
     public void setActive(boolean active) {
         this.active = active;
     }
+    
+    /**
+     * Gets all block positions in this network.
+     * 
+     * @return Set of all block positions in the network
+     */
+    public Set<BlockPos> getConnectedBlockPositions() {
+        return new HashSet<>(connectedBlocks.keySet());
+    }
 } 

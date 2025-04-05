@@ -32,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.PowerCableBlockEntity;
+import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
@@ -177,6 +178,17 @@ public class PowerCableBlock extends BlockWithEntity {
         else if (world.getBlockEntity(neighborPos) instanceof IPowerConnectable) {
             IPowerConnectable connectable = (IPowerConnectable) world.getBlockEntity(neighborPos);
             canConnect = connectable.canConnectPower(direction.getOpposite());
+            
+            // If this is a real world and not just a view, check for network connections
+            if (world instanceof World && canConnect) {
+                BlockEntity be = ((World) world).getBlockEntity(pos);
+                if (be instanceof PowerCableBlockEntity cable && cable.getNetwork() != null) {
+                    World realWorld = (World) world;
+                    
+                    // Schedule a tick to check for network connections to avoid modifying the world during neighbor updates
+                    realWorld.scheduleBlockTick(pos, this, 1);
+                }
+            }
         }
         
         return state.with(DIRECTION_PROPERTIES.get(direction), canConnect);
@@ -268,5 +280,42 @@ public class PowerCableBlock extends BlockWithEntity {
             }
         }
         return ActionResult.SUCCESS;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        // Get the block entity
+        BlockEntity be = world.getBlockEntity(pos);
+        if (be instanceof PowerCableBlockEntity cable) {
+            // Check for neighbor connections
+            if (cable.getNetwork() != null) {
+                for (Direction dir : Direction.values()) {
+                    if (state.get(DIRECTION_PROPERTIES.get(dir))) {
+                        BlockPos neighborPos = pos.offset(dir);
+                        BlockEntity neighborBe = world.getBlockEntity(neighborPos);
+                        
+                        if (neighborBe instanceof IPowerConnectable) {
+                            IPowerConnectable connectable = (IPowerConnectable) neighborBe;
+                            
+                            // If the neighbor doesn't have a network yet, add it to ours
+                            if (connectable.getNetwork() == null && connectable.canConnectPower(dir.getOpposite())) {
+                                Circuitmod.LOGGER.info("Scheduled tick: Adding neighbor at " + neighborPos + " to network " + cable.getNetwork().getNetworkId());
+                                cable.getNetwork().addBlock(neighborPos, connectable);
+                            }
+                            // If it has a different network, merge them
+                            else if (connectable.getNetwork() != null && 
+                                    connectable.getNetwork() != cable.getNetwork() && 
+                                    connectable.canConnectPower(dir.getOpposite())) {
+                                
+                                Circuitmod.LOGGER.info("Scheduled tick: Merging networks");
+                                cable.getNetwork().mergeWith(connectable.getNetwork());
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 } 
