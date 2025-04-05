@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "facing=east,lit=false": {
+      "model": "circuitmod:block/bloomery",
+      "y": 90
+    },
+
+    "facing=north,lit=false": {
+      "model": "circuitmod:block/bloomery"
+    },
+
+    "facing=south,lit=false": {
+      "model": "circuitmod:block/bloomery",
+      "y": 180
+    },
+
+    "facing=west,lit=false": {
+      "model": "circuitmod:block/bloomery",
+      "y": 270
+    }
+
+  }
+}
