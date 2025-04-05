@@ -113,18 +113,18 @@ public class QuarryScreenHandler extends ScreenHandler {
         // First try to get the latest value from the property delegate
         int miningSpeed = this.propertyDelegate.get(MINING_SPEED_INDEX);
         
-        starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Getting mining speed from property delegate: " + 
-            miningSpeed + " (cached: " + cachedMiningSpeed + ")");
+      //  starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Getting mining speed from property delegate: " + 
+      //      miningSpeed + " (cached: " + cachedMiningSpeed + ")");
         
         // Update our cached value if the property delegate has a non-zero value
         if (miningSpeed > 0) {
-            starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Updating cached mining speed to: " + miningSpeed);
+        //    starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Updating cached mining speed to: " + miningSpeed);
             cachedMiningSpeed = miningSpeed;
         } else if (cachedMiningSpeed > 0) {
             // If property delegate returns 0 but we have a cached value, use that
             // This helps maintain the display between updates
-            starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Using cached mining speed: " + cachedMiningSpeed + 
-                " (property delegate returned: " + miningSpeed + ")");
+         //   starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Using cached mining speed: " + cachedMiningSpeed + 
+        //        " (property delegate returned: " + miningSpeed + ")");
             return cachedMiningSpeed;
         }
         

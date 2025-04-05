@@ -29,12 +29,12 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         super.handledScreenTick();
         // Update the displayed mining speed from the handler
         int newSpeed = handler.getMiningSpeed();
-        Circuitmod.LOGGER.info("[CLIENT-SCREEN] handledScreenTick getting mining speed: " + newSpeed +
-            " (current displayed: " + displayedMiningSpeed + ")");
+      //  Circuitmod.LOGGER.info("[CLIENT-SCREEN] handledScreenTick getting mining speed: " + newSpeed +
+      //      " (current displayed: " + displayedMiningSpeed + ")");
             
         if (newSpeed != displayedMiningSpeed) {
-            Circuitmod.LOGGER.info("[CLIENT-SCREEN] Updating displayed mining speed from " + 
-                displayedMiningSpeed + " to " + newSpeed);
+      //      Circuitmod.LOGGER.info("[CLIENT-SCREEN] Updating displayed mining speed from " + 
+          //      displayedMiningSpeed + " to " + newSpeed);
             displayedMiningSpeed = newSpeed;
         }
     }
@@ -70,7 +70,7 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         int x = (width - backgroundWidth) / 2 + 8;
         int y = (height - backgroundHeight) / 2 + 6;
         
-        Circuitmod.LOGGER.info("[CLIENT-SCREEN] Drawing mining speed text: " + displayedMiningSpeed);
+      //  Circuitmod.LOGGER.info("[CLIENT-SCREEN] Drawing mining speed text: " + displayedMiningSpeed);
         
         context.drawText(
             textRenderer, 

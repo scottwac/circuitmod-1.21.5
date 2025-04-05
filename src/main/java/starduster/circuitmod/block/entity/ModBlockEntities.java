@@ -51,6 +51,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(BatteryBlockEntity::new, ModBlocks.BATTERY).build()
     );
 
+    // Add item pipe block entity
+    public static final BlockEntityType<ItemPipeBlockEntity> ITEM_PIPE = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "item_pipe"),
+        FabricBlockEntityTypeBuilder.create(ItemPipeBlockEntity::new, ModBlocks.ITEM_PIPE).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

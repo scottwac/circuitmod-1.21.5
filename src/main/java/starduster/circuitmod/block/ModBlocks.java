@@ -11,6 +11,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import starduster.circuitmod.Circuitmod;
 
+
 public final class ModBlocks {
     // Register our QuarryBlock with a custom block class
     public static final Block QUARRY_BLOCK = register("quarry_block", QuarryBlock::new, Block.Settings.create().strength(4.0f).requiresTool());
@@ -58,6 +59,14 @@ public final class ModBlocks {
         Block.Settings.create()
             .strength(3.5f)
             .luminance(state -> 5) // Slight glow for battery
+    );
+
+    public static final Block ITEM_PIPE = register(
+        "item_pipe",
+        ItemPipeBlock::new,
+        Block.Settings.create()
+            .strength(2.0f, 2.0f)
+            .nonOpaque()
     );
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {

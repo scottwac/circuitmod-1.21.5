@@ -75,23 +75,18 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             switch (index) {
                 case ENERGY_RECEIVED_INDEX:
                     if (world != null && world.isClient()) {
-                        Circuitmod.LOGGER.info("[CLIENT-DELEGATE] Reading energy received: " + energyReceived);
+                        
                     }
                     return energyReceived;
                 case MINING_SPEED_INDEX:
                     // On client side, use our direct storage
                     if (world != null && world.isClient()) {
                         int value = clientSideMiningSpeed > 0 ? clientSideMiningSpeed : miningSpeed * TICKS_PER_SECOND;
-                        Circuitmod.LOGGER.info("[CLIENT-DELEGATE] Reading mining speed: " + value + 
-                            " blocks/sec (direct storage: " + clientSideMiningSpeed + ", calculated: " + 
-                            (miningSpeed * TICKS_PER_SECOND) + ")");
                         return value;
                     } 
                     // On server side, calculate as normal
                     else {
                         int blocksPerSecond = miningSpeed * TICKS_PER_SECOND;
-                        Circuitmod.LOGGER.info("[SERVER-DELEGATE] Reading mining speed: " + blocksPerSecond + 
-                            " blocks/sec (from " + miningSpeed + " blocks/tick)");
                         return blocksPerSecond;
                     }
                 default:
@@ -105,7 +100,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 case ENERGY_RECEIVED_INDEX:
                     energyReceived = value;
                     if (world != null && world.isClient()) {
-                        Circuitmod.LOGGER.info("[CLIENT-DELEGATE] Setting energy received to: " + energyReceived);
+                        
                     }
                     break;
                 case MINING_SPEED_INDEX:
@@ -114,8 +109,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                     
                     // Debug logging with client/server distinction
                     if (world != null && world.isClient()) {
-                        Circuitmod.LOGGER.info("[CLIENT-DELEGATE] Setting mining speed: " + value + 
-                            " blocks/sec -> " + newMiningSpeed + " blocks/tick (direct set)");
+                        
                         
                         // On client side, store the raw blocks/sec value directly
                         clientSideMiningSpeed = value;
@@ -126,8 +120,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                             markDirty();
                         }
                     } else {
-                        Circuitmod.LOGGER.info("[SERVER-DELEGATE] Setting mining speed: " + value + 
-                            " blocks/sec -> " + newMiningSpeed + " blocks/tick");
+                        
                         
                         // Force a screen refresh by storing the blocks per second directly
                         if (value > 0) {
@@ -245,20 +238,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Initialize mining area if not set (this should happen first)
         if (blockEntity.startPos == null) {
             blockEntity.initializeMiningArea(pos, state);
-            Circuitmod.LOGGER.info("Initialized quarry mining area at " + pos);
         }
         
         // Safety check - validate that quarry's mining area exists
         if (blockEntity.currentPos == null) {
-            Circuitmod.LOGGER.error("Quarry at " + pos + " has null mining position. Reinitializing mining area.");
             blockEntity.initializeMiningArea(pos, state);
             return;
         }
-        
-        // Debug current state
-        Circuitmod.LOGGER.info("[SERVER] Quarry tick at " + pos + 
-            " - Current mining speed: " + blockEntity.miningSpeed + 
-            " blocks/tick, energy received: " + blockEntity.energyReceived);
         
         // If we're connected to a network, we'll get energy during the network's tick
         // Make sure to set our demand for the next tick
@@ -266,24 +252,18 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         boolean needsSync = false;
         
+        // Debug log for diagnostics
+      //  Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed);
+        
         // Process mining operations based on energy available
         if (blockEntity.energyReceived > 0) {
-            // Calculate mining speed - each energy unit allows mining one block
-            int newMiningSpeed = blockEntity.energyReceived / MINING_COST;
-            if (newMiningSpeed != blockEntity.miningSpeed) {
-                Circuitmod.LOGGER.info("[SERVER] Updating mining speed from " + blockEntity.miningSpeed + 
-                    " to " + newMiningSpeed + " blocks/tick");
-                blockEntity.miningSpeed = newMiningSpeed;
-                needsSync = true;
-            }
-            
-            // Log mining activity
-            Circuitmod.LOGGER.info("[SERVER] Quarry at " + pos + " mining at speed: " + blockEntity.miningSpeed + 
-                " blocks/tick, current position: " + blockEntity.currentPos);
-            
             // Mine blocks based on mining speed
             int blocksMined = 0;
-            for (int i = 0; i < blockEntity.miningSpeed; i++) {
+            int miningAttempts = Math.max(1, blockEntity.miningSpeed); // Ensure at least one attempt
+            
+          //  Circuitmod.LOGGER.info("[QUARRY-MINING] Attempting to mine " + miningAttempts + " blocks");
+            
+            for (int i = 0; i < miningAttempts; i++) {
                 boolean mined = blockEntity.mineNextBlock(world);
                 if (mined) {
                     blocksMined++;
@@ -291,12 +271,14 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             }
             
             if (blocksMined > 0) {
-                Circuitmod.LOGGER.info("[SERVER] Quarry at " + pos + " successfully mined " + blocksMined + " blocks");
+         //       Circuitmod.LOGGER.info("[QUARRY-SUCCESS] Mined " + blocksMined + " blocks");
                 needsSync = true;
             }
+            
+            // Reset energy received for next tick
+            blockEntity.energyReceived = 0;
         } else if (blockEntity.miningSpeed > 0) {
             // Set mining speed to 0 if no energy received
-            Circuitmod.LOGGER.info("[SERVER] Resetting mining speed from " + blockEntity.miningSpeed + " to 0 (no energy)");
             blockEntity.miningSpeed = 0;
             needsSync = true;
         }
@@ -318,31 +300,20 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 
                 // Only send packet if it's different from the last one or cooldown is done
                 if (blocksPerSecond != blockEntity.lastSentSpeed || blockEntity.packetCooldown <= 0) {
-                    Circuitmod.LOGGER.info("[SERVER] Sending mining speed update packet: " + 
-                        blocksPerSecond + " blocks/sec to clients");
-                    
                     // Send to all players tracking the quarry block
                     for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                        ModNetworking.sendMiningSpeedUpdate(
-                            player, blocksPerSecond, pos);
+                        ModNetworking.sendMiningSpeedUpdate(player, blocksPerSecond, pos);
                     }
                     
                     // Update the last sent speed and reset cooldown
                     blockEntity.lastSentSpeed = blocksPerSecond;
                     blockEntity.packetCooldown = PACKET_COOLDOWN_MAX;
-                } else {
-                    Circuitmod.LOGGER.debug("[SERVER] Skipping packet send (same speed or cooldown): " + 
-                        blocksPerSecond + " blocks/sec, cooldown: " + blockEntity.packetCooldown);
                 }
             }
             
             // Also do the normal block update
             world.updateListeners(pos, state, state, 3);
         }
-        
-        // Reset energy received for next tick - energy will be provided by the network
-        // during its tick cycle via the consumeEnergy method
-        blockEntity.energyReceived = 0;
     }
     
     // Initialize the mining area based on the quarry's position and facing direction
@@ -352,20 +323,16 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         try {
             // Get the facing direction directly from the block state
             direction = state.get(net.minecraft.block.HorizontalFacingBlock.FACING);
-            Circuitmod.LOGGER.info("Quarry at " + pos + " got facing direction from state: " + direction);
         } catch (Exception e) {
-            Circuitmod.LOGGER.warn("Could not get facing direction from state, defaulting to NORTH: " + e.getMessage());
+            direction = Direction.NORTH;
         }
         
         // If we couldn't get direction, default to NORTH
         if (direction == null) {
             direction = Direction.NORTH;
-            Circuitmod.LOGGER.warn("Defaulting quarry direction to NORTH");
         }
         
         this.facingDirection = direction;
-        
-        Circuitmod.LOGGER.info("Quarry at " + pos + " initialized with facing direction: " + facingDirection);
         
         // Set the starting corner as the quarry's position
         this.startPos = pos;
@@ -386,7 +353,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Double-check that quarry is not in the mining area
         if (isPositionInArea(pos, minX, maxX, minZ, maxZ)) {
             // If somehow the quarry is still in the area, push it one more block away
-            Circuitmod.LOGGER.warn("Mining area would include quarry - adjusting to be safer");
             safeAreaStart = pos.offset(facingDirection, 3);
             minX = safeAreaStart.getX() - 1;
             maxX = safeAreaStart.getX() + 1;
@@ -399,14 +365,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Start mining at the quarry's Y level
         this.currentY = pos.getY();
-        
-        // This logging is just for debugging
-        Circuitmod.LOGGER.info("Initialized mining area for quarry at " + pos);
-        Circuitmod.LOGGER.info("Mining direction: " + facingDirection);
-        Circuitmod.LOGGER.info("Mining area size: " + areaSize + "x" + areaSize);
-        Circuitmod.LOGGER.info("Mining area bounds: X[" + minX + "-" + maxX + "], Z[" + minZ + "-" + maxZ + "]");
-        Circuitmod.LOGGER.info("Mining starting Y level: " + currentY);
-        Circuitmod.LOGGER.info("Initial mining position: " + currentPos);
     }
     
     // Helper method to check if a position is inside a rectangular area
@@ -415,10 +373,77 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                pos.getZ() >= minZ && pos.getZ() <= maxZ;
     }
     
+    // Mining logic to mine a block at the current position
+    private boolean mineNextBlock(World world) {
+        // Get the next block position to mine
+        BlockPos miningPos = getNextMiningPos();
+        if (miningPos == null) {
+            Circuitmod.LOGGER.warn("[QUARRY-MINE] No mining position available");
+            return false;
+        }
+        
+        Circuitmod.LOGGER.info("[QUARRY-MINE] Attempting to mine at position: " + miningPos);
+        
+        // Skip if it's the quarry itself, a safe zone block, air or bedrock
+        if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Position is in safe zone, skipping");
+            return false;
+        }
+        
+        BlockState blockState = world.getBlockState(miningPos);
+        if (blockState.isAir()) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is air, skipping");
+            return false;
+        }
+        
+        if (blockState.getHardness(world, miningPos) < 0) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is bedrock or unbreakable, skipping");
+            return false;
+        }
+        
+        // Skip if the block is a block entity that's part of our network
+        BlockEntity targetEntity = world.getBlockEntity(miningPos);
+        if (targetEntity instanceof IPowerConnectable) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is part of power network, skipping");
+            return false;
+        }
+        
+        // Get drops from the block
+        ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
+        Circuitmod.LOGGER.info("[QUARRY-MINE] Mining block: " + blockState.getBlock().getName().getString());
+        
+        // Add to inventory if there's space
+        boolean addedToInventory = false;
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (stack.isEmpty()) {
+                inventory.set(i, minedItem);
+                addedToInventory = true;
+                Circuitmod.LOGGER.info("[QUARRY-MINE] Added to empty slot " + i);
+                break;
+            } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
+                stack.increment(1);
+                addedToInventory = true;
+                Circuitmod.LOGGER.info("[QUARRY-MINE] Added to existing stack in slot " + i);
+                break;
+            }
+        }
+        
+        // If we successfully added to the inventory, remove the block
+        if (addedToInventory) {
+            world.removeBlock(miningPos, false);
+            Circuitmod.LOGGER.info("[QUARRY-SUCCESS] Successfully mined block at " + miningPos);
+            return true;
+        } else {
+            Circuitmod.LOGGER.info("[QUARRY-FAIL] Inventory full, could not mine block");
+        }
+        
+        return false;
+    }
+    
     // Mining logic to get the next position to mine
     private BlockPos getNextMiningPos() {
         if (currentPos == null || startPos == null || facingDirection == null) {
-            Circuitmod.LOGGER.warn("Missing position data for mining");
             return null;
         }
         
@@ -434,13 +459,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         int minZ = safeAreaStart.getZ() - 1;
         int maxZ = safeAreaStart.getZ() + 1;
         
-        // Debug log of current mining position and bounds
-        Circuitmod.LOGGER.debug("Quarry at " + pos + " checking mining position: " + miningPos);
-        
         // Check if the current position is somehow equal to the quarry or in safe zone
         if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
-            Circuitmod.LOGGER.info("Current position " + miningPos + " is in safe zone, advancing to next position");
-            
             // Move to the next position 
             advanceToNextPosition(minX, maxX, minZ, maxZ);
             
@@ -493,7 +513,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 if (nextZ > maxZ) {
                     nextZ = minZ;
                     nextY--; // Decrement Y to move down one level
-                    Circuitmod.LOGGER.info("Quarry at " + pos + " moving down to Y level: " + nextY);
                 }
             }
             
@@ -502,81 +521,24 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             if (!nextPos.equals(pos) && !isInSafeZone(nextPos)) {
                 // Found a safe position
                 foundSafePosition = true;
-            } else {
-                Circuitmod.LOGGER.debug("Position " + nextPos + " is in safe zone, trying next position");
             }
         }
         
-        // If we couldn't find a safe position after multiple attempts, log warning
-        if (!foundSafePosition) {
-            Circuitmod.LOGGER.warn("Could not find a safe mining position after " + safetyCounter + 
-                " attempts. Using last computed position anyway.");
-        }
-        
-        // Update the current position and Y level
+        // Always update the position, whether we found a safe position or not
         currentPos = new BlockPos(nextX, currentPos.getY(), nextZ);
         currentY = nextY; // Make sure to update the Y level separately
-    }
-    
-    // Mining logic to mine a block at the current position
-    private boolean mineNextBlock(World world) {
-        // Get the next block position to mine
-        BlockPos miningPos = getNextMiningPos();
-        if (miningPos == null) {
-            return false;
+        
+        if (!foundSafePosition) {
+            Circuitmod.LOGGER.warn("[QUARRY-POSITION] Couldn't find safe mining position after " + safetyCounter + " attempts");
+        } else {
+            Circuitmod.LOGGER.info("[QUARRY-POSITION] Advanced to position: " + currentPos + " at Y level " + currentY);
         }
-        
-        // Skip if it's the quarry itself, a safe zone block, air or bedrock
-        if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
-            Circuitmod.LOGGER.info("Skipping mining at " + miningPos + " (quarry or safe zone)");
-            return false;
-        }
-        
-        BlockState blockState = world.getBlockState(miningPos);
-        if (blockState.isAir() || blockState.getHardness(world, miningPos) < 0) {
-            Circuitmod.LOGGER.debug("Skipping air or bedrock at " + miningPos);
-            return false;
-        }
-        
-        // Skip if the block is a block entity that's part of our network
-        BlockEntity targetEntity = world.getBlockEntity(miningPos);
-        if (targetEntity instanceof IPowerConnectable) {
-            Circuitmod.LOGGER.info("Skipping power network component at " + miningPos);
-            return false;
-        }
-        
-        // Get drops from the block
-        ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-        
-        // Add to inventory if there's space
-        boolean addedToInventory = false;
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack stack = inventory.get(i);
-            if (stack.isEmpty()) {
-                inventory.set(i, minedItem);
-                addedToInventory = true;
-                break;
-            } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
-                stack.increment(1);
-                addedToInventory = true;
-                break;
-            }
-        }
-        
-        // If we successfully added to the inventory, remove the block
-        if (addedToInventory) {
-            world.removeBlock(miningPos, false);
-            return true;
-        }
-        
-        return false;
     }
     
     // Check if the position is in the safe zone around the quarry
     private boolean isInSafeZone(BlockPos targetPos) {
         // First, check if it's the quarry itself
         if (targetPos.equals(pos)) {
-            Circuitmod.LOGGER.error("Position " + targetPos + " is the quarry itself!");
             return true;
         }
         
@@ -584,7 +546,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         for (Direction dir : Direction.values()) {
             BlockPos adjacentPos = pos.offset(dir);
             if (targetPos.equals(adjacentPos)) {
-                Circuitmod.LOGGER.debug("Position " + targetPos + " is adjacent to quarry in direction " + dir);
                 return true; // Position is adjacent to the quarry
             }
             
@@ -594,7 +555,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                     if (dir2.getAxis().isHorizontal() && dir != dir2 && dir != dir2.getOpposite()) {
                         BlockPos diagonalPos = pos.offset(dir).offset(dir2);
                         if (targetPos.equals(diagonalPos)) {
-                            Circuitmod.LOGGER.debug("Position " + targetPos + " is diagonally adjacent to quarry");
                             return true; // Position is diagonally adjacent
                         }
                     }
@@ -604,7 +564,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Also consider the block the quarry is placed on and the block above
         if (targetPos.equals(pos.up()) || targetPos.equals(pos.down())) {
-            Circuitmod.LOGGER.debug("Position " + targetPos + " is above or below quarry");
             return true;
         }
         
@@ -612,7 +571,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (facingDirection != null) {
             BlockPos inFront = pos.offset(facingDirection);
             if (targetPos.equals(inFront)) {
-                Circuitmod.LOGGER.debug("Position " + targetPos + " is immediately in front of quarry");
                 return true;
             }
         }
@@ -621,7 +579,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (world != null && !world.isClient()) {
             BlockEntity targetEntity = world.getBlockEntity(targetPos);
             if (targetEntity instanceof IPowerConnectable) {
-                Circuitmod.LOGGER.debug("Position " + targetPos + " contains a power network component");
                 return true;
             }
         }
@@ -644,17 +601,12 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     public void setNetwork(EnergyNetwork network) {
         // Safety check - don't allow setting null network if we already have one
         if (network == null && this.network != null) {
-            Circuitmod.LOGGER.warn("Quarry at " + pos + " - Attempt to set null network when already connected to " + 
-                this.network.getNetworkId() + ". This might indicate a network validation issue.");
             return;
         }
         
         // If we're changing networks, log it
         if (this.network != null && network != null && this.network != network) {
-            Circuitmod.LOGGER.info("Quarry at " + pos + " changing networks from " + 
-                this.network.getNetworkId() + " to " + network.getNetworkId());
         } else if (network != null && this.network == null) {
-            Circuitmod.LOGGER.info("Quarry at " + pos + " connected to network " + network.getNetworkId());
         }
         
         this.network = network;
@@ -667,60 +619,52 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     
     @Override
     public int consumeEnergy(int energyOffered) {
-        // Only consume energy up to our demand
-        int energyToConsume = Math.min(energyDemand, energyOffered);
+        if (world == null || world.isClient()) {
+            return 0;
+        }
+
+        // Calculate how much energy we can actually consume
+        int energyToConsume = Math.min(energyOffered, energyDemand);
         
         // Track the received energy for this tick
         if (energyToConsume > 0) {
-            Circuitmod.LOGGER.info("[SERVER] Quarry at " + pos + " offered " + energyOffered + 
-                " energy, consuming " + energyToConsume + " (demand: " + energyDemand + ")");
-                
-            this.energyReceived += energyToConsume;
+            this.energyReceived += energyToConsume; // ACCUMULATE energy instead of setting directly
             
             // Calculate mining speed immediately - each energy unit allows mining one block
             int oldMiningSpeed = this.miningSpeed;
             this.miningSpeed = this.energyReceived / MINING_COST;
             
+            // Debug logs to diagnose the issue
+            Circuitmod.LOGGER.info("[QUARRY-DEBUG] Energy offered: " + energyOffered + ", consumed: " + energyToConsume + ", accumulated: " + this.energyReceived + ", mining speed: " + this.miningSpeed);
+            
             if (oldMiningSpeed != this.miningSpeed) {
-                Circuitmod.LOGGER.info("[SERVER] Energy consumption updated mining speed from " + 
-                    oldMiningSpeed + " to " + this.miningSpeed + " blocks/tick");
-            }
-            
-            // Mark dirty to ensure state is saved and client is updated
-            markDirty();
-            
-            // Force a block update to clients if mining speed changed
-            if (oldMiningSpeed != this.miningSpeed && world != null && !world.isClient()) {
-                // Calculate blocks per second for network updates
-                int blocksPerSecond = this.miningSpeed * TICKS_PER_SECOND;
+                // Mark dirty to ensure state is saved and client is updated
+                markDirty();
                 
-                // Debug packet throttling
-                int packetSendDelay = Math.max(0, packetCooldown);
-                
-                // Only send packet if it's different from the last one or cooldown is done
-                if (blocksPerSecond != lastSentSpeed || packetCooldown <= 0) {
-                    Circuitmod.LOGGER.info("[SERVER] Energy update sending speed: " + blocksPerSecond + 
-                        " blocks/sec to clients (last: " + lastSentSpeed + ", cooldown: " + packetCooldown + ")");
-                
-                    // Send mining speed updates to all tracking players
-                    if (world instanceof ServerWorld serverWorld) {
-                        for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                            ModNetworking.sendMiningSpeedUpdate(player, blocksPerSecond, pos);
-                        }
-                    }
+                // Force a block update to clients if mining speed changed
+                if (world != null && !world.isClient()) {
+                    // Calculate blocks per second for network updates
+                    int blocksPerSecond = this.miningSpeed * TICKS_PER_SECOND;
                     
-                    // Update the last sent speed and reset cooldown
-                    lastSentSpeed = blocksPerSecond;
-                    packetCooldown = PACKET_COOLDOWN_MAX;
-                } else {
-                    Circuitmod.LOGGER.debug("[SERVER] Skipping packet in energy update (cooldown: " + 
-                        packetCooldown + ")");
+                    // Only send packet if it's different from the last one or cooldown is done
+                    if (blocksPerSecond != lastSentSpeed || packetCooldown <= 0) {
+                        // Send mining speed updates to all tracking players
+                        if (world instanceof ServerWorld serverWorld) {
+                            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
+                                ModNetworking.sendMiningSpeedUpdate(player, blocksPerSecond, pos);
+                            }
+                        }
+                        
+                        lastSentSpeed = blocksPerSecond;
+                        packetCooldown = PACKET_COOLDOWN_MAX;
+                    }
                 }
-                
-                // Also do the normal block update for other data
-                BlockState state = world.getBlockState(pos);
-                world.updateListeners(pos, state, state, 3);
             }
+        } else {
+            // If we didn't receive any energy, reset mining speed
+            this.energyReceived = 0;
+            this.miningSpeed = 0;
+            markDirty();
         }
         
         return energyToConsume;
@@ -818,7 +762,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     public boolean onSyncedBlockEvent(int type, int data) {
         // Mark as needing sync on the client
         if (world != null && world.isClient()) {
-            Circuitmod.LOGGER.debug("Quarry at " + pos + " received sync event type " + type + " with data " + data);
             markDirty();
             return true;
         }
@@ -832,8 +775,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
      * @param blocksPerSecond The mining speed in blocks per second
      */
     public void setMiningSpeedFromNetwork(int blocksPerSecond) {
-        Circuitmod.LOGGER.info("[CLIENT] Setting mining speed from network packet: " + blocksPerSecond + " blocks/sec");
-        // Store the blocks per second value directly
         propertyDelegate.set(MINING_SPEED_INDEX, blocksPerSecond);
     }
     
