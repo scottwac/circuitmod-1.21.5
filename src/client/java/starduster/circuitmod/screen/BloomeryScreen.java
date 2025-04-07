@@ -6,10 +6,12 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import starduster.circuitmod.Circuitmod;
 
 public class BloomeryScreen extends HandledScreen<BloomeryScreenHandler> {
-    private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/furnace.png");
-    
+    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/bloomery/bloomery_gui.png");
+    private static final Identifier ARROW_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/bloomery/bloomery_progress_arrow.png");
+
     public BloomeryScreen(BloomeryScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
     }
@@ -17,7 +19,7 @@ public class BloomeryScreen extends HandledScreen<BloomeryScreenHandler> {
     @Override
     protected void init() {
         super.init();
-        titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        //titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
     }
     
     @Override
@@ -31,13 +33,21 @@ public class BloomeryScreen extends HandledScreen<BloomeryScreenHandler> {
         // Draw the burn progress indicator
         if (this.handler.isBurning()) {
             int burnProgress = this.getBurnProgress(13);
-            context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x + 56, y + 36 + 12 - burnProgress, 176, 12 - burnProgress, 14, burnProgress + 1, 256, 256);
+            context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x + 82, y + 36 + 12 - burnProgress, 176, 12 - burnProgress, 14, burnProgress + 1, 256, 256);
         }
         
         // Draw the cook progress indicator
         int cookProgress = this.getCookProgress(24);
-        context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x + 79, y + 34, 176, 14, cookProgress + 1, 16, 256, 256);
+        context.drawTexture(RenderLayer::getGuiTextured, ARROW_TEXTURE, x + 82, y + 36, 0, 0, handler.getScaledProgressArrow() + 1, 16, 24, 16);
+        //renderProgressArrow(context, x, y);
     }
+
+//    private void renderProgressArrow(DrawContext context, int x, int y) {
+//        int cookProgress = this.getCookProgress(24);
+//        if(cookProgress > 0) {
+//            context.drawTexture(RenderLayer::getGuiTextured, ARROW_TEXTURE, x + 82, y + 36, 0,0, handler.getScaledProgressArrow(), 16, 24, 16);
+//        }
+//    }
     
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {

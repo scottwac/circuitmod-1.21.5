@@ -1,5 +1,14 @@
 {
   "item.circuitmod.lead_ingot": "Lead Ingot",
-  "itemgroup.circuitmod.item_group": "Circuit Mod",
-  "block.circuitmod.quarry_block": "Quarry Block"
-} 
+
+  "itemgroup.circuitmod.main": "Circuit Mod",
+
+  "block.circuitmod.bloomery": "Bloomery",
+
+  "block.circuitmod.quarry_block": "Quarry Block",
+  "block.circuitmod.power_cable": "Cable",
+  "block.circuitmod.creative_generator": "Creative Generator",
+  "block.circuitmod.creative_consumer": "Creative Consumer",
+  "block.circuitmod.battery": "Battery Block",
+  "block.circuitmod.item_pipe": "Item Logistic Pipe"
+}

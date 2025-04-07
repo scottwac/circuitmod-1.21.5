@@ -10,7 +10,9 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.FurnaceFuelSlot;
 import net.minecraft.screen.slot.FurnaceOutputSlot;
+import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
+import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.BloomeryBlockEntity;
 
 public class BloomeryScreenHandler extends ScreenHandler {
@@ -37,13 +39,13 @@ public class BloomeryScreenHandler extends ScreenHandler {
         
         // Add bloomery slots
         // Input slot
-        this.addSlot(new Slot(inventory, 0, 56, 17));
+        this.addSlot(new Slot(inventory, 0, 56, 27));
         
         // Fuel slot
-        this.addSlot(new BloomeryFuelSlot(inventory, 1, 56, 53));
+        this.addSlot(new BloomeryFuelSlot(inventory, 1, 56, 45));
         
         // Output slot
-        this.addSlot(new FurnaceOutputSlot(playerInventory.player, inventory, 2, 116, 35));
+        this.addSlot(new FurnaceOutputSlot(playerInventory.player, inventory, 2, 116, 36));
         
         // Player inventory slots
         for (int i = 0; i < 3; ++i) {
@@ -129,6 +131,17 @@ public class BloomeryScreenHandler extends ScreenHandler {
     
     public boolean isBurning() {
         return this.getBurnTime() > 0;
+    }
+
+    public int getScaledProgressArrow() {
+        int progress = this.propertyDelegate.get(0);
+        //int maxProgress = this.propertyDelegate.get(1);
+        int maxProgress = 1600;
+        int arrowPixelWidth = 24;
+
+        //return maxProgress != 0 && progress != 0 ? progress * arrowPixelWidth / maxProgress : 0;
+        return maxProgress != 0 ? progress * arrowPixelWidth / maxProgress : 0;
+
     }
     
     private boolean isFuel(ItemStack stack) {

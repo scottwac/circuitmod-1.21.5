@@ -16,6 +16,7 @@ import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -98,7 +99,7 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
     // Screen handler factory
     @Override
     public Text getDisplayName() {
-        return Text.translatable("block.circuitmod.bloomery");
+        return Text.translatable("block.circuitmod.bloomery").formatted(Formatting.BLACK);
     }
     
     @Nullable
