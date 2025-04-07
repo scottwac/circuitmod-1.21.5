@@ -1,6 +1,12 @@
 {
-  "parent": "block/cube_all",
+  "parent": "circuitmod:block/cube_unique_all",
   "textures": {
-    "all": "circuitmod:block/tempblocks/batt"
+    "particle": "circuitmod:block/battery/side_blank",
+    "north": "circuitmod:block/battery/double_side",
+    "east": "circuitmod:block/battery/side",
+    "south": "circuitmod:block/battery/double_side",
+    "west": "circuitmod:block/battery/side_blank",
+    "up": "circuitmod:block/battery/top",
+    "down": "circuitmod:block/battery/bottom"
   }
 } 
