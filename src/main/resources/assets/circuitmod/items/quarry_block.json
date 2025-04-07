@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "circuitmod:block/quarry_block"
+    "model": "circuitmod:block/quarry/quarry_block"
   }
 }

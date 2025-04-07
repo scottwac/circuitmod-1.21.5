@@ -13,6 +13,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
+import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -28,6 +29,8 @@ import org.jetbrains.annotations.Nullable;
 public class QuarryBlock extends BlockWithEntity {
     // Use the FACING property from HorizontalFacingBlock
     public static final MapCodec<QuarryBlock> CODEC = createCodec(QuarryBlock::new);
+    public static final BooleanProperty RUNNING = BooleanProperty.of("running");
+
 
     @Override
     public MapCodec<QuarryBlock> getCodec() {
@@ -38,7 +41,9 @@ public class QuarryBlock extends BlockWithEntity {
         super(settings);
         // Set the default facing direction to north
         this.setDefaultState(this.stateManager.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.NORTH));
+        setDefaultState(getDefaultState().with(RUNNING, false));
     }
+
 
     // Create the block entity
     @Override
@@ -58,6 +63,7 @@ public class QuarryBlock extends BlockWithEntity {
     @Override
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
         builder.add(HorizontalFacingBlock.FACING);
+        builder.add(RUNNING);
     }
 
     // Update onUse to open the GUI
