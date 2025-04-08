@@ -51,6 +51,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(BatteryBlockEntity::new, ModBlocks.BATTERY).build()
     );
 
+    // Add electric furnace block entity
+    public static final BlockEntityType<ElectricFurnaceBlockEntity> ELECTRIC_FURNACE_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "electric_furnace"),
+            FabricBlockEntityTypeBuilder.create(ElectricFurnaceBlockEntity::new, ModBlocks.ELECTRIC_FURNACE).build()
+    );
+
     // Add item pipe block entity
     public static final BlockEntityType<ItemPipeBlockEntity> ITEM_PIPE = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,

@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/electric_furnace/bottom",
+    "north": "circuitmod:block/electric_furnace/furnace_front_lit",
+    "east": "circuitmod:block/electric_furnace/vent_hot",
+    "south": "circuitmod:block/electric_furnace/back",
+    "west": "circuitmod:block/electric_furnace/vent_hot",
+    "up": "circuitmod:block/electric_furnace/bottom",
+    "down": "circuitmod:block/electric_furnace/bottom"
+  }
+} 
