@@ -44,6 +44,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(SolarPanelBlockEntity::new, ModBlocks.SOLAR_PANEL).build()
     );
 
+    // Add reactor block entity
+    public static final BlockEntityType<ReactorBlockBlockEntity> REACTOR_BLOCK_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "reactor_block"),
+            FabricBlockEntityTypeBuilder.create(ReactorBlockBlockEntity::new, ModBlocks.REACTOR_BLOCK).build()
+    );
+
     // Add creative consumer block entity
     public static final BlockEntityType<CreativeConsumerBlockEntity> CREATIVE_CONSUMER_BLOCK_ENTITY = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,

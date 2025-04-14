@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/reactor/blank",
+    "north": "circuitmod:block/reactor/front_panel_1",
+    "east": "circuitmod:block/reactor/side_1",
+    "south": "circuitmod:block/reactor/icon",
+    "west": "circuitmod:block/reactor/side_1",
+    "up": "circuitmod:block/reactor/top_1",
+    "down": "circuitmod:block/reactor/blank"
+  }
+} 

@@ -70,6 +70,15 @@ public final class ModBlocks {
                     .requiresTool()
                     .strength(3.5f)
     );
+
+    // Register solar panel block
+    public static final Block REACTOR_BLOCK = register(
+            "reactor_block",
+            ReactorBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
+    );
     
     // Register battery block
     public static final Block BATTERY = register(
@@ -86,6 +95,14 @@ public final class ModBlocks {
         Block.Settings.create()
             .strength(2.0f, 2.0f)
             .nonOpaque()
+    );
+
+    public static final Block NUKE = register(
+            "nuke",
+            Nuke::new,
+            Block.Settings.create()
+                    .strength(2.0f, 2.0f)
+                    .nonOpaque()
     );
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
