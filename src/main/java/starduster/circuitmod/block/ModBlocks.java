@@ -35,7 +35,7 @@ public final class ModBlocks {
             .luminance(state -> 13) // Light when active, would need a blockstate for this
     );
 
-    // Register bloomery block
+    // Register electric furnace block
     public static final Block ELECTRIC_FURNACE = register(
             "electric_furnace",
             ElectricFurnace::new,
@@ -43,6 +43,15 @@ public final class ModBlocks {
                     .requiresTool()
                     .strength(3.5f)
                     .luminance(state -> 13) // Light when active, would need a blockstate for this
+    );
+
+    // Register crusher block
+    public static final Block CRUSHER = register(
+            "crusher",
+            CrusherBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
     );
     
     // Register power cable block

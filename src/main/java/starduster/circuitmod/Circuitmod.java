@@ -68,10 +68,11 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.ZIRCONIUM_INGOT);
 				entries.add(ModItems.ZIRCONIUM_TUBE);
 				// Add quarry block to the creative tab
+				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.DRILL_BLOCK);
 				entries.add(ModBlocks.ELECTRIC_FURNACE);
-				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
+				entries.add(ModBlocks.CRUSHER);
 				entries.add(ModBlocks.SOLAR_PANEL); // Add solar panel to creative tab
 				entries.add(ModBlocks.REACTOR_BLOCK); // Add reactor to creative tab
 				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab

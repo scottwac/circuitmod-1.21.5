@@ -23,6 +23,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(DrillBlockEntity::new, ModBlocks.DRILL_BLOCK).build()
     );
 
+    // Add crusher block entity
+    public static final BlockEntityType<CrusherBlockEntity> CRUSHER_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "crusher_block_entity"),
+            FabricBlockEntityTypeBuilder.create(CrusherBlockEntity::new, ModBlocks.CRUSHER).build()
+    );
+
     // Add bloomery block entity
     public static final BlockEntityType<BloomeryBlockEntity> BLOOMERY_BLOCK_ENTITY = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,
