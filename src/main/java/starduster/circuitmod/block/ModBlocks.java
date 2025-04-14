@@ -61,6 +61,15 @@ public final class ModBlocks {
         Block.Settings.create()
             .strength(3.5f)
     );
+
+    // Register solar panel block
+    public static final Block SOLAR_PANEL = register(
+            "solar_panel",
+            SolarPanel::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
+    );
     
     // Register battery block
     public static final Block BATTERY = register(
