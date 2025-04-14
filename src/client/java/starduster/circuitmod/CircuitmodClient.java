@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
+import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.BloomeryScreen;
@@ -17,6 +18,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		
 		// Register screens
 		HandledScreens.register(ModScreenHandlers.QUARRY_SCREEN_HANDLER, QuarryScreen::new);
+		HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
 		HandledScreens.register(ModScreenHandlers.BLOOMERY_SCREEN_HANDLER, BloomeryScreen::new);
 		
 		// Register block entity renderers

@@ -15,6 +15,14 @@ public class ModScreenHandlers {
             Identifier.of(Circuitmod.MOD_ID, "quarry_screen_handler"),
             new ScreenHandlerType<>(QuarryScreenHandler::new, FeatureSet.empty())
         );
+
+    // Register the drill screen handler type
+    public static final ScreenHandlerType<DrillScreenHandler> DRILL_SCREEN_HANDLER =
+            Registry.register(
+                    Registries.SCREEN_HANDLER,
+                    Identifier.of(Circuitmod.MOD_ID, "drill_screen_handler"),
+                    new ScreenHandlerType<>(DrillScreenHandler::new, FeatureSet.empty())
+            );
     
     // Register bloomery screen handler
     public static final ScreenHandlerType<BloomeryScreenHandler> BLOOMERY_SCREEN_HANDLER = 

@@ -16,6 +16,15 @@ public final class ModBlocks {
     // Register our QuarryBlock with a custom block class
     public static final Block QUARRY_BLOCK = register("quarry_block", QuarryBlock::new, Block.Settings.create().strength(4.0f).requiresTool());
 
+    // Register drill block
+    public static final Block DRILL_BLOCK = register(
+            "drill_block",
+            DrillBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(4.0f)
+    );
+
     // Register bloomery block
     public static final Block BLOOMERY = register(
         "bloomery", 
