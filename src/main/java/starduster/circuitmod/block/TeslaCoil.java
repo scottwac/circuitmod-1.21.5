@@ -14,6 +14,9 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
@@ -23,6 +26,13 @@ import starduster.circuitmod.block.entity.TeslaCoilBlockEntity;
 public class TeslaCoil extends BlockWithEntity {
     public static final MapCodec<TeslaCoil> CODEC = createCodec(TeslaCoil::new);
     public static final BooleanProperty RUNNING = BooleanProperty.of("running");
+//    private static final VoxelShape SHAPE = Block.createCuboidShape(0.0,0.0,0.0,16.0,1.0,16.0);
+    private static final VoxelShape SHAPE = VoxelShapes.union(Block.createCuboidShape(0.0,0.0,0.0,16,16,16), Block.createCuboidShape(5.0,16.0,5.0,11.0,28.0,11.0), Block.createCuboidShape(1,28,1,15,32,15));
+
+    @Override
+    protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return SHAPE;
+    }
 
     @Override
     public MapCodec<TeslaCoil> getCodec() {
