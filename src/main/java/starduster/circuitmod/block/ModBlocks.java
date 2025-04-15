@@ -72,6 +72,16 @@ public final class ModBlocks {
                     .strength(3.5f)
                     .nonOpaque()
     );
+
+    // Register electric carpet block
+    public static final Block ELECTRIC_CARPET = register(
+            "electric_carpet",
+            ElectricCarpet::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
+                    .nonOpaque()
+    );
     
     // Register power cable block
     public static final Block POWER_CABLE = register(

@@ -21,7 +21,8 @@ public class CircuitmodClient implements ClientModInitializer {
 
 		// Set block render layers
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.TESLA_COIL, RenderLayer.getCutout());
-		
+		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.ELECTRIC_CARPET, RenderLayer.getTranslucent());
+
 		// Register screens
 		HandledScreens.register(ModScreenHandlers.QUARRY_SCREEN_HANDLER, QuarryScreen::new);
 		HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);

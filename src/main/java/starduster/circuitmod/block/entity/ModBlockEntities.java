@@ -65,6 +65,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(TeslaCoilBlockEntity::new, ModBlocks.TESLA_COIL).build()
     );
 
+    // Add electric carpet generator block entity
+    public static final BlockEntityType<ElectricCarpetBlockEntity> ELECTRIC_CARPET_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "electric_carpet"),
+            FabricBlockEntityTypeBuilder.create(ElectricCarpetBlockEntity::new, ModBlocks.ELECTRIC_CARPET).build()
+    );
+
     // Add solar panel block entity
     public static final BlockEntityType<GeneratorBlockEntity> GENERATOR_BLOCK_ENTITY = Registry.register(
             Registries.BLOCK_ENTITY_TYPE,
