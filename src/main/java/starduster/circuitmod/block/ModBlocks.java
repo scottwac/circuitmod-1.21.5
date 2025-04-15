@@ -53,6 +53,16 @@ public final class ModBlocks {
                     .requiresTool()
                     .strength(3.5f)
     );
+
+    // Register crusher block
+    public static final Block TESLA_COIL = register(
+            "tesla_coil",
+            TeslaCoil::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
+                    .nonOpaque()
+    );
     
     // Register power cable block
     public static final Block POWER_CABLE = register(
