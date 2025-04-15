@@ -61,10 +61,23 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
 				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
+				entries.add(ModBlocks.BAUXITE_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.LEAD_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_LEAD_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.URANIUM_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_URANIUM_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.ZIRCON_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_ZIRCON_ORE); // Add creative consumer to creative tab
+
+
 				entries.add(ModItems.RAW_BAUXITE);
 				entries.add(ModItems.RAW_LEAD);
+				entries.add(ModItems.RAW_URANIUM);
+				entries.add(ModItems.ZIRCON);
 
 				entries.add(ModItems.CRUSHED_BAUXITE);
+				entries.add(ModItems.CRUSHED_URANIUM);
 
 				entries.add(ModItems.LEAD_POWDER);
 				entries.add(ModItems.STONE_DUST);
@@ -73,6 +86,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.ALUMINUM_INGOT);
 				entries.add(ModItems.LEAD_INGOT);
 				entries.add(ModItems.STEEL_INGOT);
+				entries.add(ModItems.URANIUM_PELLET);
 				entries.add(ModItems.ZIRCONIUM_INGOT);
 
 				entries.add(ModItems.GRAPHITE);

@@ -1,0 +1,27 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:quarry_block",
+    "circuitmod:bloomery",
+    "circuitmod:drill_block",
+    "circuitmod:constructor_block",
+    "circuitmod:electric_furnace",
+    "circuitmod:crusher",
+    "circuitmod:tesla_coil",
+    "circuitmod:generator",
+    "circuitmod:solar_panel",
+    "circuitmod:reactor_block",
+    "circuitmod:battery",
+    "circuitmod:bauxite_ore",
+    "circuitmod:deepslate_bauxite_ore",
+    "circuitmod:lead_ore",
+    "circuitmod:deepslate_lead_ore",
+    "circuitmod:uranium_ore",
+    "circuitmod:deepslate_uranium_ore",
+    "circuitmod:zircon_ore",
+    "circuitmod:deepslate_zircon_ore",
+    "circuitmod:nuke"
+
+
+  ]
+} 

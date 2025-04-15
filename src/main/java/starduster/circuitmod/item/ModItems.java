@@ -37,6 +37,11 @@ public final class ModItems {
 
     public static final Item STONE_DUST = register("stone_dust", Item::new, new Item.Settings());
 
+    public static final Item RAW_URANIUM = register("raw_uranium", Item::new, new Item.Settings());
+    public static final Item CRUSHED_URANIUM = register("crushed_uranium", Item::new, new Item.Settings());
+    public static final Item URANIUM_PELLET = register("uranium_pellet", Item::new, new Item.Settings());
+
+    public static final Item ZIRCON = register("zircon", Item::new, new Item.Settings());
     public static final Item ZIRCONIUM_INGOT = register("zirconium_ingot", Item::new, new Item.Settings());
     public static final Item ZIRCONIUM_POWDER = register("zirconium_powder", Item::new, new Item.Settings());
     public static final Item ZIRCONIUM_TUBE = register("zirconium_tube", Item::new, new Item.Settings());

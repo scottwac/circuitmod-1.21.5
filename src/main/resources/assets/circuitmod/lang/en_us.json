@@ -13,10 +13,24 @@
   "item.circuitmod.plastic_pellet": "Plastic Pellet",
   "item.circuitmod.plastic_bar": "Plastic Bar",
   "item.circuitmod.stone_dust": "Stone Dust",
+  "item.circuitmod.raw_uranium": "Raw Uranium",
+  "item.circuitmod.crushed_uranium": "Crushed Uranium",
+  "item.circuitmod.uranium_pellet": "Uranium Pellet",
+  "item.circuitmod.zircon": "Zircon",
   "item.circuitmod.zirconium_powder": "Zirconium Powder",
   "item.circuitmod.zirconium_ingot": "Zirconium Ingot",
   "item.circuitmod.zirconium_tube": "Zirconium Tube",
   "item.circuitmod.lead_ingot": "Lead Ingot",
+
+
+  "block.circuitmod.bauxite_ore": "Bauxite Ore",
+  "block.circuitmod.deepslate_bauxite_ore": "Deepslate Bauxite Ore",
+  "block.circuitmod.lead_ore": "Lead Ore",
+  "block.circuitmod.deepslate_lead_ore": "Deepslate Lead Ore",
+  "block.circuitmod.uranium_ore": "Uranium Ore",
+  "block.circuitmod.deepslate_uranium_ore": "Deepslate Uranium Ore",
+  "block.circuitmod.zircon_ore": "Zircon Ore",
+  "block.circuitmod.deepslate_zircon_ore": "Deepslate Zircon Ore",
 
 
   "block.circuitmod.bloomery": "Bloomery",
