@@ -80,6 +80,15 @@ public final class ModBlocks {
             .strength(3.5f)
     );
 
+    // Register fuel generator block
+    public static final Block GENERATOR = register(
+            "generator",
+            Generator::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.5f)
+    );
+
     // Register solar panel block
     public static final Block SOLAR_PANEL = register(
             "solar_panel",
