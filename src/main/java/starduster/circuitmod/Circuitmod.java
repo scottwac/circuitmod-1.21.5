@@ -71,6 +71,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.DRILL_BLOCK);
+				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
 				entries.add(ModBlocks.ELECTRIC_FURNACE);
 				entries.add(ModBlocks.CRUSHER);
 				entries.add(ModBlocks.TESLA_COIL);

@@ -25,6 +25,15 @@ public final class ModBlocks {
                     .strength(4.0f)
     );
 
+    // Register constructor block
+    public static final Block CONSTRUCTOR_BLOCK = register(
+            "constructor_block",
+            ConstructorBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(4.0f)
+    );
+
     // Register bloomery block
     public static final Block BLOOMERY = register(
         "bloomery", 
