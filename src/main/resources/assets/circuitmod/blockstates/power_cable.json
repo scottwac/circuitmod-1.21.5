@@ -1,5 +1,67 @@
 {
-  "variants": {
-    "": { "model": "circuitmod:block/power_cable" }
-  }
-} 
+  "multipart": [
+    {
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_core"
+      }
+    },
+    {
+      "when": {
+        "north": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "east": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "y": 90,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "south": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "y": 180,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "west": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "y": 270,
+        "uvlock": false
+      }
+    },
+	{
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "x": 270,
+        "uvlock": false
+      }
+    },{
+      "when": {
+        "down": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/cable/basic_cable_part",
+        "x": 90,
+        "uvlock": false
+      }
+    }
+  ]
+}

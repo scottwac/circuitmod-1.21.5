@@ -58,8 +58,6 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab
 				entries.add(ModBlocks.ITEM_PIPE); // Add item pipe to creative tab
 				entries.add(ModBlocks.BATTERY); // Add battery to creative tab
-				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
-				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
 				entries.add(ModBlocks.BAUXITE_ORE); // Add creative consumer to creative tab
 				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE); // Add creative consumer to creative tab
@@ -99,6 +97,9 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.SYNTHETIC_RUBBER);
 				entries.add(ModItems.PLASTIC_PELLET);
 				entries.add(ModItems.PLASTIC_BAR);
+
+				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
+				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
 				// Add more mod items here as they are created
 			})

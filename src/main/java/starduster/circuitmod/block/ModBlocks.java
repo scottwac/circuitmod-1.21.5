@@ -86,17 +86,7 @@ public final class ModBlocks {
                     .strength(0.1f,0.4f)
                     .nonOpaque()
     );
-    
-    // Register power cable block
-    public static final Block POWER_CABLE = register(
-        "power_cable",
-        PowerCableBlock::new,
-        Block.Settings.create()
-            .strength(0.4f, 0.8f)
-            .nonOpaque() // So we can see through the cable
-            .sounds(BlockSoundGroup.WOOL)
-    );
-    
+
     // Register creative generator block
     public static final Block CREATIVE_GENERATOR = register(
         "creative_generator",
@@ -105,7 +95,7 @@ public final class ModBlocks {
             .strength(3.5f)
             .luminance(state -> 5) // Slight glow
     );
-    
+
     // Register creative consumer block
     public static final Block CREATIVE_CONSUMER = register(
         "creative_consumer",
@@ -140,7 +130,7 @@ public final class ModBlocks {
                     .requiresTool()
                     .strength(3.0f, 4.0f) //Slightly less blast resistance for the reactor
     );
-    
+
     // Register battery block
     public static final Block BATTERY = register(
         "battery",
@@ -156,6 +146,16 @@ public final class ModBlocks {
             .strength(0.3f, 0.3f)
             .nonOpaque()
             .sounds(BlockSoundGroup.GLASS)
+    );
+
+    // Register power cable block
+    public static final Block POWER_CABLE = register(
+            "power_cable",
+            PowerCableBlock::new,
+            Block.Settings.create()
+                    .strength(0.4f, 0.8f)
+                    .nonOpaque() // So we can see through the cable
+                    .sounds(BlockSoundGroup.WOOL)
     );
 
     public static final Block NUKE = register(
