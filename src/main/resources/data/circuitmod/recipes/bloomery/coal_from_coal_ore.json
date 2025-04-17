@@ -5,8 +5,9 @@
     "item": "minecraft:coal_ore"
   },
   "result": {
-    "item": "minecraft:coal"
+    "item": "minecraft:coal",
+    "count": 2
   },
-  "experience": 0.1,
-  "cookingtime": 100
+  "experience": 0.7,
+  "cookingtime": 200
 } 

@@ -26,6 +26,7 @@ import starduster.circuitmod.screen.BloomeryScreenHandler;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.RecipeType;
 import starduster.circuitmod.recipe.BloomeryRecipe;
+import starduster.circuitmod.recipe.BloomeryDirectRecipeReader;
 import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.input.SingleStackRecipeInput;
 import net.minecraft.recipe.ServerRecipeManager;
@@ -35,6 +36,7 @@ import starduster.circuitmod.block.machines.BloomeryBlock;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.recipe.Ingredient;
+import java.util.Optional;
 
 public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, Inventory {
     // Slot indices
@@ -321,6 +323,8 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             .map(recipe -> recipe.value().getCookingTime())
             .orElse(DEFAULT_COOK_TIME);
     }
+
+    // Hardcoded recipe fallbacks
     
     private ItemStack getSmeltingResult(ItemStack input) {
         if (world == null || !(world instanceof ServerWorld serverWorld)) {
@@ -332,6 +336,7 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
         // Debug recipe look up
         Circuitmod.LOGGER.info("[DEBUG-RECIPE] Looking for recipe - Input: " + input.getItem());
         
+        // APPROACH 1: Try to get the result using the standard recipe manager
         ItemStack result = matchGetter.getFirstMatch(recipeInput, serverWorld)
             .map(recipe -> {
                 Circuitmod.LOGGER.info("[DEBUG-RECIPE] Found recipe: " + recipe.id());
@@ -341,55 +346,26 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             
         if (result.isEmpty()) {
             // Debug all available recipes of this type - just log that no recipes were found
-            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No matching recipe found for input: " + input.getItem());
+            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No matching recipe found via recipe manager for: " + input.getItem());
             
-            // FALLBACK: Hardcoded recipe fallbacks since the recipe system isn't working properly
-            Circuitmod.LOGGER.info("[DEBUG-RECIPE] Trying fallback hardcoded recipes");
-            
-            Item inputItem = input.getItem();
-            
-            // Check if the input is something we know should be processable
-            if (inputItem == Items.IRON_ORE) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: iron_ore -> iron_ingot");
-                return new ItemStack(Items.IRON_INGOT);
-            } else if (inputItem == Items.RAW_IRON) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_iron -> iron_ingot");
-                return new ItemStack(Items.IRON_INGOT);
-            } else if (inputItem == Items.COAL_ORE) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: coal_ore -> coal");
-                return new ItemStack(Items.COAL, 2); // Give 2 coal for balance
-            } else if (inputItem == Items.COPPER_ORE) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: copper_ore -> copper_ingot");
-                return new ItemStack(Items.COPPER_INGOT);
-            } else if (inputItem == Items.RAW_COPPER) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_copper -> copper_ingot");
-                return new ItemStack(Items.COPPER_INGOT);
-            } else if (inputItem == Items.GOLD_ORE) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: gold_ore -> gold_ingot");
-                return new ItemStack(Items.GOLD_INGOT);
-            } else if (inputItem == Items.RAW_GOLD) {
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_gold -> gold_ingot");
-                return new ItemStack(Items.GOLD_INGOT);
-            }
-            
-            // Log if no hardcoded fallback found
-            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No hardcoded fallback recipe for " + inputItem);
-            
-            // Try to check if our recipe type is registered properly
-            Circuitmod.LOGGER.info("[DEBUG-RECIPE] ModRecipeTypes.BLOOMERY: " + ModRecipeTypes.BLOOMERY);
-            
-            // Try a direct lookup with a known recipe pattern
-            try {
-                // Log the input ingredient details for debugging
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Input details: " + 
-                    "Item=" + input.getItem().toString() + 
-                    ", Count=" + input.getCount());
+            // APPROACH 2: Try our custom JSON recipe reader if possible
+            if (world.getServer() != null) {
+                // Initialize the direct recipe reader if needed
+                BloomeryDirectRecipeReader.initialize(world.getServer());
                 
-                // Check if our recipe matcher is working
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE] MatchGetter initialized: " + (matchGetter != null));
-            } catch (Exception e) {
-                Circuitmod.LOGGER.error("[DEBUG-RECIPE] Error during debug: " + e.getMessage());
+                // Try to get a recipe directly from JSON
+                Optional<ItemStack> directResult = BloomeryDirectRecipeReader.findRecipe(input.getItem());
+                if (directResult.isPresent()) {
+                    Circuitmod.LOGGER.info("[DEBUG-RECIPE] Found recipe via direct JSON reader: " + 
+                        input.getItem() + " -> " + directResult.get().getItem());
+                    return directResult.get();
+                } else {
+                    Circuitmod.LOGGER.info("[DEBUG-RECIPE] No recipe found via direct JSON reader");
+                }
             }
+            
+            // Log that no recipe was found through any approach
+            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No recipe found through any method for " + input.getItem());
         }
         
         return result;
