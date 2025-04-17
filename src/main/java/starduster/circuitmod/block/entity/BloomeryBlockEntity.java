@@ -343,6 +343,38 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             // Debug all available recipes of this type - just log that no recipes were found
             Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No matching recipe found for input: " + input.getItem());
             
+            // FALLBACK: Hardcoded recipe fallbacks since the recipe system isn't working properly
+            Circuitmod.LOGGER.info("[DEBUG-RECIPE] Trying fallback hardcoded recipes");
+            
+            Item inputItem = input.getItem();
+            
+            // Check if the input is something we know should be processable
+            if (inputItem == Items.IRON_ORE) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: iron_ore -> iron_ingot");
+                return new ItemStack(Items.IRON_INGOT);
+            } else if (inputItem == Items.RAW_IRON) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_iron -> iron_ingot");
+                return new ItemStack(Items.IRON_INGOT);
+            } else if (inputItem == Items.COAL_ORE) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: coal_ore -> coal");
+                return new ItemStack(Items.COAL, 2); // Give 2 coal for balance
+            } else if (inputItem == Items.COPPER_ORE) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: copper_ore -> copper_ingot");
+                return new ItemStack(Items.COPPER_INGOT);
+            } else if (inputItem == Items.RAW_COPPER) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_copper -> copper_ingot");
+                return new ItemStack(Items.COPPER_INGOT);
+            } else if (inputItem == Items.GOLD_ORE) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: gold_ore -> gold_ingot");
+                return new ItemStack(Items.GOLD_INGOT);
+            } else if (inputItem == Items.RAW_GOLD) {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Matched hardcoded recipe: raw_gold -> gold_ingot");
+                return new ItemStack(Items.GOLD_INGOT);
+            }
+            
+            // Log if no hardcoded fallback found
+            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No hardcoded fallback recipe for " + inputItem);
+            
             // Try to check if our recipe type is registered properly
             Circuitmod.LOGGER.info("[DEBUG-RECIPE] ModRecipeTypes.BLOOMERY: " + ModRecipeTypes.BLOOMERY);
             

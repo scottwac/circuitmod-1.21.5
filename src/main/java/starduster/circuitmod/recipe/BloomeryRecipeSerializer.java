@@ -1,6 +1,7 @@
 package starduster.circuitmod.recipe;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.registry.Registries;
@@ -9,20 +10,26 @@ import net.minecraft.util.Identifier;
 import starduster.circuitmod.Circuitmod;
 
 public class BloomeryRecipeSerializer {
-    // Create serializer with a wrapped constructor to add logging
+    // Static initializer for debugging
+    static {
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] BloomeryRecipeSerializer class loaded");
+    }
+
+    // Create serializer for bloomery recipes
     public static final RecipeSerializer<BloomeryRecipe> INSTANCE = new AbstractCookingRecipe.Serializer<BloomeryRecipe>(
+            // Constructor reference with debug wrapper
             (group, category, ingredient, result, experience, cookingTime) -> {
-                Circuitmod.LOGGER.info("[DEBUG-SERIALIZER-RECIPE] Creating bloomery recipe: " +
-                    "group=" + group + ", ingredient=" + ingredient + 
-                    ", result=" + result.getItem() + ", cookTime=" + cookingTime);
-                return new BloomeryRecipe(group, category, ingredient, result, experience, cookingTime);
-            }, 
+                Circuitmod.LOGGER.info("[RECIPE-DEBUG] Serializer creating recipe: " + group);
+                BloomeryRecipe recipe = new BloomeryRecipe(group, category, ingredient, result, experience, cookingTime);
+                Circuitmod.LOGGER.info("[RECIPE-DEBUG] Serializer created recipe successfully: " + recipe);
+                return recipe;
+            },
             200 // Default cooking time
     ) {
-        // Override codec() to add debugging
+        // Override codec to add debugging
         @Override
-        public com.mojang.serialization.MapCodec<BloomeryRecipe> codec() {
-            Circuitmod.LOGGER.info("[DEBUG-SERIALIZER-CODEC] BloomeryRecipe.codec() called");
+        public MapCodec<BloomeryRecipe> codec() {
+            Circuitmod.LOGGER.info("[RECIPE-DEBUG] Serializer codec() called");
             return super.codec();
         }
     };
@@ -31,29 +38,16 @@ public class BloomeryRecipeSerializer {
     
     // Register the serializer
     public static void register() {
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] Registering BloomeryRecipe serializer with ID: " + ID);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] Registering BloomeryRecipe serializer: " + ID);
         
-        // Check if the recipe type is already registered
+        // Check if already registered
         boolean alreadyRegistered = Registries.RECIPE_SERIALIZER.containsId(ID);
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] Serializer already registered: " + alreadyRegistered);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] Serializer already registered? " + alreadyRegistered);
         
+        // Register serializer and check success
         Registry.register(Registries.RECIPE_SERIALIZER, ID, INSTANCE);
-        
-        // Verify registration worked
-        boolean registrationSuccessful = Registries.RECIPE_SERIALIZER.containsId(ID);
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] Registration successful: " + registrationSuccessful);
-        
-        // Debug the registered serializer
-        RecipeSerializer<?> registeredSerializer = Registries.RECIPE_SERIALIZER.get(ID);
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] Registered serializer: " + 
-                             (registeredSerializer == INSTANCE ? "matches our instance" : "different instance"));
-                             
-        // Verify our serializer can be found by the ID used in JSON
-        Identifier jsonTypeId = Identifier.of(Circuitmod.MOD_ID, "bloomery");
-        RecipeSerializer<?> jsonSerializer = Registries.RECIPE_SERIALIZER.get(jsonTypeId);
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] JSON type ID maps to serializer: " + 
-                            (jsonSerializer != null ? "Found" : "NOT FOUND!"));
-        Circuitmod.LOGGER.info("[DEBUG-SERIALIZER] JSON serializer same as ours? " + 
-                            (jsonSerializer == INSTANCE ? "YES" : "NO"));
+        boolean nowRegistered = Registries.RECIPE_SERIALIZER.containsId(ID);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] Serializer registration " + 
+            (nowRegistered ? "SUCCESS" : "FAILED!"));
     }
 } 

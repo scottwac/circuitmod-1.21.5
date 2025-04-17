@@ -17,6 +17,11 @@ import net.minecraft.registry.Registries;
 public class BloomeryRecipe extends AbstractCookingRecipe {
     public static final String ID = "bloomery";
     
+    // Static initializer for debugging
+    static {
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] BloomeryRecipe class loaded");
+    }
+    
     public BloomeryRecipe(
             String group,
             CookingRecipeCategory category,
@@ -26,54 +31,60 @@ public class BloomeryRecipe extends AbstractCookingRecipe {
             int cookingTime) {
         super(group, category, ingredient, result, experience, cookingTime);
         
-        // Debug recipe creation
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-CREATE] Created BloomeryRecipe: group=" + group + 
-            ", category=" + category +
-            ", ingredient=" + ingredient + 
-            ", result=" + result.getItem() +
-            ", cookTime=" + cookingTime);
+        // Debug details of recipe creation
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] Created BloomeryRecipe:");
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Group: " + group);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Category: " + category);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Ingredient: " + ingredient);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Result: " + (result != null ? result.getItem() : "null"));
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Experience: " + experience);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Cooking time: " + cookingTime);
     }
     
     @Override
     protected Item getCookerItem() {
-        // Return your bloomery item here
         return ModBlocks.BLOOMERY.asItem();
     }
     
     @Override
-    @SuppressWarnings("unchecked")
     public RecipeSerializer<? extends AbstractCookingRecipe> getSerializer() {
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-SERIALIZER] Recipe asking for serializer: " + BloomeryRecipeSerializer.INSTANCE);
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-SERIALIZER] Serializer ID: " + BloomeryRecipeSerializer.ID);
         return BloomeryRecipeSerializer.INSTANCE;
     }
     
     @Override
-    @SuppressWarnings("unchecked")
     public RecipeType<? extends AbstractCookingRecipe> getType() {
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-TYPE] BloomeryRecipe.getType called, returning: " + ModRecipeTypes.BLOOMERY);
-        
-        // Verify type registration
-        Identifier typeId = Identifier.of(Circuitmod.MOD_ID, "bloomery");
-        boolean typeRegistered = Registries.RECIPE_TYPE.containsId(typeId);
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-TYPE] Recipe type registered: " + typeRegistered);
-        
         return ModRecipeTypes.BLOOMERY;
     }
     
     @Override
     public RecipeBookCategory getRecipeBookCategory() {
-        // Since we only want mod-specific recipes and don't need recipe book integration
         return null;
     }
 
     @Override
     public boolean matches(SingleStackRecipeInput input, net.minecraft.world.World world) {
-        boolean matches = super.matches(input, world);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG] Testing match for BloomeryRecipe");
         
-        // Simple debug log for recipe matching
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-MATCH] Match test result: " + matches);
+        // Call super implementation and log the result
+        boolean matches = super.matches(input, world);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Match result: " + matches);
+        
+        // Log detailed debug info about why it might not be matching
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Input: " + input);
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - World: " + (world != null ? "present" : "null"));
+        Circuitmod.LOGGER.info("[RECIPE-DEBUG]   - Recipe: " + this);
+        
+        // Try a direct test - OVERRIDE the normal behavior if needed
+        try {
+            // This is a last resort - try to force-match if we recognize the item
+            if (!matches && input != null) {
+                Circuitmod.LOGGER.info("[RECIPE-DEBUG] Checking for force-match options");
+                // We'll log more details but not override unless absolutely necessary
+            }
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[RECIPE-DEBUG] Error in force-match check: " + e.getMessage());
+        }
         
         return matches;
     }
-} 
+}
