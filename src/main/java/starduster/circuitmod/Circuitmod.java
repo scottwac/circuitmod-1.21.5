@@ -5,10 +5,17 @@ import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeManager;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.book.CookingRecipeCategory;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import starduster.circuitmod.item.ModItems;
@@ -16,6 +23,8 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.screen.ModScreenHandlers;
+import starduster.circuitmod.recipe.ModRecipeTypes;
+import starduster.circuitmod.recipe.BloomeryRecipe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +50,7 @@ public class Circuitmod implements ModInitializer {
 		Registry.register(Registries.ITEM_GROUP, ITEM_GROUP, FabricItemGroup.builder()
 			.displayName(Text.translatable("itemgroup." + MOD_ID + ".main"))
 			.icon(() -> new ItemStack(ModItems.LEAD_INGOT))
-			.entries((displayContext, entries) -> {
+			.entries((context, entries) -> {
 				// Add all mod items to the creative tab
 				entries.add(ModItems.RAW_BAUXITE);
 				entries.add(ModItems.CRUSHED_BAUXITE);
@@ -92,15 +101,70 @@ public class Circuitmod implements ModInitializer {
 		ModScreenHandlers.initialize();
 		ModNetworking.initialize();
 		
+		// Register recipes AFTER other components are initialized
+		ModRecipeTypes.register();
+		
+		// Add a server joined event listener to manually check recipe loading
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			// This code runs when a player joins the server
+			LOGGER.info("[SERVER-JOIN] Player joined, checking recipe system");
+			
+			// Get the server and recipe manager
+			MinecraftServer minecraftServer = server;
+			ServerWorld serverWorld = minecraftServer.getOverworld();
+			RecipeManager recipeManager = serverWorld.getRecipeManager();
+			
+			// Check if bloomery recipes are loaded - log all recipe types
+			LOGGER.info("[RECIPE-CHECK] Checking for bloomery recipes");
+			LOGGER.info("[RECIPE-CHECK] Recipe types in registry: ");
+			try {
+				Registries.RECIPE_TYPE.forEach(type -> 
+					LOGGER.info("[RECIPE-CHECK]   - " + Registries.RECIPE_TYPE.getId(type)));
+			
+				// Check if bloomery type exists
+				boolean bloomeryRegistered = Registries.RECIPE_TYPE.containsId(
+					Identifier.of(MOD_ID, "bloomery"));
+				LOGGER.info("[RECIPE-CHECK] Bloomery recipe type registered: " + bloomeryRegistered);
+				
+				// Try to install a hardcoded recipe
+				LOGGER.info("[RECIPE-CHECK] Installing temporary test recipe");
+				try {
+					// Create hardcoded recipes as a last resort to test if the type works
+					BloomeryRecipe ironOreRecipe = new BloomeryRecipe(
+						"test_iron_ore",
+						CookingRecipeCategory.MISC,
+						Ingredient.ofItems(Items.IRON_ORE),
+						new ItemStack(Items.IRON_INGOT),
+						0.7f,
+						200
+					);
+					
+					LOGGER.info("[RECIPE-CHECK] Created test recipe type: " + 
+						(ironOreRecipe.getType() == ModRecipeTypes.BLOOMERY ? "correct" : "WRONG TYPE!"));
+					LOGGER.info("[RECIPE-CHECK] Recipe serializer: " + ironOreRecipe.getSerializer());
+					
+					// Test if vanilla recipes are working
+					LOGGER.info("[RECIPE-CHECK] Vanilla recipes test: FURNACE type exists: " + 
+						Registries.RECIPE_TYPE.containsId(Identifier.of("minecraft", "smelting")));
+					
+				} catch (Exception e) {
+					LOGGER.error("[RECIPE-CHECK] Error creating test recipe: " + e.getMessage());
+					e.printStackTrace();
+				}
+				
+			} catch (Exception e) {
+				LOGGER.error("[RECIPE-CHECK] Error during recipe check: " + e.getMessage());
+				e.printStackTrace();
+			}
+		});
+		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			LOGGER.info("[SERVER] Player " + handler.player.getName().getString() + " connected! " +
-				"UUID: " + handler.player.getUuid());
+			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());
 		});
 		
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-			LOGGER.info("[SERVER] Player " + handler.player.getName().getString() + " disconnected. " +
-				"UUID: " + handler.player.getUuid());
+			LOGGER.info("[SERVER] Player left: " + handler.player.getName().getString());
 		});
 	}
 }

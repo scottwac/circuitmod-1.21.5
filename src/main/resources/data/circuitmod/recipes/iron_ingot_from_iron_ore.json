@@ -1,0 +1,12 @@
+{
+  "type": "circuitmod:bloomery",
+  "category": "metal",
+  "cookingtime": 200,
+  "experience": 0.7,
+  "ingredient": {
+    "item": "minecraft:iron_ore"
+  },
+  "result": {
+    "item": "minecraft:iron_ingot"
+  }
+}

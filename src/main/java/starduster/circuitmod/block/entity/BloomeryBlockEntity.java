@@ -1,12 +1,12 @@
 package starduster.circuitmod.block.entity;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -23,6 +23,18 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.screen.BloomeryScreenHandler;
+import net.minecraft.recipe.AbstractCookingRecipe;
+import net.minecraft.recipe.RecipeType;
+import starduster.circuitmod.recipe.BloomeryRecipe;
+import net.minecraft.recipe.RecipeEntry;
+import net.minecraft.recipe.input.SingleStackRecipeInput;
+import net.minecraft.recipe.ServerRecipeManager;
+import net.minecraft.server.world.ServerWorld;
+import starduster.circuitmod.recipe.ModRecipeTypes;
+import starduster.circuitmod.block.BloomeryBlock;
+import net.minecraft.util.Identifier;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.Registries;
 
 public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, Inventory {
     // Slot indices
@@ -46,6 +58,9 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
     private int burnTime = 0;
     private int cookTime = 0;
     private int cookTimeTotal = DEFAULT_COOK_TIME;
+    
+    // Recipe matching helper
+    private final ServerRecipeManager.MatchGetter<SingleStackRecipeInput, ? extends BloomeryRecipe> matchGetter;
     
     // Property delegate for the screen handler
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -76,24 +91,25 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
 
     public BloomeryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.BLOOMERY_BLOCK_ENTITY, pos, state);
+        this.matchGetter = ServerRecipeManager.createCachedMatchGetter(ModRecipeTypes.BLOOMERY);
     }
     
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
         Inventories.writeNbt(nbt, this.inventory, registries);
-        nbt.putInt("BurnTime", this.burnTime);
-        nbt.putInt("CookTime", this.cookTime);
-        nbt.putInt("CookTimeTotal", this.cookTimeTotal);
+        nbt.putShort("BurnTime", (short)this.burnTime);
+        nbt.putShort("CookTime", (short)this.cookTime);
+        nbt.putShort("CookTimeTotal", (short)this.cookTimeTotal);
     }
     
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
         Inventories.readNbt(nbt, this.inventory, registries);
-        this.burnTime = nbt.getInt("BurnTime").orElse(0);
-        this.cookTime = nbt.getInt("CookTime").orElse(0);
-        this.cookTimeTotal = nbt.getInt("CookTimeTotal").orElse(DEFAULT_COOK_TIME);
+        this.burnTime = nbt.getShort("BurnTime", (short)0);
+        this.cookTime = nbt.getShort("CookTime", (short)0);
+        this.cookTimeTotal = nbt.getShort("CookTimeTotal", (short)DEFAULT_COOK_TIME);
     }
     
     // Screen handler factory
@@ -175,6 +191,14 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
         boolean burningBefore = blockEntity.isBurning();
         boolean dirty = false;
         
+        // Only log every 5 seconds to reduce spam
+        boolean shouldLog = world.getTime() % 100 == 0;
+        if (shouldLog) {
+            Circuitmod.LOGGER.info("[DEBUG-BLOOMERY] State at " + pos + ": burning=" + blockEntity.isBurning() 
+                + ", burnTime=" + blockEntity.burnTime 
+                + ", cookTime=" + blockEntity.cookTime + "/" + blockEntity.cookTimeTotal);
+        }
+        
         // If burning, decrement burn time
         if (blockEntity.isBurning()) {
             blockEntity.burnTime--;
@@ -189,6 +213,11 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             ItemStack resultStack = blockEntity.getSmeltingResult(inputStack);
             
             if (!resultStack.isEmpty()) {
+                if (shouldLog) {
+                    Circuitmod.LOGGER.info("[DEBUG-BLOOMERY] Valid recipe found: " + 
+                        inputStack.getItem() + " -> " + resultStack.getItem());
+                }
+                
                 // Check if output slot can accept the result
                 ItemStack outputStack = blockEntity.inventory.get(OUTPUT_SLOT);
                 if (outputStack.isEmpty() || (
@@ -203,11 +232,16 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
                         if (blockEntity.isBurning()) {
                             dirty = true;
                             // Consume fuel
-                            ItemStack remainder = fuelStack.getItem().getRecipeRemainder();
-                            if (remainder != null && !remainder.isEmpty()) {
-                                blockEntity.inventory.set(FUEL_SLOT, remainder);
+                            ItemStack fuelRemainder = fuelStack.getItem().getRecipeRemainder();
+                            if (!fuelRemainder.isEmpty()) {
+                                blockEntity.inventory.set(FUEL_SLOT, fuelRemainder);
                             } else {
                                 fuelStack.decrement(1);
+                            }
+                            
+                            if (shouldLog) {
+                                Circuitmod.LOGGER.info("[DEBUG-BLOOMERY] Started burning: burnTime=" + 
+                                    blockEntity.burnTime + ", cookTimeTotal=" + blockEntity.cookTimeTotal);
                             }
                         }
                     }
@@ -216,6 +250,9 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
                     if (blockEntity.isBurning()) {
                         blockEntity.cookTime++;
                         if (blockEntity.cookTime >= blockEntity.cookTimeTotal) {
+                            Circuitmod.LOGGER.info("[DEBUG-BLOOMERY] Completed smelting: " + 
+                                inputStack.getItem() + " -> " + resultStack.getItem());
+                                
                             blockEntity.cookTime = 0;
                             // Smelt the item
                             if (outputStack.isEmpty()) {
@@ -232,6 +269,8 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
                         blockEntity.cookTime = 0;
                     }
                 }
+            } else if (shouldLog) {
+                Circuitmod.LOGGER.warn("[DEBUG-BLOOMERY] No recipe found for input: " + inputStack.getItem());
             }
         } else if (blockEntity.cookTime > 0) {
             // No input or fuel, reset cook time
@@ -242,6 +281,11 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
         // Update the block state if burning state has changed
         if (burningBefore != blockEntity.isBurning()) {
             dirty = true;
+            world.setBlockState(pos, world.getBlockState(pos).with(BloomeryBlock.LIT, blockEntity.isBurning()), Block.NOTIFY_ALL);
+            
+            if (shouldLog) {
+                Circuitmod.LOGGER.info("[DEBUG-BLOOMERY] Burning state changed to: " + blockEntity.isBurning());
+            }
         }
         
         if (dirty) {
@@ -268,21 +312,64 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
     }
     
     private int getCookTime(ItemStack input) {
-        // Can customize cooking time based on input
-        return DEFAULT_COOK_TIME;
+        if (world == null || !(world instanceof ServerWorld serverWorld)) return DEFAULT_COOK_TIME;
+        
+        SingleStackRecipeInput recipeInput = new SingleStackRecipeInput(input);
+        
+        // Get cook time from recipe if available
+        return matchGetter.getFirstMatch(recipeInput, serverWorld)
+            .map(recipe -> recipe.value().getCookingTime())
+            .orElse(DEFAULT_COOK_TIME);
     }
     
     private ItemStack getSmeltingResult(ItemStack input) {
-        // Simplified recipe system - you would replace this with proper recipe handling
-        if (input.isOf(Items.IRON_ORE) || input.isOf(Items.DEEPSLATE_IRON_ORE)) {
-            return new ItemStack(Items.IRON_INGOT);
+        if (world == null || !(world instanceof ServerWorld serverWorld)) {
+            return ItemStack.EMPTY;
         }
         
-        if (input.isOf(Items.RAW_IRON)) {
-            return new ItemStack(Items.IRON_INGOT);
+        SingleStackRecipeInput recipeInput = new SingleStackRecipeInput(input);
+        
+        // More detailed recipe debug
+        Circuitmod.LOGGER.info("[DEBUG-RECIPE-DETAIL] Looking for recipe for " + input.getItem() + 
+            ", Count=" + input.getCount() + 
+            ", Is deepslate ore? " + input.isOf(Items.DEEPSLATE_IRON_ORE));
+        
+        // Try manual ingredient test for iron ore
+        Ingredient ironOreIngredient = Ingredient.ofItems(Items.IRON_ORE);
+        Circuitmod.LOGGER.info("[DEBUG-RECIPE-DETAIL] Manual test - iron_ore ingredient matches input? " + 
+            ironOreIngredient.test(input));
+        
+        // Debug recipe look up
+        Circuitmod.LOGGER.info("[DEBUG-RECIPE] Looking for recipe - Input: " + input.getItem());
+        
+        ItemStack result = matchGetter.getFirstMatch(recipeInput, serverWorld)
+            .map(recipe -> {
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Found recipe: " + recipe.id());
+                return recipe.value().craft(recipeInput, world.getRegistryManager());
+            })
+            .orElse(ItemStack.EMPTY);
+            
+        if (result.isEmpty()) {
+            // Debug all available recipes of this type - just log that no recipes were found
+            Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No matching recipe found for input: " + input.getItem());
+            
+            // Try to check if the recipe type exists in the registry
+            boolean bloomeryTypeExists = Registries.RECIPE_TYPE.containsId(
+                Identifier.of(Circuitmod.MOD_ID, "bloomery"));
+            Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Bloomery recipe type in registry: " + bloomeryTypeExists);
+            
+            // Try to log ALL active recipes in the game to see what's available
+            Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Checking for recipes in registry: ");
+            try {
+                // Check if any recipes at all are loaded
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Recipe manager has recipes: " + 
+                    (serverWorld.getRecipeManager() != null ? "Yes" : "No"));
+            } catch (Exception e) {
+                Circuitmod.LOGGER.error("[DEBUG-RECIPE-ALL] Error checking registry: " + e.getMessage());
+            }
         }
         
-        return ItemStack.EMPTY;
+        return result;
     }
     
     // Inventory access methods for the screen handler
