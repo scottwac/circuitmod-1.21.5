@@ -16,6 +16,27 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(QuarryBlockEntity::new, ModBlocks.QUARRY_BLOCK).build()
     );
 
+    // Add Drill block entity
+    public static final BlockEntityType<DrillBlockEntity> DRILL_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "drill_block_entity"),
+            FabricBlockEntityTypeBuilder.create(DrillBlockEntity::new, ModBlocks.DRILL_BLOCK).build()
+    );
+
+    // Add Constructor block entity
+    public static final BlockEntityType<ConstructorBlockEntity> CONSTRUCTOR_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "constructor_block_entity"),
+            FabricBlockEntityTypeBuilder.create(ConstructorBlockEntity::new, ModBlocks.CONSTRUCTOR_BLOCK).build()
+    );
+
+    // Add crusher block entity
+    public static final BlockEntityType<CrusherBlockEntity> CRUSHER_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "crusher_block_entity"),
+            FabricBlockEntityTypeBuilder.create(CrusherBlockEntity::new, ModBlocks.CRUSHER).build()
+    );
+
     // Add bloomery block entity
     public static final BlockEntityType<BloomeryBlockEntity> BLOOMERY_BLOCK_ENTITY = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,
@@ -35,6 +56,41 @@ public class ModBlockEntities {
         Registries.BLOCK_ENTITY_TYPE,
         Identifier.of(Circuitmod.MOD_ID, "creative_generator"),
         FabricBlockEntityTypeBuilder.create(CreativeGeneratorBlockEntity::new, ModBlocks.CREATIVE_GENERATOR).build()
+    );
+
+    // Add creative generator block entity
+    public static final BlockEntityType<TeslaCoilBlockEntity> TESLA_COIL_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "tesla_coil"),
+            FabricBlockEntityTypeBuilder.create(TeslaCoilBlockEntity::new, ModBlocks.TESLA_COIL).build()
+    );
+
+    // Add electric carpet generator block entity
+    public static final BlockEntityType<ElectricCarpetBlockEntity> ELECTRIC_CARPET_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "electric_carpet"),
+            FabricBlockEntityTypeBuilder.create(ElectricCarpetBlockEntity::new, ModBlocks.ELECTRIC_CARPET).build()
+    );
+
+    // Add solar panel block entity
+    public static final BlockEntityType<GeneratorBlockEntity> GENERATOR_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "generator"),
+            FabricBlockEntityTypeBuilder.create(GeneratorBlockEntity::new, ModBlocks.GENERATOR).build()
+    );
+
+    // Add solar panel block entity
+    public static final BlockEntityType<SolarPanelBlockEntity> SOLAR_PANEL_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "solar_panel"),
+            FabricBlockEntityTypeBuilder.create(SolarPanelBlockEntity::new, ModBlocks.SOLAR_PANEL).build()
+    );
+
+    // Add reactor block entity
+    public static final BlockEntityType<ReactorBlockBlockEntity> REACTOR_BLOCK_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "reactor_block"),
+            FabricBlockEntityTypeBuilder.create(ReactorBlockBlockEntity::new, ModBlocks.REACTOR_BLOCK).build()
     );
 
     // Add creative consumer block entity

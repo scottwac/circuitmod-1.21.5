@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "circuitmod:block/quarry/drill_block"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "circuitmod:block/ore/lead_ore"
+  }
+}

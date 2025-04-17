@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:bauxite_ore",
+    "circuitmod:deepslate_bauxite_ore",
+    "circuitmod:lead_ore",
+    "circuitmod:deepslate_lead_ore",
+    "circuitmod:uranium_ore",
+    "circuitmod:deepslate_uranium_ore",
+    "circuitmod:zircon_ore",
+    "circuitmod:deepslate_zircon_ore"
+  ]
+} 

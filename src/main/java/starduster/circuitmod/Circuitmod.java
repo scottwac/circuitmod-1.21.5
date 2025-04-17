@@ -52,39 +52,64 @@ public class Circuitmod implements ModInitializer {
 			.icon(() -> new ItemStack(ModItems.LEAD_INGOT))
 			.entries((context, entries) -> {
 				// Add all mod items to the creative tab
+				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
+				entries.add(ModBlocks.QUARRY_BLOCK);
+				entries.add(ModBlocks.DRILL_BLOCK);
+				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
+				entries.add(ModBlocks.ELECTRIC_FURNACE);
+				entries.add(ModBlocks.CRUSHER);
+				entries.add(ModBlocks.TESLA_COIL);
+				entries.add(ModBlocks.ELECTRIC_CARPET);
+				entries.add(ModBlocks.NUKE); // Add nuke to creative tab
+				entries.add(ModBlocks.GENERATOR); // Add power cable to creative tab
+				entries.add(ModBlocks.SOLAR_PANEL); // Add solar panel to creative tab
+				entries.add(ModBlocks.REACTOR_BLOCK); // Add reactor to creative tab
+				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab
+				entries.add(ModBlocks.ITEM_PIPE); // Add item pipe to creative tab
+				entries.add(ModBlocks.BATTERY); // Add battery to creative tab
+
+				entries.add(ModBlocks.BAUXITE_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.LEAD_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_LEAD_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.URANIUM_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_URANIUM_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.ZIRCON_ORE); // Add creative consumer to creative tab
+				entries.add(ModBlocks.DEEPSLATE_ZIRCON_ORE); // Add creative consumer to creative tab
+
+
 				entries.add(ModItems.RAW_BAUXITE);
+				entries.add(ModItems.RAW_LEAD);
+				entries.add(ModItems.RAW_URANIUM);
+				entries.add(ModItems.ZIRCON);
+
 				entries.add(ModItems.CRUSHED_BAUXITE);
+				entries.add(ModItems.CRUSHED_URANIUM);
+
+				entries.add(ModItems.LEAD_POWDER);
+				entries.add(ModItems.STONE_DUST);
+				entries.add(ModItems.ZIRCONIUM_POWDER);
+
 				entries.add(ModItems.ALUMINUM_INGOT);
+				entries.add(ModItems.LEAD_INGOT);
+				entries.add(ModItems.STEEL_INGOT);
+				entries.add(ModItems.URANIUM_PELLET);
+				entries.add(ModItems.ZIRCONIUM_INGOT);
 
 				entries.add(ModItems.GRAPHITE);
 				entries.add(ModItems.GRAPHITE_POWDER);
 
-				entries.add(ModItems.RAW_LEAD);
-				entries.add(ModItems.LEAD_POWDER);
-				entries.add(ModItems.LEAD_INGOT);
-
 				entries.add(ModItems.IRON_POLE);
-				entries.add(ModItems.STEEL_INGOT);
+				entries.add(ModItems.ZIRCONIUM_TUBE);
 
 				entries.add(ModItems.NATURAL_RUBBER);
 				entries.add(ModItems.SYNTHETIC_RUBBER);
 				entries.add(ModItems.PLASTIC_PELLET);
 				entries.add(ModItems.PLASTIC_BAR);
 
-				entries.add(ModItems.STONE_DUST);
-
-				entries.add(ModItems.ZIRCONIUM_POWDER);
-				entries.add(ModItems.ZIRCONIUM_INGOT);
-				entries.add(ModItems.ZIRCONIUM_TUBE);
-				// Add quarry block to the creative tab
-				entries.add(ModBlocks.QUARRY_BLOCK);
-				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
-				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab
 				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
 				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
-				entries.add(ModBlocks.BATTERY); // Add battery to creative tab
-				entries.add(ModBlocks.ITEM_PIPE); // Add item pipe to creative tab
-				
+
 				// Add more mod items here as they are created
 			})
 			.build()

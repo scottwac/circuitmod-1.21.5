@@ -1,0 +1,125 @@
+{
+  "multipart": [
+
+    {
+      "when": {
+        "north": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "east": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "y": 90,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "south": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "y": 180,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "west": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "y": 270,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "x": 270,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "down": "true"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_part",
+        "x": 90,
+        "uvlock": false
+      }
+    },
+
+
+    {
+      "when": {
+        "north": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "east": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "y": 90,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "south": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "y": 180,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "west": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "y": 270,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "up": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "x": 270,
+        "uvlock": false
+      }
+    },
+    {
+      "when": {
+        "down": "false"
+      },
+      "apply": {
+        "model": "circuitmod:block/pipe/item/itempipe_invert",
+        "x": 90,
+        "uvlock": false
+      }
+    }
+  ]
+}

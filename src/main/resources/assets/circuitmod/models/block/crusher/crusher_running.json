@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/crusher/bottom",
+    "north": "circuitmod:block/crusher/front",
+    "east": "circuitmod:block/crusher/bottom",
+    "south": "circuitmod:block/crusher/electric_panel",
+    "west": "circuitmod:block/crusher/bottom",
+    "up": "circuitmod:block/crusher/top",
+    "down": "circuitmod:block/crusher/bottom"
+  }
+} 

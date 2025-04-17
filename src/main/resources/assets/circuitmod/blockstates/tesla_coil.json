@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=east,running=false": {
+      "model": "circuitmod:block/teslacoil/teslacoil",
+      "y": 90
+    },
+    "facing=east,running=true": {
+      "model": "circuitmod:block/teslacoil/teslacoil_on",
+      "y": 90
+    },
+    "facing=north,running=false": {
+      "model": "circuitmod:block/teslacoil/teslacoil"
+    },
+    "facing=north,running=true": {
+      "model": "circuitmod:block/teslacoil/teslacoil_on"
+    },
+    "facing=south,running=false": {
+      "model": "circuitmod:block/teslacoil/teslacoil",
+      "y": 180
+    },
+    "facing=south,running=true": {
+      "model": "circuitmod:block/teslacoil/teslacoil_on",
+      "y": 180
+    },
+    "facing=west,running=false": {
+      "model": "circuitmod:block/teslacoil/teslacoil",
+      "y": 270
+    },
+    "facing=west,running=true": {
+      "model": "circuitmod:block/teslacoil/teslacoil_on",
+      "y": 270
+    }
+  }
+}

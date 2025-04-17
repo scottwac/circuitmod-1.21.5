@@ -1,14 +1,61 @@
 {
+  "item.circuitmod.raw_bauxite": "Raw Bauxite",
+  "item.circuitmod.crushed_bauxite": "Crushed Bauxite",
+  "item.circuitmod.aluminum_ingot": "Aluminum Ingot",
+  "item.circuitmod.graphite": "Graphite",
+  "item.circuitmod.graphite_powder": "Graphite Powder",
+  "item.circuitmod.raw_lead": "Raw Lead",
+  "item.circuitmod.lead_powder": "Lead Powder",
+  "item.circuitmod.iron_pole": "Iron Pole",
+  "item.circuitmod.steel_ingot": "Steel Ingot",
+  "item.circuitmod.natural_rubber": "Natural Rubber",
+  "item.circuitmod.synthetic_rubber": "Rubber",
+  "item.circuitmod.plastic_pellet": "Plastic Pellet",
+  "item.circuitmod.plastic_bar": "Plastic Bar",
+  "item.circuitmod.stone_dust": "Stone Dust",
+  "item.circuitmod.raw_uranium": "Raw Uranium",
+  "item.circuitmod.crushed_uranium": "Crushed Uranium",
+  "item.circuitmod.uranium_pellet": "Uranium Pellet",
+  "item.circuitmod.zircon": "Zircon",
+  "item.circuitmod.zirconium_powder": "Zirconium Powder",
+  "item.circuitmod.zirconium_ingot": "Zirconium Ingot",
+  "item.circuitmod.zirconium_tube": "Zirconium Tube",
   "item.circuitmod.lead_ingot": "Lead Ingot",
 
-  "itemgroup.circuitmod.main": "Circuit Mod",
+
+  "block.circuitmod.bauxite_ore": "Bauxite Ore",
+  "block.circuitmod.deepslate_bauxite_ore": "Deepslate Bauxite Ore",
+  "block.circuitmod.lead_ore": "Lead Ore",
+  "block.circuitmod.deepslate_lead_ore": "Deepslate Lead Ore",
+  "block.circuitmod.uranium_ore": "Uranium Ore",
+  "block.circuitmod.deepslate_uranium_ore": "Deepslate Uranium Ore",
+  "block.circuitmod.zircon_ore": "Zircon Ore",
+  "block.circuitmod.deepslate_zircon_ore": "Deepslate Zircon Ore",
+
 
   "block.circuitmod.bloomery": "Bloomery",
 
-  "block.circuitmod.quarry_block": "Quarry Block",
+  "block.circuitmod.quarry_block": "Quarry",
+  "block.circuitmod.drill_block": "Drill",
+  "block.circuitmod.constructor_block": "Constructor",
+  "block.circuitmod.electric_furnace": "Electric Furnace",
+  "block.circuitmod.crusher": "Crusher",
+
+  "block.circuitmod.tesla_coil": "Tesla Coil",
+  "block.circuitmod.electric_carpet": "Electric Carpet",
+  "block.circuitmod.nuke": "Nuclear Bomb",
+
+  "block.circuitmod.generator": "Combustion Generator",
+  "block.circuitmod.solar_panel": "Solar Generator",
+  "block.circuitmod.reactor_block": "Fission Reactor",
+
   "block.circuitmod.power_cable": "Cable",
+  "block.circuitmod.battery": "Battery Block",
+  "block.circuitmod.item_pipe": "Item Logistic Pipe",
+
   "block.circuitmod.creative_generator": "Creative Generator",
   "block.circuitmod.creative_consumer": "Creative Consumer",
-  "block.circuitmod.battery": "Battery Block",
-  "block.circuitmod.item_pipe": "Item Logistic Pipe"
+
+
+  "itemgroup.circuitmod.main": "Circuit Mod"
 }

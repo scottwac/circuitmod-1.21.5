@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/quarry/bottom",
+    "north": "circuitmod:block/quarry/front_powered",
+    "east": "circuitmod:block/quarry/fan_active",
+    "south": "circuitmod:block/quarry/constructor_face",
+    "west": "circuitmod:block/quarry/electric_panel",
+    "up": "circuitmod:block/quarry/bottom",
+    "down": "circuitmod:block/quarry/bottom"
+  }
+} 

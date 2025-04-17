@@ -4,9 +4,9 @@
     "particle": "circuitmod:block/quarry/bottom",
     "north": "circuitmod:block/quarry/front_unpowered",
     "east": "circuitmod:block/quarry/vent_cool",
-    "south": "circuitmod:block/quarry/back",
-    "west": "circuitmod:block/quarry/fan_still",
-    "up": "circuitmod:block/quarry/bottom",
+    "south": "circuitmod:block/quarry/quarry_arrow",
+    "west": "circuitmod:block/quarry/electric_panel",
+    "up": "circuitmod:block/quarry/fan_still",
     "down": "circuitmod:block/quarry/bottom"
   }
 } 

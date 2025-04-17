@@ -10,7 +10,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     // Use generic chest texture
-    private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/generic_54.png");
+    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/quarry/quarry_gui.png");
     // Green color for the mining speed text
     private static final int MINING_SPEED_COLOR = 0xFF00FF00; // ARGB format (alpha, red, green, blue)
     
@@ -43,12 +43,12 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     protected void drawBackground(DrawContext context, float delta, int mouseX, int mouseY) {
         int x = (width - backgroundWidth) / 2;
         int y = (height - backgroundHeight) / 2;
-        
-        // Draw the quarry inventory part (top part)
-        context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x, y, 0, 0, backgroundWidth, 3 * 18 + 17, 256, 256);
+
+        // Draw the background
+        context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x, y, 0, 0, backgroundWidth, backgroundHeight, 256, 256);
         
         // Draw the player inventory part (bottom part)
-        context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x, y + 3 * 18 + 17, 0, 126, backgroundWidth, 96, 256, 256);
+        //context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, x, y + 3 * 18 + 17, 0, 126, backgroundWidth, 96, 256, 256);
     }
 
     @Override

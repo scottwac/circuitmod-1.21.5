@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:quarry_block",
+    "circuitmod:drill_block",
+    "circuitmod:constructor_block",
+    "circuitmod:electric_furnace",
+    "circuitmod:crusher",
+    "circuitmod:tesla_coil",
+    "circuitmod:generator",
+    "circuitmod:solar_panel",
+    "circuitmod:reactor_block",
+    "circuitmod:battery"
+  ]
+} 

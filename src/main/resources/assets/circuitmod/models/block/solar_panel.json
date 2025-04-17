@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/solar_panel/top",
+    "north": "circuitmod:block/solar_panel/side",
+    "east": "circuitmod:block/solar_panel/generic",
+    "south": "circuitmod:block/solar_panel/generic",
+    "west": "circuitmod:block/solar_panel/generic",
+    "up": "circuitmod:block/solar_panel/top",
+    "down": "circuitmod:block/solar_panel/bottom"
+  }
+} 
