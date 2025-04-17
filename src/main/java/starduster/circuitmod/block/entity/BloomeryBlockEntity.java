@@ -31,10 +31,10 @@ import net.minecraft.recipe.input.SingleStackRecipeInput;
 import net.minecraft.recipe.ServerRecipeManager;
 import net.minecraft.server.world.ServerWorld;
 import starduster.circuitmod.recipe.ModRecipeTypes;
-import starduster.circuitmod.block.BloomeryBlock;
+import starduster.circuitmod.block.machines.BloomeryBlock;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.Identifier;
 import net.minecraft.recipe.Ingredient;
-import net.minecraft.registry.Registries;
 
 public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, Inventory {
     // Slot indices
@@ -329,16 +329,6 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
         
         SingleStackRecipeInput recipeInput = new SingleStackRecipeInput(input);
         
-        // More detailed recipe debug
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-DETAIL] Looking for recipe for " + input.getItem() + 
-            ", Count=" + input.getCount() + 
-            ", Is deepslate ore? " + input.isOf(Items.DEEPSLATE_IRON_ORE));
-        
-        // Try manual ingredient test for iron ore
-        Ingredient ironOreIngredient = Ingredient.ofItems(Items.IRON_ORE);
-        Circuitmod.LOGGER.info("[DEBUG-RECIPE-DETAIL] Manual test - iron_ore ingredient matches input? " + 
-            ironOreIngredient.test(input));
-        
         // Debug recipe look up
         Circuitmod.LOGGER.info("[DEBUG-RECIPE] Looking for recipe - Input: " + input.getItem());
         
@@ -353,19 +343,20 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             // Debug all available recipes of this type - just log that no recipes were found
             Circuitmod.LOGGER.warn("[DEBUG-RECIPE] No matching recipe found for input: " + input.getItem());
             
-            // Try to check if the recipe type exists in the registry
-            boolean bloomeryTypeExists = Registries.RECIPE_TYPE.containsId(
-                Identifier.of(Circuitmod.MOD_ID, "bloomery"));
-            Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Bloomery recipe type in registry: " + bloomeryTypeExists);
+            // Try to check if our recipe type is registered properly
+            Circuitmod.LOGGER.info("[DEBUG-RECIPE] ModRecipeTypes.BLOOMERY: " + ModRecipeTypes.BLOOMERY);
             
-            // Try to log ALL active recipes in the game to see what's available
-            Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Checking for recipes in registry: ");
+            // Try a direct lookup with a known recipe pattern
             try {
-                // Check if any recipes at all are loaded
-                Circuitmod.LOGGER.info("[DEBUG-RECIPE-ALL] Recipe manager has recipes: " + 
-                    (serverWorld.getRecipeManager() != null ? "Yes" : "No"));
+                // Log the input ingredient details for debugging
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] Input details: " + 
+                    "Item=" + input.getItem().toString() + 
+                    ", Count=" + input.getCount());
+                
+                // Check if our recipe matcher is working
+                Circuitmod.LOGGER.info("[DEBUG-RECIPE] MatchGetter initialized: " + (matchGetter != null));
             } catch (Exception e) {
-                Circuitmod.LOGGER.error("[DEBUG-RECIPE-ALL] Error checking registry: " + e.getMessage());
+                Circuitmod.LOGGER.error("[DEBUG-RECIPE] Error during debug: " + e.getMessage());
             }
         }
         
