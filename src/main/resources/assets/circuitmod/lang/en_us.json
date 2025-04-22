@@ -23,6 +23,12 @@
   "item.circuitmod.zirconium_tube": "Zirconium Tube",
   "item.circuitmod.lead_ingot": "Lead Ingot",
 
+  "item.circuitmod.steel_axe": "Steel Axe",
+  "item.circuitmod.steel_pickaxe": "Steel Pickaxe",
+  "item.circuitmod.steel_hoe": "Steel Hoe",
+  "item.circuitmod.steel_shovel": "Steel Shovel",
+  "item.circuitmod.steel_sword": "Steel Sword",
+
 
   "block.circuitmod.bauxite_ore": "Bauxite Ore",
   "block.circuitmod.deepslate_bauxite_ore": "Deepslate Bauxite Ore",

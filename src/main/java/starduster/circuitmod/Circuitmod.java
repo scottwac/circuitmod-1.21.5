@@ -21,6 +21,7 @@ import net.minecraft.util.Identifier;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.recipe.ModRecipeTypes;
@@ -28,6 +29,7 @@ import starduster.circuitmod.recipe.BloomeryRecipe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import starduster.circuitmod.util.ModItemTags;
 
 public class Circuitmod implements ModInitializer {
 	public static final String MOD_ID = "circuitmod";
@@ -111,6 +113,12 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
 				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
+				entries.add(ModItems.STEEL_SHOVEL);
+				entries.add(ModItems.STEEL_PICKAXE);
+				entries.add(ModItems.STEEL_AXE);
+				entries.add(ModItems.STEEL_HOE);
+				entries.add(ModItems.STEEL_SWORD);
+
 				// Add more mod items here as they are created
 			})
 			.build()
@@ -126,6 +134,8 @@ public class Circuitmod implements ModInitializer {
 		ModBlockEntities.initialize();
 		ModScreenHandlers.initialize();
 		ModNetworking.initialize();
+		ModItemTags.initialize();
+		ModToolMaterials.initialize();
 		
 		// Register recipes AFTER other components are initialized
 		ModRecipeTypes.register();
