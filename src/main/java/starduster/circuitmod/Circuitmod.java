@@ -79,6 +79,7 @@ public class Circuitmod implements ModInitializer {
 
 
 				entries.add(ModItems.RAW_BAUXITE);
+				entries.add(ModItems.BLOOM);
 				entries.add(ModItems.RAW_LEAD);
 				entries.add(ModItems.RAW_URANIUM);
 				entries.add(ModItems.ZIRCON);

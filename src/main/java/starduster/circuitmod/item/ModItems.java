@@ -28,6 +28,7 @@ public final class ModItems {
     public static final Item LEAD_INGOT = register("lead_ingot", Item::new, new Item.Settings());
 
     public static final Item IRON_POLE = register("iron_pole", Item::new, new Item.Settings());
+    public static final Item BLOOM = register("bloom", Item::new, new Item.Settings());
     public static final Item STEEL_INGOT = register("steel_ingot", Item::new, new Item.Settings());
 
     public static final Item NATURAL_RUBBER = register("natural_rubber", Item::new, new Item.Settings());
