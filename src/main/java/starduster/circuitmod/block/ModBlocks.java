@@ -233,6 +233,21 @@ public final class ModBlocks {
     );
 
 
+    /**
+     * MISC
+     */
+
+    public static final Block STEEL_BLOCK = register(
+            "steel_block",
+            Block::new,
+            AbstractBlock.Settings.create().sounds(BlockSoundGroup.IRON)
+                    .requiresTool()
+                    .strength(5.0F, 6.0F)
+    );
+
+
+
+
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
         final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);

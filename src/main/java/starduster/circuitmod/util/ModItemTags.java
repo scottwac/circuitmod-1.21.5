@@ -11,7 +11,7 @@ public class ModItemTags {
 
     }
 
-    public static final TagKey<Item> STEEL_TOOL_MATERIALS = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","steel_tool_material"));
+    public static final TagKey<Item> STEEL_TOOL_MATERIALS = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","steel_tool_materials"));
 
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod item tags");

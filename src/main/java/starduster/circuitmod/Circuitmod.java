@@ -113,6 +113,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.CREATIVE_GENERATOR); // Add creative generator to creative tab
 				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
+				entries.add(ModBlocks.STEEL_BLOCK);
+
 				entries.add(ModItems.STEEL_SHOVEL);
 				entries.add(ModItems.STEEL_PICKAXE);
 				entries.add(ModItems.STEEL_AXE);
