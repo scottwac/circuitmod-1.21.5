@@ -23,9 +23,8 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
+import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
-import starduster.circuitmod.recipe.ModRecipeTypes;
-import starduster.circuitmod.recipe.BloomeryRecipe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,28 +137,13 @@ public class Circuitmod implements ModInitializer {
 		ModNetworking.initialize();
 		ModItemTags.initialize();
 		ModToolMaterials.initialize();
-		
-		// Register recipes AFTER other components are initialized
-		ModRecipeTypes.register();
+		ModRecipes.initialize();
+
 		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());
-			
-			// Test recipe system
-			LOGGER.info("[RECIPE-TEST] Testing bloomery recipes on player join");
-			
-			// Ensure our recipe type is registered
-			LOGGER.info("[RECIPE-TEST] Checking if bloomery recipe type is registered");
-			Identifier bloomeryTypeId = Identifier.of(MOD_ID, "bloomery");
-			boolean typeRegistered = Registries.RECIPE_TYPE.containsId(bloomeryTypeId);
-			LOGGER.info("[RECIPE-TEST] Bloomery recipe type registered: " + typeRegistered);
-			
-			// Check if serializer is registered
-			LOGGER.info("[RECIPE-TEST] Checking if bloomery serializer is registered");
-			Identifier serializerId = Identifier.of(MOD_ID, "bloomery");
-			boolean serializerRegistered = Registries.RECIPE_SERIALIZER.containsId(serializerId);
-			LOGGER.info("[RECIPE-TEST] Bloomery serializer registered: " + serializerRegistered);
+
 		});
 		
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {

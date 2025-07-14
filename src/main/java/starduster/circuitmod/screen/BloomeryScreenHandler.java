@@ -8,17 +8,13 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.FurnaceFuelSlot;
-import net.minecraft.screen.slot.FurnaceOutputSlot;
-import net.minecraft.text.Text;
-import net.minecraft.util.collection.DefaultedList;
-import starduster.circuitmod.Circuitmod;
-import starduster.circuitmod.block.entity.BloomeryBlockEntity;
+
 
 public class BloomeryScreenHandler extends ScreenHandler {
     private final Inventory inventory;
     private final PropertyDelegate propertyDelegate;
-    
+
+
     // Client constructor
     public BloomeryScreenHandler(int syncId, PlayerInventory playerInventory) {
         this(syncId, playerInventory, new SimpleInventory(3), new PropertyDelegate() {
@@ -29,23 +25,23 @@ public class BloomeryScreenHandler extends ScreenHandler {
     }
     
     // Server constructor
-    public BloomeryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate) {
+    public BloomeryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate arrayPropertyDelegate) {
         super(ModScreenHandlers.BLOOMERY_SCREEN_HANDLER, syncId);
         this.inventory = inventory;
-        this.propertyDelegate = propertyDelegate;
-        
+        this.propertyDelegate = arrayPropertyDelegate;
+
         // Add property delegate for progress bars
-        this.addProperties(propertyDelegate);
+        addProperties(arrayPropertyDelegate);
         
         // Add bloomery slots
         // Input slot
         this.addSlot(new Slot(inventory, 0, 56, 27));
         
         // Fuel slot
-        this.addSlot(new BloomeryFuelSlot(inventory, 1, 56, 45));
+        this.addSlot(new Slot(inventory, 1, 56, 45));
         
         // Output slot
-        this.addSlot(new FurnaceOutputSlot(playerInventory.player, inventory, 2, 116, 36));
+        this.addSlot(new Slot(inventory, 2, 116, 36));
         
         // Player inventory slots
         for (int i = 0; i < 3; ++i) {
@@ -117,30 +113,23 @@ public class BloomeryScreenHandler extends ScreenHandler {
     }
     
     // Utility methods
-    public int getBurnTime() {
-        return this.propertyDelegate.get(0);
+    public boolean isSmelting() {
+        return true; //propertyDelegate.get(0) > 0;
     }
-    
-    public int getCookTime() {
-        return this.propertyDelegate.get(1);
-    }
-    
-    public int getCookTimeTotal() {
-        return this.propertyDelegate.get(2);
-    }
-    
-    public boolean isBurning() {
-        return this.getBurnTime() > 0;
-    }
+    // TODO property delegate is not working, the boolean for isSmelting and getScaledArrowProgess aren't receiving progress data. I, for the life of me, cannot figure out why. Fixing this will make the progress bar work.
 
-    public int getScaledProgressArrow() {
+    public int getScaledArrowProgress() {
         int progress = this.propertyDelegate.get(0);
-        //int maxProgress = this.propertyDelegate.get(1);
-        int maxProgress = 1600;
-        int arrowPixelWidth = 24;
+        int maxProgress = this.propertyDelegate.get(1); // Max Progress
+        int arrowPixelSize = 24; // This is the width in pixels of your arrow
 
-        //return maxProgress != 0 && progress != 0 ? progress * arrowPixelWidth / maxProgress : 0;
-        return maxProgress != 0 ? progress * arrowPixelWidth / maxProgress : 0;
+        //return maxProgress != 0 && progress != 0 ? progress * arrowPixelSize / maxProgress : 0;
+
+        if(maxProgress != 0 && progress != 0) {
+            return progress * arrowPixelSize / maxProgress;
+        } else {
+            return 0;
+        }
 
     }
     

@@ -1,0 +1,7 @@
+{
+  "type": "circuitmod:bloomery",
+  "ingredient": "minecraft:iron_ingot",
+  "result": {
+    "id": "circuitmod:bloom"
+  }
+}

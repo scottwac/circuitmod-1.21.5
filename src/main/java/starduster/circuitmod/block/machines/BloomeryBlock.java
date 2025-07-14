@@ -7,24 +7,27 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
-import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.BloomeryBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 
 public class BloomeryBlock extends BlockWithEntity {
-    public static final MapCodec<BloomeryBlock> CODEC = createCodec(BloomeryBlock::new);
+    public static final MapCodec<BloomeryBlock> CODEC = BloomeryBlock.createCodec(BloomeryBlock::new);
     public static final BooleanProperty LIT = Properties.LIT;
     
     public BloomeryBlock(Settings settings) {
@@ -60,7 +63,7 @@ public class BloomeryBlock extends BlockWithEntity {
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new BloomeryBlockEntity(pos, state);
     }
-    
+
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
         if (!world.isClient) {
@@ -71,12 +74,16 @@ public class BloomeryBlock extends BlockWithEntity {
         }
         return ActionResult.SUCCESS;
     }
-    
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ? null :
-            validateTicker(type, ModBlockEntities.BLOOMERY_BLOCK_ENTITY, BloomeryBlockEntity::tick);
+        if(world.isClient()) {
+            return null;
+        }
+
+        return validateTicker(type, ModBlockEntities.BLOOMERY_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1));
     }
     
     // Add furnace-like particles and sounds when active
