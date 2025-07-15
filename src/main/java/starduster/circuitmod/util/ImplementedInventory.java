@@ -1,4 +1,4 @@
-package starduster.circuitmod.block.entity;
+package starduster.circuitmod.util;
 
 
 import net.minecraft.entity.player.PlayerEntity;

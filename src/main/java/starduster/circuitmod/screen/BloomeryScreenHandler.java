@@ -5,6 +5,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.ArrayPropertyDelegate;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -17,11 +18,7 @@ public class BloomeryScreenHandler extends ScreenHandler {
 
     // Client constructor
     public BloomeryScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(3), new PropertyDelegate() {
-            public int get(int index) { return 0; }
-            public void set(int index, int value) {}
-            public int size() { return 3; }
-        });
+        this(syncId, playerInventory, new SimpleInventory(3), new ArrayPropertyDelegate(4));
     }
     
     // Server constructor
@@ -31,15 +28,13 @@ public class BloomeryScreenHandler extends ScreenHandler {
         this.propertyDelegate = arrayPropertyDelegate;
 
         // Add property delegate for progress bars
-        addProperties(arrayPropertyDelegate);
+        this.addProperties(arrayPropertyDelegate);
         
         // Add bloomery slots
         // Input slot
         this.addSlot(new Slot(inventory, 0, 56, 27));
-        
         // Fuel slot
         this.addSlot(new Slot(inventory, 1, 56, 45));
-        
         // Output slot
         this.addSlot(new Slot(inventory, 2, 116, 36));
         
@@ -114,7 +109,10 @@ public class BloomeryScreenHandler extends ScreenHandler {
     
     // Utility methods
     public boolean isSmelting() {
-        return true; //propertyDelegate.get(0) > 0;
+        return propertyDelegate.get(0) > 0;
+    }
+    public boolean isBurning() {
+        return propertyDelegate.get(2) > 0;
     }
     // TODO property delegate is not working, the boolean for isSmelting and getScaledArrowProgess aren't receiving progress data. I, for the life of me, cannot figure out why. Fixing this will make the progress bar work.
 
@@ -130,7 +128,18 @@ public class BloomeryScreenHandler extends ScreenHandler {
         } else {
             return 0;
         }
+    }
 
+    public int getScaledFuelIndicator() {
+        int burnTime = this.propertyDelegate.get(2);
+        int maxBurnTime = this.propertyDelegate.get(3);
+        int spriteHeight = 13;
+
+        if(burnTime != 0 && maxBurnTime != 0) {
+            return burnTime * spriteHeight / maxBurnTime;
+        } else {
+            return 0;
+        }
     }
     
     private boolean isFuel(ItemStack stack) {

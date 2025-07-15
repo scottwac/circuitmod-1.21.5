@@ -27,12 +27,11 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.machines.BloomeryBlock;
-import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.recipe.BloomeryRecipe;
 import starduster.circuitmod.recipe.BloomeryRecipeInput;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.BloomeryScreenHandler;
-import starduster.circuitmod.screen.QuarryScreenHandler;
+import starduster.circuitmod.util.ImplementedInventory;
 
 import java.util.Optional;
 
@@ -54,24 +53,28 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
         this.propertyDelegate = new PropertyDelegate() {
             @Override
             public int get(int index) {
-                return switch (index) {
-                    case 0 -> BloomeryBlockEntity.this.progress;
-                    case 1 -> BloomeryBlockEntity.this.maxProgress;
-                    default -> 0;
-                };
+                switch (index) {
+                    case 0 -> {return BloomeryBlockEntity.this.progress;}
+                    case 1 -> {return BloomeryBlockEntity.this.maxProgress;}
+                    case 2 -> {return BloomeryBlockEntity.this.burnTime;}
+                    case 3 -> {return BloomeryBlockEntity.this.maxBurnTime;}
+                    default -> {return 0;}
+                }
             }
 
             @Override
             public void set(int index, int value) {
                 switch (index) {
-                    case 0: BloomeryBlockEntity.this.progress = value;
-                    case 1: BloomeryBlockEntity.this.maxProgress = value;
+                    case 0 -> BloomeryBlockEntity.this.progress = value;
+                    case 1 -> BloomeryBlockEntity.this.maxProgress = value;
+                    case 2 -> BloomeryBlockEntity.this.burnTime = value;
+                    case 3 -> BloomeryBlockEntity.this.maxBurnTime = value;
                 }
             }
 
             @Override
             public int size() {
-                return 2;
+                return 4;
             }
         };
     }

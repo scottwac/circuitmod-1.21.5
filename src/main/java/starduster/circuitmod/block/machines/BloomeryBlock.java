@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.BloomeryBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 
-public class BloomeryBlock extends BlockWithEntity {
+public class BloomeryBlock extends BlockWithEntity implements BlockEntityProvider {
     public static final MapCodec<BloomeryBlock> CODEC = BloomeryBlock.createCodec(BloomeryBlock::new);
     public static final BooleanProperty LIT = Properties.LIT;
     
@@ -66,11 +66,12 @@ public class BloomeryBlock extends BlockWithEntity {
     }
 
     @Override
-    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+    protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos,
+                                         PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (!world.isClient) {
-            BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof BloomeryBlockEntity) {
-                player.openHandledScreen((BloomeryBlockEntity) blockEntity);
+            NamedScreenHandlerFactory screenHandlerFactory = ((BloomeryBlockEntity) world.getBlockEntity(pos));
+            if (screenHandlerFactory != null) {
+                player.openHandledScreen(screenHandlerFactory);
             }
         }
         return ActionResult.SUCCESS;
