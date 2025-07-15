@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "circuitmod:block/bloomery/bloomery_front_lit",
+    "side": "circuitmod:block/bloomery/bloomery_side",
+    "top": "circuitmod:block/bloomery/bloomery_top_lit"
+  }
+}

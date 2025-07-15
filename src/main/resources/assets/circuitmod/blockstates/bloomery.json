@@ -1,21 +1,33 @@
 {
   "variants": {
-    "facing=east": {
-      "model": "circuitmod:block/bloomery",
+    "facing=east,lit=false": {
+      "model": "circuitmod:block/bloomery/bloomery",
       "y": 90
     },
-
-    "facing=north": {
-      "model": "circuitmod:block/bloomery"
+    "facing=east,lit=true": {
+      "model": "circuitmod:block/bloomery/bloomery_lit",
+      "y": 90
     },
-
-    "facing=south": {
-      "model": "circuitmod:block/bloomery",
+    "facing=north,lit=false": {
+      "model": "circuitmod:block/bloomery/bloomery"
+    },
+    "facing=north,lit=true": {
+      "model": "circuitmod:block/bloomery/bloomery_lit"
+    },
+    "facing=south,lit=false": {
+      "model": "circuitmod:block/bloomery/bloomery",
       "y": 180
     },
-
-    "facing=west": {
-      "model": "circuitmod:block/bloomery",
+    "facing=south,lit=true": {
+      "model": "circuitmod:block/bloomery/bloomery_lit",
+      "y": 180
+    },
+    "facing=west,lit=false": {
+      "model": "circuitmod:block/bloomery/bloomery",
+      "y": 270
+    },
+    "facing=west,lit=true": {
+      "model": "circuitmod:block/bloomery/bloomery_lit",
       "y": 270
     }
   }

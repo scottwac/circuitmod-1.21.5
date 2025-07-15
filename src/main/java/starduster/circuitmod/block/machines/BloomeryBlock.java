@@ -8,6 +8,7 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -83,30 +84,34 @@ public class BloomeryBlock extends BlockWithEntity {
         }
 
         return validateTicker(type, ModBlockEntities.BLOOMERY_BLOCK_ENTITY,
-                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1));
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
     }
     
     // Add furnace-like particles and sounds when active
-    @Override
     public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
         if (state.get(LIT)) {
-            double x = (double)pos.getX() + 0.5;
-            double y = (double)pos.getY() + 1.0;
-            double z = (double)pos.getZ() + 0.5;
-            
-            if (random.nextDouble() < 0.1) {
-                world.playSound(null, pos, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, 
-                    SoundCategory.BLOCKS, 1.0f, 1.0f);
+            double d = (double)pos.getX() + (double)0.5F;
+            double e = (double)pos.getY() + (double)1.1F;
+            double f = (double)pos.getZ() + (double)0.5F;
+
+            double l = (double)pos.getX() + (double)0.5F;
+            double m = (double)pos.getY();
+            double n = (double)pos.getZ() + (double)0.5F;
+
+            if (random.nextDouble() < 0.9) {
+                world.playSoundClient(d, e, f, SoundEvents.BLOCK_CAMPFIRE_CRACKLE, SoundCategory.BLOCKS, 0.9F, 0.8F, false);
             }
-            
+
             Direction direction = state.get(Properties.HORIZONTAL_FACING);
             Direction.Axis axis = direction.getAxis();
-            double offset = random.nextDouble() * 0.6 - 0.3;
-            double xOffset = axis == Direction.Axis.X ? 0.52 * direction.getOffsetX() : offset;
-            double yOffset = random.nextDouble() * 6.0 / 16.0;
-            double zOffset = axis == Direction.Axis.Z ? 0.52 * direction.getOffsetZ() : offset;
-           // world.addParticle(ParticleTypes.SMOKE, x + xOffset, y, z + zOffset, 0.0, 0.0, 0.0);
-           // world.addParticle(ParticleTypes.FLAME, x + xOffset, y, z + zOffset, 0.0, 0.0, 0.0);
+            double g = 0.52;
+            double h = random.nextDouble() * 0.6 - 0.3;
+            double i = axis == Direction.Axis.X ? (double)direction.getOffsetX() * 0.52 : h;
+            double j = random.nextDouble() * (double)6.0F / (double)16.0F;
+            double k = axis == Direction.Axis.Z ? (double)direction.getOffsetZ() * 0.52 : h;
+            world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, (double)0.0F, (double)0.0F, (double)0.0F);
+            world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e + 0.1F, f, (double)0.0F, (double)0.0F, (double)0.0F);
+            world.addParticleClient(ParticleTypes.FLAME, l + i, m + j, n + k, (double)0.0F, (double)0.0F, (double)0.0F);
         }
     }
 } 

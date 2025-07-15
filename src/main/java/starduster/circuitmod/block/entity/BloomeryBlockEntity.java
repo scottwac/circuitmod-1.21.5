@@ -1,6 +1,7 @@
 package starduster.circuitmod.block.entity;
 
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -25,6 +26,7 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.block.machines.BloomeryBlock;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.recipe.BloomeryRecipe;
 import starduster.circuitmod.recipe.BloomeryRecipeInput;
@@ -43,9 +45,9 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
 
     protected final PropertyDelegate propertyDelegate;
     private int progress = 0;
-    private int maxProgress = 40; //default max time
+    private int maxProgress = 200; //default max time
     private int burnTime = 0;
-    private int maxBurnTime = 10;
+    private int maxBurnTime = 50;
 
     public BloomeryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.BLOOMERY_BLOCK_ENTITY, pos, state);
@@ -106,7 +108,9 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
     }
 
 
-    public void tick(World world, BlockPos pos, BlockState state) {
+    public void tick(World world, BlockPos pos, BlockState state, BloomeryBlockEntity blockEntity) {
+        boolean burningBefore = blockEntity.isBurning();
+
         if(burnTime > 0) {
             burnTime = burnTime - 1;
         }
@@ -127,6 +131,13 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
             resetProgress();
         }
 
+        if (burningBefore != blockEntity.isBurning()) {
+            world.setBlockState(pos, world.getBlockState(pos).with(BloomeryBlock.LIT, blockEntity.isBurning()), Block.NOTIFY_ALL);
+        }
+    }
+
+    public boolean isBurning() {
+        return this.burnTime > 0;
     }
 
     private void consumeFuel() {
@@ -134,9 +145,10 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
     }
 
     private boolean hasFuel() {
-        Item fuelInput = Items.CHARCOAL;
+        Item fuelType1 = Items.CHARCOAL;
+        Item fuelType2 = Items.COAL;
 
-        return this.getStack(FUEL_SLOT).isOf(fuelInput);
+        return this.getStack(FUEL_SLOT).isOf(fuelType1) || this.getStack(FUEL_SLOT).isOf(fuelType2);
     }
 
 //    private boolean isFuel(ItemStack stack) {
@@ -146,7 +158,7 @@ public class BloomeryBlockEntity extends BlockEntity implements NamedScreenHandl
 
     private void resetProgress() {
         this.progress = 0;
-        this.maxProgress = 40; //default max time
+        this.maxProgress = 200; //default max time
     }
 
     private void craftItem() {
