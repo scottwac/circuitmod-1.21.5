@@ -23,6 +23,10 @@ import java.util.Set;
 public class PowerCableBlockEntity extends BlockEntity implements IPowerConnectable {
     private EnergyNetwork network;
     
+    // Add cooldown for network merge checks to prevent spam
+    private int mergeCheckCooldown = 0;
+    private static final int MERGE_CHECK_COOLDOWN_MAX = 20; // Only check every 20 ticks (1 second)
+    
     public PowerCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_CABLE_BLOCK_ENTITY, pos, state);
     }
@@ -149,6 +153,14 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                     if (existingNetwork == null) {
                         existingNetwork = neighborNetwork;
                     } else if (existingNetwork != neighborNetwork) {
+                        // Check if the neighbor's network is already merged (prevent infinite loops)
+                        String neighborNetworkId = neighborNetwork.getNetworkId();
+                        if (neighborNetworkId.startsWith("MERGED-")) {
+                            Circuitmod.LOGGER.info("Found neighbor with already merged network at " + neighborPos + 
+                                                  " (Network ID: " + neighborNetworkId + "), skipping merge");
+                            continue;
+                        }
+                        
                         // Found multiple networks, they need to be merged
                         Circuitmod.LOGGER.info("Found multiple networks, merging");
                         existingNetwork.mergeWith(neighborNetwork);
@@ -191,6 +203,11 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
      * Checks adjacent blocks for networks that need to be merged with this one.
      */
     private void checkAndMergeWithNeighboringNetworks() {
+        if (mergeCheckCooldown > 0) {
+            mergeCheckCooldown--;
+            return;
+        }
+
         for (Direction dir : Direction.values()) {
             BlockPos neighborPos = pos.offset(dir);
             BlockEntity be = world.getBlockEntity(neighborPos);
@@ -200,12 +217,21 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 EnergyNetwork neighborNetwork = connectable.getNetwork();
                 
                 if (neighborNetwork != null && neighborNetwork != network) {
+                    // Check if the neighbor's network is already merged (prevent infinite loops)
+                    String neighborNetworkId = neighborNetwork.getNetworkId();
+                    if (neighborNetworkId.startsWith("MERGED-")) {
+                        Circuitmod.LOGGER.debug("Cable at " + pos + " found neighbor with already merged network at " + neighborPos + 
+                                              " (Network ID: " + neighborNetworkId + "), skipping merge");
+                        continue;
+                    }
+                    
                     // Found different network, merge them
                     network.mergeWith(neighborNetwork);
                     Circuitmod.LOGGER.debug("Merged networks at " + pos);
                 }
             }
         }
+        mergeCheckCooldown = MERGE_CHECK_COOLDOWN_MAX; // Reset cooldown
     }
     
     @Override
@@ -354,6 +380,11 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             return;
         }
         
+        // Use the cooldown to prevent spam
+        if (cable.mergeCheckCooldown > 0) {
+            return;
+        }
+        
         for (Direction dir : Direction.values()) {
             BlockPos neighborPos = pos.offset(dir);
             BlockEntity be = world.getBlockEntity(neighborPos);
@@ -383,16 +414,27 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                          connectable.canConnectPower(dir.getOpposite()) && 
                          cable.canConnectPower(dir)) {
                     
+                    // Check if the neighbor's network is already merged (prevent infinite loops)
+                    String neighborNetworkId = connectable.getNetwork().getNetworkId();
+                    if (neighborNetworkId.startsWith("MERGED-")) {
+                        Circuitmod.LOGGER.debug("Cable at " + pos + " found neighbor with already merged network at " + neighborPos + 
+                                              " (Network ID: " + neighborNetworkId + "), skipping merge");
+                        continue;
+                    }
+                    
                     Circuitmod.LOGGER.info("Cable at " + pos + " found neighbor with different network at " + neighborPos + 
-                                          " (Network ID: " + connectable.getNetwork().getNetworkId() + ")");
+                                          " (Network ID: " + neighborNetworkId + ")");
                     
                     // Merge networks
                     cable.network.mergeWith(connectable.getNetwork());
                     Circuitmod.LOGGER.info("Merged networks at " + pos + ": " + 
-                                          connectable.getNetwork().getNetworkId() + " -> " + cable.network.getNetworkId());
+                                          neighborNetworkId + " -> " + cable.network.getNetworkId());
                 }
             }
         }
+        
+        // Reset cooldown after checking
+        cable.mergeCheckCooldown = MERGE_CHECK_COOLDOWN_MAX;
     }
     
     /**

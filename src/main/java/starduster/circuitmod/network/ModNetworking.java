@@ -19,6 +19,7 @@ public class ModNetworking {
         
         // Register the payload type for server->client communication
         PayloadTypeRegistry.playS2C().register(QuarryMiningSpeedPayload.ID, QuarryMiningSpeedPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(QuarryMiningProgressPayload.ID, QuarryMiningProgressPayload.CODEC);
     }
     
     /**
@@ -38,6 +39,23 @@ public class ModNetworking {
     }
     
     /**
+     * Send a mining progress update to a player
+     * 
+     * @param player The player to send the update to
+     * @param miningProgress The mining progress (0-100)
+     * @param miningPos The position being mined
+     * @param quarryPos The position of the quarry
+     */
+    public static void sendMiningProgressUpdate(ServerPlayerEntity player, int miningProgress, BlockPos miningPos, BlockPos quarryPos) {
+        // Create the payload and send it
+        Circuitmod.LOGGER.info("[SERVER] Sending mining progress packet to player " + 
+            player.getName().getString() + ": " + miningProgress + "% at " + miningPos + " for quarry at " + quarryPos);
+            
+        QuarryMiningProgressPayload payload = new QuarryMiningProgressPayload(miningProgress, miningPos, quarryPos);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
      * Payload for quarry mining speed updates
      */
     public record QuarryMiningSpeedPayload(int miningSpeed, BlockPos quarryPos) implements CustomPayload {
@@ -50,6 +68,28 @@ public class ModNetworking {
             PacketCodecs.INTEGER, QuarryMiningSpeedPayload::miningSpeed,
             BlockPos.PACKET_CODEC, QuarryMiningSpeedPayload::quarryPos,
             QuarryMiningSpeedPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for quarry mining progress updates
+     */
+    public record QuarryMiningProgressPayload(int miningProgress, BlockPos miningPos, BlockPos quarryPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<QuarryMiningProgressPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "quarry_mining_progress"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, QuarryMiningProgressPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.INTEGER, QuarryMiningProgressPayload::miningProgress,
+            BlockPos.PACKET_CODEC, QuarryMiningProgressPayload::miningPos,
+            BlockPos.PACKET_CODEC, QuarryMiningProgressPayload::quarryPos,
+            QuarryMiningProgressPayload::new
         );
         
         @Override

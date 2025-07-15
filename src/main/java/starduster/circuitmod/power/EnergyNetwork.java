@@ -130,6 +130,9 @@ public class EnergyNetwork {
     public void mergeWith(EnergyNetwork other) {
         if (other == this) return;
         
+        // Store the other network's ID for logging
+        String otherNetworkId = other.networkId;
+        
         // Add all blocks from the other network to this one
         for (Map.Entry<BlockPos, IPowerConnectable> entry : other.connectedBlocks.entrySet()) {
             addBlock(entry.getKey(), entry.getValue());
@@ -138,10 +141,12 @@ public class EnergyNetwork {
         // Combine energy storage
         this.storedEnergy += other.storedEnergy;
         
-        // Clear the old network
+        // Clear and deactivate the old network
         other.clear();
+        other.active = false;
+        other.networkId = "MERGED-" + otherNetworkId; // Mark as merged to prevent further operations
         
-        Circuitmod.LOGGER.info("Networks merged. Network " + other.networkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
+        Circuitmod.LOGGER.info("Networks merged. Network " + otherNetworkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
     }
     
     /**

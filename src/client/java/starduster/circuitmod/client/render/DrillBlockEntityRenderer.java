@@ -14,7 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-import starduster.circuitmod.block.entity.QuarryBlockEntity;
+import starduster.circuitmod.block.entity.DrillBlockEntity;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.client.render.model.BlockModelPart;
@@ -22,44 +22,36 @@ import net.minecraft.client.render.model.BlockModelPart;
 import java.util.ArrayList;
 import java.util.List;
 
-public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBlockEntity> {
+public class DrillBlockEntityRenderer implements BlockEntityRenderer<DrillBlockEntity> {
     
-    public QuarryBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
+    public DrillBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
         // Constructor for renderer registration
     }
     
     @Override
-    public void render(QuarryBlockEntity blockEntity, float tickDelta, MatrixStack matrices, 
+    public void render(DrillBlockEntity blockEntity, float tickDelta, MatrixStack matrices, 
                       VertexConsumerProvider vertexConsumers, int light, int overlay, Vec3d cameraPos) {
         
         // Debug: Check if render method is being called
-        System.out.println("[DEBUG] QuarryBlockEntityRenderer.render() called for " + blockEntity.getPos());
+        System.out.println("[DEBUG] DrillBlockEntityRenderer.render() called for " + blockEntity.getPos());
         
-        // Get the current breaking progress from your block entity
-        int breakingProgress = blockEntity.getCurrentMiningProgress();
+        // Get the current mining progress and position
+        int miningProgress = blockEntity.getCurrentMiningProgress();
+        BlockPos miningPos = blockEntity.getCurrentMiningPos();
         
-        System.out.println("[DEBUG] Mining progress: " + breakingProgress);
+        System.out.println("[DEBUG] Mining progress: " + miningProgress + ", mining position: " + miningPos);
         
-        if (breakingProgress > 0) {
-            // Get the block position being mined
-            BlockPos miningPos = blockEntity.getCurrentMiningPos();
-            
-            System.out.println("[DEBUG] Mining position: " + miningPos);
-            
-            if (miningPos != null) {
-                System.out.println("[DEBUG] Calling renderBreakingOverlay");
-                // Render the breaking overlay
-                renderBreakingOverlay(matrices, vertexConsumers, light, overlay, breakingProgress, miningPos, blockEntity);
-            } else {
-                System.out.println("[DEBUG] Mining position is null");
-            }
+        // Only render breaking overlay if we're actually mining
+        if (miningProgress > 0 && miningPos != null) {
+            System.out.println("[DEBUG] Calling renderBreakingOverlay");
+            renderBreakingOverlay(matrices, vertexConsumers, light, overlay, miningProgress, miningPos, blockEntity);
         } else {
-            System.out.println("[DEBUG] Breaking progress is 0 or less");
+            System.out.println("[DEBUG] Not rendering breaking overlay - progress: " + miningProgress + ", pos: " + miningPos);
         }
     }
     
     private void renderBreakingOverlay(MatrixStack matrices, VertexConsumerProvider vertexConsumers, 
-                                      int light, int overlay, int progress, BlockPos blockPos, QuarryBlockEntity blockEntity) {
+                                      int light, int overlay, int progress, BlockPos blockPos, DrillBlockEntity blockEntity) {
         // Debug: Check if we're being called
         System.out.println("[DEBUG] renderBreakingOverlay called with progress: " + progress + " at " + blockPos);
         
@@ -100,16 +92,16 @@ public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBloc
         
         matrices.push();
         
-        // Translate to the block position relative to the quarry block entity
-        BlockPos quarryPos = blockEntity.getPos();
+        // Translate to the block position relative to the drill block entity
+        BlockPos drillPos = blockEntity.getPos();
         matrices.translate(
-            blockPos.getX() - quarryPos.getX(),
-            blockPos.getY() - quarryPos.getY(),
-            blockPos.getZ() - quarryPos.getZ()
+            blockPos.getX() - drillPos.getX(),
+            blockPos.getY() - drillPos.getY(),
+            blockPos.getZ() - drillPos.getZ()
         );
         
-        System.out.println("[DEBUG] Translated to: (" + (blockPos.getX() - quarryPos.getX()) + ", " + 
-                          (blockPos.getY() - quarryPos.getY()) + ", " + (blockPos.getZ() - quarryPos.getZ()) + ")");
+        System.out.println("[DEBUG] Translated to: (" + (blockPos.getX() - drillPos.getX()) + ", " + 
+                          (blockPos.getY() - drillPos.getY()) + ", " + (blockPos.getZ() - drillPos.getZ()) + ")");
         
         try {
             // Get the correct vertex consumer for damage rendering

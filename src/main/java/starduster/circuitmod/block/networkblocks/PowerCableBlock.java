@@ -306,6 +306,14 @@ public class PowerCableBlock extends BlockWithEntity {
                                     connectable.getNetwork() != cable.getNetwork() && 
                                     connectable.canConnectPower(dir.getOpposite())) {
                                 
+                                // Check if the neighbor's network is already merged (prevent infinite loops)
+                                String neighborNetworkId = connectable.getNetwork().getNetworkId();
+                                if (neighborNetworkId.startsWith("MERGED-")) {
+                                    Circuitmod.LOGGER.info("Scheduled tick: Found neighbor with already merged network at " + neighborPos + 
+                                                          " (Network ID: " + neighborNetworkId + "), skipping merge");
+                                    continue;
+                                }
+                                
                                 Circuitmod.LOGGER.info("Scheduled tick: Merging networks");
                                 cable.getNetwork().mergeWith(connectable.getNetwork());
                             }
