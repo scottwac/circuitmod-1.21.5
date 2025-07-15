@@ -8,33 +8,47 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.math.BlockPos;
+import starduster.circuitmod.block.entity.QuarryBlockEntity;
+import starduster.circuitmod.Circuitmod;
 
 public class QuarryScreenHandler extends ScreenHandler {
     private final Inventory inventory;
     private final PropertyDelegate propertyDelegate;
+    private final QuarryBlockEntity blockEntity; // Reference to block entity for getting position
     
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
     private static final int MINING_SPEED_INDEX = 1;
+    private static final int MINING_ENABLED_INDEX = 2;
     
     // Direct mining speed tracking for more reliable updates
     private int cachedMiningSpeed = 0;
     
     // Client constructor
     public QuarryScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(27), new PropertyDelegate() {
+        this(syncId, playerInventory, new SimpleInventory(12), new PropertyDelegate() {
             public int get(int index) { return 0; }
             public void set(int index, int value) {}
-            public int size() { return 2; }
-        });
+            public int size() { return 3; }
+        }, null);
+        
+        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Client constructor called - blockEntity will be null");
     }
     
     // Server constructor
-    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate) {
+    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate, QuarryBlockEntity blockEntity) {
         super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
-        checkSize(inventory, 27);
+        checkSize(inventory, 12);
         this.inventory = inventory;
         this.propertyDelegate = propertyDelegate;
+        this.blockEntity = blockEntity;
+        
+        if (blockEntity != null) {
+            Circuitmod.LOGGER.info("[QUARRY-HANDLER] Server constructor called - blockEntity at pos: {}", blockEntity.getPos());
+        } else {
+            Circuitmod.LOGGER.warn("[QUARRY-HANDLER] Server constructor called - blockEntity is null!");
+        }
         
         // Add property delegate for synchronization
         this.addProperties(propertyDelegate);
@@ -47,14 +61,16 @@ public class QuarryScreenHandler extends ScreenHandler {
         // Make the inventory accessible to the player
         inventory.onOpen(playerInventory.player);
         
-        // Add quarry inventory slots (3x9 grid = 27 slots)
+        // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
         int rows = 3;
-        int columns = 9;
+        int columns = 4;
+        int startX = 97; // Position on the right side, starting at x=97
+        int startY = 17; // Starting at y=17
         
         // Add the quarry inventory slots
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
-                this.addSlot(new Slot(inventory, column + row * columns, 8 + column * 18, 18 + row * 18));
+                this.addSlot(new Slot(inventory, column + row * columns, startX + column * 18, startY + row * 18));
             }
         }
         
@@ -144,5 +160,28 @@ public class QuarryScreenHandler extends ScreenHandler {
     // Get energy received for display
     public int getEnergyReceived() {
         return this.propertyDelegate.get(ENERGY_RECEIVED_INDEX);
+    }
+    
+    // Get mining enabled state
+    public boolean isMiningEnabled() {
+        return this.propertyDelegate.get(MINING_ENABLED_INDEX) == 1;
+    }
+    
+    // Get block position (for client-side networking)
+    public BlockPos getBlockPos() {
+        if (blockEntity != null) {
+            BlockPos pos = blockEntity.getPos();
+            Circuitmod.LOGGER.info("[QUARRY-HANDLER] getBlockPos() - blockEntity exists, pos: {}", pos);
+            return pos;
+        } else {
+            Circuitmod.LOGGER.warn("[QUARRY-HANDLER] getBlockPos() - blockEntity is null! Returning ORIGIN");
+            return BlockPos.ORIGIN;
+        }
+    }
+    
+    // Update mining enabled status from client networking
+    public void updateMiningEnabledFromNetwork(boolean enabled) {
+        this.propertyDelegate.set(MINING_ENABLED_INDEX, enabled ? 1 : 0);
+        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Updated mining enabled property to: {}", enabled);
     }
 } 

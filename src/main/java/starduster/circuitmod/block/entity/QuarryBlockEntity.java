@@ -30,6 +30,7 @@ import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreenHandler;
+import net.minecraft.block.Blocks;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -44,6 +45,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private int miningSpeed = 0; // Current mining speed (blocks per tick)
     private static final int TICKS_PER_SECOND = 20; // Minecraft runs at 20 ticks per second
     private int currentBlockEnergyCost = 1; // Energy cost for the current block being mined
+    private boolean miningEnabled = false; // Whether mining is enabled or disabled
     
     // Mining progress tracking
     private BlockPos currentMiningPos = null; // Current block being mined
@@ -52,11 +54,19 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private int currentMiningTicks = 0; // Current ticks spent mining
     
     // Area properties
-    private static final int DEFAULT_AREA_SIZE = 16; // 16x16 square
+    
     private BlockPos startPos; // Starting corner of the mining area
     private BlockPos currentPos; // Current mining position
     private int currentY; // Current mining Y level
     private Direction facingDirection; // Direction the quarry is facing
+    private int miningWidth = 16; // Width of the mining area (X direction)
+    private int miningLength = 16; // Length of the mining area (Z direction)
+    
+    // Mining area bounds (calculated once and reused)
+    private int miningAreaMinX;
+    private int miningAreaMaxX;
+    private int miningAreaMinZ;
+    private int miningAreaMaxZ;
     
     // Networking properties
     private int lastSentSpeed = 0; // Last mining speed sent to clients
@@ -66,10 +76,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
     private static final int MINING_SPEED_INDEX = 1;
-    private static final int PROPERTY_COUNT = 2;
+    private static final int MINING_ENABLED_INDEX = 2;
+    private static final int PROPERTY_COUNT = 3;
     
-    // Inventory with chest size (27 slots)
-    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+    // Inventory with custom size (12 slots - 3x4 grid)
+    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
     
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -95,6 +106,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                         int blocksPerSecond = miningSpeed * TICKS_PER_SECOND;
                         return blocksPerSecond;
                     }
+                case MINING_ENABLED_INDEX:
+                    return miningEnabled ? 1 : 0;
                 default:
                     return 0;
             }
@@ -139,6 +152,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                         }
                     }
                     break;
+                case MINING_ENABLED_INDEX:
+                    boolean newMiningEnabled = value == 1;
+                    if (miningEnabled != newMiningEnabled) {
+                        miningEnabled = newMiningEnabled;
+                        markDirty();
+                    }
+                    break;
             }
         }
 
@@ -162,6 +182,15 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         nbt.putInt("energy_received", this.energyReceived);
         nbt.putInt("mining_speed", this.miningSpeed);
         nbt.putInt("current_block_energy_cost", this.currentBlockEnergyCost);
+        nbt.putBoolean("mining_enabled", this.miningEnabled);
+        nbt.putInt("mining_width", this.miningWidth);
+        nbt.putInt("mining_length", this.miningLength);
+        
+        // Save mining area bounds
+        nbt.putInt("mining_area_min_x", this.miningAreaMinX);
+        nbt.putInt("mining_area_max_x", this.miningAreaMaxX);
+        nbt.putInt("mining_area_min_z", this.miningAreaMinZ);
+        nbt.putInt("mining_area_max_z", this.miningAreaMaxZ);
         
         // Save mining progress data
         if (currentMiningPos != null) {
@@ -213,6 +242,17 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         this.energyReceived = nbt.getInt("energy_received").orElse(0);
         this.miningSpeed = nbt.getInt("mining_speed").orElse(0);
         this.currentBlockEnergyCost = nbt.getInt("current_block_energy_cost").orElse(1);
+        this.miningEnabled = nbt.getBoolean("mining_enabled").orElse(false);
+        this.miningWidth = nbt.getInt("mining_width").orElse(16);
+        this.miningLength = nbt.getInt("mining_length").orElse(16);
+        
+        // Load mining area data
+        if (nbt.contains("mining_area_min_x") && nbt.contains("mining_area_max_x") && nbt.contains("mining_area_min_z") && nbt.contains("mining_area_max_z")) {
+            this.miningAreaMinX = nbt.getInt("mining_area_min_x").orElse(0);
+            this.miningAreaMaxX = nbt.getInt("mining_area_max_x").orElse(0);
+            this.miningAreaMinZ = nbt.getInt("mining_area_min_z").orElse(0);
+            this.miningAreaMaxZ = nbt.getInt("mining_area_max_z").orElse(0);
+        }
         
         // Load mining progress data
         if (nbt.contains("current_mining_x") && nbt.contains("current_mining_y") && nbt.contains("current_mining_z")) {
@@ -287,8 +327,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed + ", network: " + networkInfo);
         }
         
-        // Process mining operations based on energy available
-        if (blockEntity.energyReceived > 0) {
+        // Process mining operations based on energy available and if mining is enabled
+        if (blockEntity.energyReceived > 0 && blockEntity.miningEnabled) {
             // Try to mine the current block (this will handle gradual mining)
             boolean mined = blockEntity.mineNextBlock(world);
             
@@ -296,23 +336,25 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 needsSync = true;
             }
             
-            // Calculate mining speed for display (blocks per second)
+            // Calculate mining speed for display based on energy consumption
             if (blockEntity.currentMiningPos != null) {
-                // Calculate based on progress and remaining time
+                // Calculate speed based on current energy and remaining time
+                int energyToUse = Math.min(blockEntity.energyReceived, MAX_ENERGY_DEMAND);
+                float energySpeedMultiplier = (float) Math.sqrt(energyToUse);
+                
                 int remainingTicks = blockEntity.totalMiningTicks - blockEntity.currentMiningTicks;
                 if (remainingTicks > 0) {
-                    // Estimate blocks per second based on current progress
-                    float progressRatio = (float) blockEntity.currentMiningTicks / blockEntity.totalMiningTicks;
-                    float estimatedBlocksPerSecond = (1.0f - progressRatio) * TICKS_PER_SECOND / remainingTicks;
+                    // Estimate blocks per second based on energy-scaled speed
+                    float estimatedBlocksPerSecond = energySpeedMultiplier * TICKS_PER_SECOND / remainingTicks;
                     blockEntity.miningSpeed = Math.max(1, (int) estimatedBlocksPerSecond);
                 } else {
-                    blockEntity.miningSpeed = 1; // At least 1 block per second
+                    blockEntity.miningSpeed = Math.max(1, (int) (energySpeedMultiplier * TICKS_PER_SECOND / 20)); // Default calculation
                 }
             } else {
                 blockEntity.miningSpeed = 0;
             }
         } else {
-            // Set mining speed to 0 if no energy received
+            // Set mining speed to 0 if no energy received or mining is disabled
             blockEntity.miningSpeed = 0;
             needsSync = true;
         }
@@ -384,34 +426,44 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Set the starting corner as the quarry's position
         this.startPos = pos;
         
-        // Start with a smaller 3x3 area for easier visualization
-        int areaSize = 3;
-        
         // Start two blocks away in the facing direction to ensure safety
         // (one block in front of the quarry, then start the area in front of that)
         BlockPos safeAreaStart = pos.offset(facingDirection, 2);
         
-        // Calculate mining area bounds centered on the safe start position
-        int minX = safeAreaStart.getX() - 1;
-        int maxX = safeAreaStart.getX() + 1;
-        int minZ = safeAreaStart.getZ() - 1;
-        int maxZ = safeAreaStart.getZ() + 1;
+        // Calculate mining area bounds using custom dimensions
+        // Width is in X direction, Length is in Z direction
+        // For a 2x2 area, we want exactly 2 blocks in each direction
+        // So we need to adjust the calculation to avoid creating a 3x3 area
+        
+        int minX = safeAreaStart.getX();
+        int maxX = safeAreaStart.getX() + miningWidth - 1;
+        int minZ = safeAreaStart.getZ();
+        int maxZ = safeAreaStart.getZ() + miningLength - 1;
         
         // Double-check that quarry is not in the mining area
         if (isPositionInArea(pos, minX, maxX, minZ, maxZ)) {
             // If somehow the quarry is still in the area, push it one more block away
             safeAreaStart = pos.offset(facingDirection, 3);
-            minX = safeAreaStart.getX() - 1;
-            maxX = safeAreaStart.getX() + 1;
-            minZ = safeAreaStart.getZ() - 1;
-            maxZ = safeAreaStart.getZ() + 1;
+            minX = safeAreaStart.getX();
+            maxX = safeAreaStart.getX() + miningWidth - 1;
+            minZ = safeAreaStart.getZ();
+            maxZ = safeAreaStart.getZ() + miningLength - 1;
         }
+        
+        // Store the calculated bounds for reuse
+        this.miningAreaMinX = minX;
+        this.miningAreaMaxX = maxX;
+        this.miningAreaMinZ = minZ;
+        this.miningAreaMaxZ = maxZ;
         
         // Start at the corner of the mining area
         this.currentPos = new BlockPos(minX, pos.getY(), minZ);
         
         // Start mining at the quarry's Y level
         this.currentY = pos.getY();
+        
+        Circuitmod.LOGGER.info("[QUARRY-AREA] Initialized mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {}", 
+            miningWidth, miningLength, pos, minX, maxX, minZ, maxZ);
     }
     
     // Helper method to check if a position is inside a rectangular area
@@ -422,6 +474,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     
     // Mining logic to mine a block at the current position
     private boolean mineNextBlock(World world) {
+        // If mining is disabled, do nothing
+        if (!miningEnabled) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Mining disabled, skipping block at " + currentMiningPos);
+            advanceToNextBlock();
+            return false;
+        }
+
         // If we don't have a current mining position, get the next one
         if (currentMiningPos == null) {
             currentMiningPos = getNextMiningPos();
@@ -451,6 +510,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return false;
         }
         
+        // Skip water blocks
+        if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is water/lava, skipping");
+            advanceToNextBlock();
+            return false;
+        }
+        
         if (blockState.getHardness(world, currentMiningPos) < 0) {
             Circuitmod.LOGGER.info("[QUARRY-MINE] Block is bedrock or unbreakable, skipping");
             advanceToNextBlock();
@@ -471,14 +537,15 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
         this.currentBlockEnergyCost = energyCost;
         
-        // Calculate total ticks needed to mine this block (based on hardness and mining speed)
+        // Calculate base mining time for this block (based on hardness)
         if (totalMiningTicks == 0) {
             // Base mining time: 20 ticks per hardness point, minimum 10 ticks
+            // This is the time it would take with 1 energy per tick
             totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block requires " + totalMiningTicks + " ticks to mine (hardness: " + hardness + ")");
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
         }
         
-        // Check if we have enough energy to continue mining this block
+        // Check if we have any energy to continue mining this block
         if (this.energyReceived < 1) {
             if (world.getTime() % 20 == 0) { // Only log every second
                 Circuitmod.LOGGER.info("[QUARRY-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
@@ -486,24 +553,36 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return false; // Don't advance position, just wait for more energy
         }
         
-        // Consume 1 energy per tick of mining
-        this.energyReceived -= 1;
-        currentMiningTicks++;
+        // Calculate how much energy to consume this tick based on available energy
+        // More energy = faster mining, but with diminishing returns to prevent instant mining
+        int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
+        
+        // Scale mining speed with energy consumption using square root for diminishing returns
+        // This means 4x energy gives 2x speed, 9x energy gives 3x speed, etc.
+        float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
+        
+        // Consume the calculated energy
+        this.energyReceived -= energyToConsume;
+        
+        // Calculate progress based on energy consumed
+        // More energy = more progress per tick
+        float progressThisTick = energySpeedMultiplier;
+        currentMiningTicks += (int) progressThisTick;
         
         // Calculate progress percentage
         currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
         currentMiningProgress = Math.min(100, currentMiningProgress);
         
-        // Only log progress every 10 ticks to reduce spam
+        // Only log progress occasionally to reduce spam
         if (world.getTime() % 10 == 0) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks)");
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
         }
         
         // Check if we've finished mining this block
         if (currentMiningTicks >= totalMiningTicks) {
             // Get drops from the block
             ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ")");
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
             
             // Add to inventory if there's space
             boolean addedToInventory = false;
@@ -547,16 +626,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Advance the position for the next block
         if (currentPos != null && startPos != null && facingDirection != null) {
-            // Calculate the safe starting position (2 blocks in front of quarry)
-            BlockPos safeAreaStart = startPos.offset(facingDirection, 2);
-            
-            // Calculate 3x3 mining area bounds centered on the safe start position
-            int minX = safeAreaStart.getX() - 1;
-            int maxX = safeAreaStart.getX() + 1;
-            int minZ = safeAreaStart.getZ() - 1;
-            int maxZ = safeAreaStart.getZ() + 1;
-            
-            advanceToNextPosition(minX, maxX, minZ, maxZ);
+            // Use the stored mining area bounds instead of hardcoded 3x3
+            advanceToNextPosition(miningAreaMinX, miningAreaMaxX, miningAreaMinZ, miningAreaMaxZ);
         }
     }
     
@@ -569,14 +640,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Create the position at the current Y level
         BlockPos miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
         
-        // Calculate the safe starting position (2 blocks in front of quarry)
-        BlockPos safeAreaStart = startPos.offset(facingDirection, 2);
-        
-        // Calculate 3x3 mining area bounds centered on the safe start position
-        int minX = safeAreaStart.getX() - 1;
-        int maxX = safeAreaStart.getX() + 1;
-        int minZ = safeAreaStart.getZ() - 1;
-        int maxZ = safeAreaStart.getZ() + 1;
+        // Use the stored mining area bounds instead of recalculating
+        int minX = this.miningAreaMinX;
+        int maxX = this.miningAreaMaxX;
+        int minZ = this.miningAreaMinZ;
+        int maxZ = this.miningAreaMaxZ;
         
         // Check if the current position is somehow equal to the quarry or in safe zone
         if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
@@ -920,6 +988,138 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     public int getCurrentMiningTicks() {
         return currentMiningTicks;
     }
+
+    /**
+     * Toggles the mining enabled state.
+     * @param enabled The new enabled state.
+     */
+    public void setMiningEnabled(boolean enabled) {
+        if (miningEnabled != enabled) {
+            miningEnabled = enabled;
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Mining enabled: " + enabled);
+            markDirty();
+        }
+    }
+
+    /**
+     * Gets the current mining enabled state.
+     * @return true if mining is enabled, false otherwise.
+     */
+    public boolean isMiningEnabled() {
+        return miningEnabled;
+    }
+    
+    /**
+     * Toggles the mining enabled state and notifies clients.
+     */
+    public void toggleMining() {
+        if (world == null || world.isClient()) {
+            return;
+        }
+        
+        miningEnabled = !miningEnabled;
+        Circuitmod.LOGGER.info("[QUARRY-TOGGLE] Mining toggled to: " + miningEnabled);
+        markDirty();
+        
+        // Send status update to all players tracking this quarry
+        if (world instanceof ServerWorld serverWorld) {
+            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
+                ModNetworking.sendMiningEnabledStatus(player, miningEnabled, pos);
+            }
+        }
+    }
+    
+    /**
+     * Sets the mining enabled state from a network packet.
+     * This is called on the client side when a packet is received.
+     * 
+     * @param enabled Whether mining is enabled
+     */
+    public void setMiningEnabledFromNetwork(boolean enabled) {
+        // Only update on client side
+        if (world != null && world.isClient()) {
+            this.miningEnabled = enabled;
+            markDirty();
+            Circuitmod.LOGGER.info("[CLIENT] Updated mining enabled status: " + enabled);
+        }
+    }
+    
+    /**
+     * Set the mining area dimensions
+     * 
+     * @param width The width of the mining area (X direction)
+     * @param length The length of the mining area (Z direction)
+     */
+    public void setMiningDimensions(int width, int length) {
+        // Validate dimensions
+        width = Math.max(1, Math.min(100, width));
+        length = Math.max(1, Math.min(100, length));
+        
+        if (this.miningWidth != width || this.miningLength != length) {
+            this.miningWidth = width;
+            this.miningLength = length;
+            
+            // Always reinitialize the mining area when dimensions change
+            // This ensures the quarry updates immediately regardless of mining state
+            this.initializeMiningArea(this.pos, this.getCachedState());
+            
+            // Reset current mining position to start from the beginning of the new area
+            this.currentMiningPos = null;
+            this.currentMiningProgress = 0;
+            this.totalMiningTicks = 0;
+            this.currentMiningTicks = 0;
+            
+            markDirty();
+            Circuitmod.LOGGER.info("[QUARRY-DIMENSIONS] Mining dimensions set to: {}x{}", width, length);
+        }
+    }
+    
+    /**
+     * Get the width of the mining area
+     * @return the mining width
+     */
+    public int getMiningWidth() {
+        return miningWidth;
+    }
+    
+    /**
+     * Get the length of the mining area
+     * @return the mining length
+     */
+    public int getMiningLength() {
+        return miningLength;
+    }
+    
+    /**
+     * Set the mining dimensions from a network packet.
+     * This is called on the client side when a sync packet is received.
+     * 
+     * @param width The width of the mining area
+     * @param length The length of the mining area
+     */
+    public void setMiningDimensionsFromNetwork(int width, int length) {
+        // Only update on client side
+        if (world != null && world.isClient()) {
+            this.miningWidth = width;
+            this.miningLength = length;
+            
+            // Recalculate bounds if we have the necessary data
+            if (this.startPos != null && this.facingDirection != null) {
+                // Calculate the safe starting position (2 blocks in front of quarry)
+                BlockPos safeAreaStart = this.startPos.offset(this.facingDirection, 2);
+                
+                // Calculate mining area bounds using custom dimensions
+                // Use the same calculation as initializeMiningArea
+                this.miningAreaMinX = safeAreaStart.getX();
+                this.miningAreaMaxX = safeAreaStart.getX() + this.miningWidth - 1;
+                this.miningAreaMinZ = safeAreaStart.getZ();
+                this.miningAreaMaxZ = safeAreaStart.getZ() + this.miningLength - 1;
+            }
+            
+            markDirty();
+            Circuitmod.LOGGER.info("[CLIENT] Updated quarry dimensions from network: {}x{}", width, length);
+        }
+    }
     
     // NamedScreenHandlerFactory implementation
     @Override
@@ -929,6 +1129,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new QuarryScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+        return new QuarryScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
 } 

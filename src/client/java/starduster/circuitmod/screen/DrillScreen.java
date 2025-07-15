@@ -2,11 +2,13 @@ package starduster.circuitmod.screen;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.network.ClientNetworking;
 
 public class DrillScreen extends HandledScreen<DrillScreenHandler> {
     // Use generic chest texture
@@ -16,6 +18,9 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
 
     // Direct mining speed tracking
     private int displayedMiningSpeed = 0;
+    
+    // Toggle mining button
+    private ButtonWidget toggleMiningButton;
 
     public DrillScreen(DrillScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -36,6 +41,11 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
       //      Circuitmod.LOGGER.info("[CLIENT-SCREEN] Updating displayed mining speed from " + 
           //      displayedMiningSpeed + " to " + newSpeed);
             displayedMiningSpeed = newSpeed;
+        }
+        
+        // Update toggle button text
+        if (toggleMiningButton != null) {
+            toggleMiningButton.setMessage(getMiningButtonText());
         }
     }
 
@@ -89,5 +99,25 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
         super.init();
         // Center the title
         titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        
+        // Add toggle mining button at position (18, 52) with size 14x14
+        int buttonX = (width - backgroundWidth) / 2 + 18;
+        int buttonY = (height - backgroundHeight) / 2 + 52;
+        
+        toggleMiningButton = ButtonWidget.builder(
+            getMiningButtonText(), 
+            button -> {
+                // Send toggle mining packet to server
+                ClientNetworking.sendToggleMiningRequest(handler.getBlockPos());
+            })
+            .dimensions(buttonX, buttonY, 14, 14)
+            .build();
+            
+        addDrawableChild(toggleMiningButton);
+    }
+    
+    private Text getMiningButtonText() {
+        boolean miningEnabled = handler.isMiningEnabled();
+        return Text.literal(miningEnabled ? "ON" : "OFF");
     }
 } 

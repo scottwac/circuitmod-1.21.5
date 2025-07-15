@@ -40,6 +40,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     private int miningSpeed = 0; // Current mining speed (blocks per tick)
     private static final int TICKS_PER_SECOND = 20; // Minecraft runs at 20 ticks per second
     private int currentBlockEnergyCost = 1; // Energy cost for the current block being mined
+    private boolean miningEnabled = false; // Whether mining is enabled or disabled
     
     // Mining progress tracking
     private BlockPos currentMiningPos = null; // Current block being mined
@@ -62,10 +63,11 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
     private static final int MINING_SPEED_INDEX = 1;
-    private static final int PROPERTY_COUNT = 2;
+    private static final int MINING_ENABLED_INDEX = 2;
+    private static final int PROPERTY_COUNT = 3;
 
-    // Inventory with chest size (27 slots)
-    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+    // Inventory with custom size (12 slots - 3x4 grid)
+    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
 
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -91,6 +93,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                         int blocksPerSecond = miningSpeed * TICKS_PER_SECOND;
                         return blocksPerSecond;
                     }
+                case MINING_ENABLED_INDEX:
+                    return miningEnabled ? 1 : 0;
                 default:
                     return 0;
             }
@@ -135,6 +139,13 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                         }
                     }
                     break;
+                case MINING_ENABLED_INDEX:
+                    boolean newMiningEnabled = value == 1;
+                    if (miningEnabled != newMiningEnabled) {
+                        miningEnabled = newMiningEnabled;
+                        markDirty();
+                    }
+                    break;
             }
         }
 
@@ -158,6 +169,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         nbt.putInt("energy_received", this.energyReceived);
         nbt.putInt("mining_speed", this.miningSpeed);
         nbt.putInt("current_block_energy_cost", this.currentBlockEnergyCost);
+        nbt.putBoolean("mining_enabled", this.miningEnabled); // Save mining enabled state
         
         // Save mining progress data
         if (currentMiningPos != null) {
@@ -209,6 +221,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         this.energyReceived = nbt.getInt("energy_received").orElse(0);
         this.miningSpeed = nbt.getInt("mining_speed").orElse(0);
         this.currentBlockEnergyCost = nbt.getInt("current_block_energy_cost").orElse(1);
+        this.miningEnabled = nbt.getBoolean("mining_enabled").orElse(false); // Load mining enabled state
         
         // Load mining progress data
         if (nbt.contains("current_mining_x") && nbt.contains("current_mining_y") && nbt.contains("current_mining_z")) {
@@ -280,8 +293,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         // Debug log for diagnostics
       //  Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed);
         
-        // Process mining operations based on energy available
-        if (blockEntity.energyReceived > 0) {
+        // Process mining operations based on energy available and if mining is enabled
+        if (blockEntity.energyReceived > 0 && blockEntity.miningEnabled) {
             // Try to mine the current block (this will handle gradual mining)
             boolean mined = blockEntity.mineNextBlock(world);
             
@@ -289,17 +302,19 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                 needsSync = true;
             }
             
-            // Calculate mining speed for display (blocks per second)
+            // Calculate mining speed for display based on energy consumption
             if (blockEntity.currentMiningPos != null) {
-                // Calculate based on progress and remaining time
+                // Calculate speed based on current energy and remaining time
+                int energyToUse = Math.min(blockEntity.energyReceived, MAX_ENERGY_DEMAND);
+                float energySpeedMultiplier = (float) Math.sqrt(energyToUse);
+                
                 int remainingTicks = blockEntity.totalMiningTicks - blockEntity.currentMiningTicks;
                 if (remainingTicks > 0) {
-                    // Estimate blocks per second based on current progress
-                    float progressRatio = (float) blockEntity.currentMiningTicks / blockEntity.totalMiningTicks;
-                    float estimatedBlocksPerSecond = (1.0f - progressRatio) * TICKS_PER_SECOND / remainingTicks;
+                    // Estimate blocks per second based on energy-scaled speed
+                    float estimatedBlocksPerSecond = energySpeedMultiplier * TICKS_PER_SECOND / remainingTicks;
                     blockEntity.miningSpeed = Math.max(1, (int) estimatedBlocksPerSecond);
                 } else {
-                    blockEntity.miningSpeed = 1; // At least 1 block per second
+                    blockEntity.miningSpeed = Math.max(1, (int) (energySpeedMultiplier * TICKS_PER_SECOND / 20)); // Default calculation
                 }
             } else {
                 blockEntity.miningSpeed = 0;
@@ -311,7 +326,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                 needsSync = true;
             }
         } else {
-            // Set mining speed to 0 if no energy received
+            // Set mining speed to 0 if no energy received or mining is disabled
             blockEntity.miningSpeed = 0;
             needsSync = true;
         }
@@ -418,6 +433,13 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     
     // Mining logic to mine a block at the current position
     private boolean mineNextBlock(World world) {
+        // If mining is disabled, do nothing
+        if (!miningEnabled) {
+            Circuitmod.LOGGER.info("[DRILL-MINE] Mining disabled, skipping block at " + currentMiningPos);
+            advanceToNextBlock();
+            return false;
+        }
+
         // If we don't have a current mining position, get the next one
         if (currentMiningPos == null) {
             currentMiningPos = getNextMiningPos();
@@ -467,34 +489,47 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
         this.currentBlockEnergyCost = energyCost;
         
-        // Calculate total ticks needed to mine this block (based on hardness and mining speed)
+        // Calculate base mining time for this block (based on hardness)
         if (totalMiningTicks == 0) {
             // Base mining time: 20 ticks per hardness point, minimum 10 ticks
+            // This is the time it would take with 1 energy per tick
             totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-            Circuitmod.LOGGER.info("[DRILL-MINE] Block requires " + totalMiningTicks + " ticks to mine (hardness: " + hardness + ")");
+            Circuitmod.LOGGER.info("[DRILL-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
         }
         
-        // Check if we have enough energy to continue mining this block
+        // Check if we have any energy to continue mining this block
         if (this.energyReceived < 1) {
             Circuitmod.LOGGER.info("[DRILL-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
             return false; // Don't advance position, just wait for more energy
         }
         
-        // Consume 1 energy per tick of mining
-        this.energyReceived -= 1;
-        currentMiningTicks++;
+        // Calculate how much energy to consume this tick based on available energy
+        // More energy = faster mining, but with diminishing returns to prevent instant mining
+        int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
+        
+        // Scale mining speed with energy consumption using square root for diminishing returns
+        // This means 4x energy gives 2x speed, 9x energy gives 3x speed, etc.
+        float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
+        
+        // Consume the calculated energy
+        this.energyReceived -= energyToConsume;
+        
+        // Calculate progress based on energy consumed
+        // More energy = more progress per tick
+        float progressThisTick = energySpeedMultiplier;
+        currentMiningTicks += (int) progressThisTick;
         
         // Calculate progress percentage
         currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
         currentMiningProgress = Math.min(100, currentMiningProgress);
         
-        Circuitmod.LOGGER.info("[DRILL-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks)");
+        Circuitmod.LOGGER.info("[DRILL-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
         
         // Check if we've finished mining this block
         if (currentMiningTicks >= totalMiningTicks) {
             // Get drops from the block
             ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-            Circuitmod.LOGGER.info("[DRILL-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ")");
+            Circuitmod.LOGGER.info("[DRILL-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
             
             // Add to inventory if there's space
             boolean addedToInventory = false;
@@ -911,6 +946,49 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     public int getCurrentMiningTicks() {
         return currentMiningTicks;
     }
+
+    /**
+     * Toggles the mining enabled state and notifies clients.
+     */
+    public void toggleMining() {
+        if (world == null || world.isClient()) {
+            return;
+        }
+        
+        miningEnabled = !miningEnabled;
+        Circuitmod.LOGGER.info("[DRILL-TOGGLE] Mining toggled to: " + miningEnabled);
+        markDirty();
+        
+        // Send status update to all players tracking this drill
+        if (world instanceof ServerWorld serverWorld) {
+            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
+                ModNetworking.sendMiningEnabledStatus(player, miningEnabled, pos);
+            }
+        }
+    }
+
+    /**
+     * Gets the current mining enabled state.
+     * @return true if mining is enabled, false otherwise.
+     */
+    public boolean isMiningEnabled() {
+        return miningEnabled;
+    }
+    
+    /**
+     * Sets the mining enabled state from a network packet.
+     * This is called on the client side when a packet is received.
+     * 
+     * @param enabled Whether mining is enabled
+     */
+    public void setMiningEnabledFromNetwork(boolean enabled) {
+        // Only update on client side
+        if (world != null && world.isClient()) {
+            this.miningEnabled = enabled;
+            markDirty();
+            Circuitmod.LOGGER.info("[CLIENT] Updated drill mining enabled status: " + enabled);
+        }
+    }
     
     // NamedScreenHandlerFactory implementation
     @Override
@@ -920,6 +998,6 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new DrillScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+        return new DrillScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
 } 

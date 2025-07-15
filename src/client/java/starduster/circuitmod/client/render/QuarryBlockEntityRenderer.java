@@ -5,7 +5,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
@@ -15,12 +14,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.model.BlockStateModel;
-import net.minecraft.client.render.model.BlockModelPart;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBlockEntity> {
     
@@ -32,119 +25,103 @@ public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBloc
     public void render(QuarryBlockEntity blockEntity, float tickDelta, MatrixStack matrices, 
                       VertexConsumerProvider vertexConsumers, int light, int overlay, Vec3d cameraPos) {
         
-        // Debug: Check if render method is being called
-        System.out.println("[DEBUG] QuarryBlockEntityRenderer.render() called for " + blockEntity.getPos());
-        
         // Get the current breaking progress from your block entity
         int breakingProgress = blockEntity.getCurrentMiningProgress();
-        
-        System.out.println("[DEBUG] Mining progress: " + breakingProgress);
         
         if (breakingProgress > 0) {
             // Get the block position being mined
             BlockPos miningPos = blockEntity.getCurrentMiningPos();
             
-            System.out.println("[DEBUG] Mining position: " + miningPos);
-            
             if (miningPos != null) {
-                System.out.println("[DEBUG] Calling renderBreakingOverlay");
                 // Render the breaking overlay
-                renderBreakingOverlay(matrices, vertexConsumers, light, overlay, breakingProgress, miningPos, blockEntity);
-            } else {
-                System.out.println("[DEBUG] Mining position is null");
+                renderBreakingOverlay(matrices, vertexConsumers, light, overlay, breakingProgress, miningPos, blockEntity.getPos());
             }
-        } else {
-            System.out.println("[DEBUG] Breaking progress is 0 or less");
         }
     }
     
     private void renderBreakingOverlay(MatrixStack matrices, VertexConsumerProvider vertexConsumers, 
-                                      int light, int overlay, int progress, BlockPos blockPos, QuarryBlockEntity blockEntity) {
-        // Debug: Check if we're being called
-        System.out.println("[DEBUG] renderBreakingOverlay called with progress: " + progress + " at " + blockPos);
+                                      int light, int overlay, int progress, BlockPos blockPos, BlockPos quarryPos) {
         
         // Calculate which destroy stage to use (0-9)
-        int destroyStage = (progress * 10) / 100;
-        destroyStage = Math.min(destroyStage, 9); // Clamp to 0-9
+        int destroyStage = Math.min((progress * 10) / 100, 9);
         
-        System.out.println("[DEBUG] Calculated destroyStage: " + destroyStage);
-        
-        if (destroyStage < 0) {
-            System.out.println("[DEBUG] destroyStage < 0, returning early");
+        if (destroyStage <= 0) {
             return;
         }
         
-        // Get the block state at the mining position
+        // Get the world and check the block
         World world = MinecraftClient.getInstance().world;
         if (world == null) {
-            System.out.println("[DEBUG] world is null, returning early");
             return;
         }
         
         BlockState blockState = world.getBlockState(blockPos);
         if (blockState.isAir()) {
-            System.out.println("[DEBUG] blockState is air, returning early");
             return;
         }
         
-        System.out.println("[DEBUG] Block at " + blockPos + " is: " + blockState.getBlock().getName().getString());
+        // Get the breaking texture identifier
+        Identifier breakingTexture = Identifier.of("minecraft", "textures/block/destroy_stage_" + destroyStage + ".png");
         
-        // Get the block render manager
-        MinecraftClient client = MinecraftClient.getInstance();
-        BlockRenderManager blockRenderManager = client.getBlockRenderManager();
-        
-        if (blockRenderManager == null) {
-            System.out.println("[DEBUG] blockRenderManager is null, returning early");
-            return;
-        }
+        // Get the render layer for breaking overlay - use translucent for proper blending
+        RenderLayer renderLayer = RenderLayer.getEntityTranslucent(breakingTexture);
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
         
         matrices.push();
         
-        // Translate to the block position relative to the quarry block entity
-        BlockPos quarryPos = blockEntity.getPos();
-        matrices.translate(
-            blockPos.getX() - quarryPos.getX(),
-            blockPos.getY() - quarryPos.getY(),
-            blockPos.getZ() - quarryPos.getZ()
-        );
+        // Translate to the block position relative to the quarry
+        Vec3d offset = Vec3d.of(blockPos.subtract(quarryPos));
+        matrices.translate(offset.x, offset.y, offset.z);
         
-        System.out.println("[DEBUG] Translated to: (" + (blockPos.getX() - quarryPos.getX()) + ", " + 
-                          (blockPos.getY() - quarryPos.getY()) + ", " + (blockPos.getZ() - quarryPos.getZ()) + ")");
-        
-        try {
-            // Get the correct vertex consumer for damage rendering
-            // Use the breaking overlay render layer with the block's texture
-            Identifier textureId = blockState.getBlock().asItem().getRegistryEntry().registryKey().getValue();
-            System.out.println("[DEBUG] Texture ID: " + textureId);
-            
-            VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
-                RenderLayer.getBlockBreaking(textureId)
-            );
-            
-            // Calculate the overlay UV coordinates based on destroy stage
-            // Convert progress (0-100) to float (0.0-1.0) for OverlayTexture.getUv()
-            float progressFloat = destroyStage / 9.0f; // Convert 0-9 to 0.0-1.0
-            int overlayUV = OverlayTexture.getUv(progressFloat, false); // false = not hurt
-            
-            System.out.println("[DEBUG] progressFloat: " + progressFloat + ", overlayUV: " + overlayUV);
-            
-            // Get the block model and render it with our custom overlay
-            BlockStateModel blockStateModel = blockRenderManager.getModel(blockState);
-            List<BlockModelPart> parts = new ArrayList<>();
-            blockStateModel.addParts(world.getRandom(), parts);
-            
-            System.out.println("[DEBUG] Got " + parts.size() + " model parts");
-            
-            // Render the breaking overlay using the block model renderer
-            blockRenderManager.getModelRenderer().render(world, parts, blockState, blockPos, matrices, vertexConsumer, true, overlayUV);
-            
-            System.out.println("[DEBUG] Rendering completed successfully");
-            
-        } catch (Exception e) {
-            System.out.println("[DEBUG] Exception during rendering: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Render a simple cube overlay with the breaking texture
+        renderCubeOverlay(matrices, vertexConsumer, light, overlay);
         
         matrices.pop();
+    }
+    
+    private void renderCubeOverlay(MatrixStack matrices, VertexConsumer vertexConsumer, int light, int overlay) {
+        // Render all 6 faces of the cube with the breaking texture
+        float min = 0.0f;
+        float max = 1.0f;
+        
+        // Get the matrix for transformations
+        var matrix = matrices.peek().getPositionMatrix();
+        var matrixEntry = matrices.peek();
+        
+        // Top face (Y+)
+        vertexConsumer.vertex(matrix, min, max, min).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, max, min).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, max, max).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, min, max, max).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 1.0f, 0.0f);
+        
+        // Bottom face (Y-)
+        vertexConsumer.vertex(matrix, min, min, max).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, -1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, min, max).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, -1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, min, min).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, -1.0f, 0.0f);
+        vertexConsumer.vertex(matrix, min, min, min).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, -1.0f, 0.0f);
+        
+        // North face (Z-)
+        vertexConsumer.vertex(matrix, min, min, min).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, -1.0f);
+        vertexConsumer.vertex(matrix, max, min, min).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, -1.0f);
+        vertexConsumer.vertex(matrix, max, max, min).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, -1.0f);
+        vertexConsumer.vertex(matrix, min, max, min).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, -1.0f);
+        
+        // South face (Z+)
+        vertexConsumer.vertex(matrix, min, max, max).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, 1.0f);
+        vertexConsumer.vertex(matrix, max, max, max).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, 1.0f);
+        vertexConsumer.vertex(matrix, max, min, max).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, 1.0f);
+        vertexConsumer.vertex(matrix, min, min, max).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 0.0f, 0.0f, 1.0f);
+        
+        // West face (X-)
+        vertexConsumer.vertex(matrix, min, min, max).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, -1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, min, min, min).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, -1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, min, max, min).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, -1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, min, max, max).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, -1.0f, 0.0f, 0.0f);
+        
+        // East face (X+)
+        vertexConsumer.vertex(matrix, max, max, max).color(255, 255, 255, 255).texture(0.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, max, min).color(255, 255, 255, 255).texture(1.0f, 0.0f).overlay(overlay).light(light).normal(matrixEntry, 1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, min, min).color(255, 255, 255, 255).texture(1.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 1.0f, 0.0f, 0.0f);
+        vertexConsumer.vertex(matrix, max, min, max).color(255, 255, 255, 255).texture(0.0f, 1.0f).overlay(overlay).light(light).normal(matrixEntry, 1.0f, 0.0f, 0.0f);
     }
 } 

@@ -3,6 +3,7 @@ package starduster.circuitmod;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,66 +22,70 @@ import net.minecraft.util.Identifier;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.block.entity.QuarryBlockEntity;
+import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
+import starduster.circuitmod.util.ModItemTags;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import starduster.circuitmod.util.ModItemTags;
 
 public class Circuitmod implements ModInitializer {
-	public static final String MOD_ID = "circuitmod";
-
 	// This logger is used to write text to the console and the log file.
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-	
-	// Create a RegistryKey for our item group
-	public static final RegistryKey<ItemGroup> ITEM_GROUP = RegistryKey.of(
-		RegistryKeys.ITEM_GROUP, 
-		Identifier.of(MOD_ID, "item_group")
-	);
+	public static final Logger LOGGER = LoggerFactory.getLogger("circuitmod");
+	public static final String MOD_ID = "circuitmod";
 
 	@Override
 	public void onInitialize() {
-		// Register our item group
-		// TODO Move the item groups to their own ModItemGroups class
-		Registry.register(Registries.ITEM_GROUP, ITEM_GROUP, FabricItemGroup.builder()
-			.displayName(Text.translatable("itemgroup." + MOD_ID + ".main"))
-			.icon(() -> new ItemStack(ModItems.LEAD_INGOT))
+		// This code runs as soon as Minecraft is in a mod-load-ready state.
+		// However, some things (like resources) may still be uninitialized.
+		// Proceed with mild caution.
+
+		LOGGER.info("Hello Fabric world!");
+		
+		// Register mod creative mode tab
+		Registry.register(Registries.ITEM_GROUP, Identifier.of(MOD_ID, "main"),
+			FabricItemGroup.builder()
+			.icon(() -> new ItemStack(ModItems.BLOOM))
+			.displayName(Text.translatable("itemgroup.circuitmod.main"))
 			.entries((context, entries) -> {
-				// Add all mod items to the creative tab
-				entries.add(ModBlocks.BLOOMERY); // Add bloomery to creative tab
-				entries.add(ModBlocks.QUARRY_BLOCK);
-				entries.add(ModBlocks.DRILL_BLOCK);
-				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
-				entries.add(ModBlocks.ELECTRIC_FURNACE);
+				// Add blocks first
+				entries.add(ModBlocks.BATTERY);
+				entries.add(ModBlocks.POWER_CABLE);
+				entries.add(ModBlocks.BLOOMERY);
 				entries.add(ModBlocks.CRUSHER);
+				entries.add(ModBlocks.ELECTRIC_FURNACE);
+				entries.add(ModBlocks.GENERATOR);
+				entries.add(ModBlocks.SOLAR_PANEL);
 				entries.add(ModBlocks.TESLA_COIL);
+				entries.add(ModBlocks.DRILL_BLOCK);
+				entries.add(ModBlocks.QUARRY_BLOCK);
+				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
+
 				entries.add(ModBlocks.ELECTRIC_CARPET);
-				entries.add(ModBlocks.NUKE); // Add nuke to creative tab
-				entries.add(ModBlocks.GENERATOR); // Add power cable to creative tab
-				entries.add(ModBlocks.SOLAR_PANEL); // Add solar panel to creative tab
-				entries.add(ModBlocks.REACTOR_BLOCK); // Add reactor to creative tab
-				entries.add(ModBlocks.POWER_CABLE); // Add power cable to creative tab
-				entries.add(ModBlocks.ITEM_PIPE); // Add item pipe to creative tab
-				entries.add(ModBlocks.BATTERY); // Add battery to creative tab
+				entries.add(ModBlocks.ITEM_PIPE);
+				entries.add(ModBlocks.REACTOR_BLOCK);
+				entries.add(ModBlocks.NUKE);
 
-				entries.add(ModBlocks.BAUXITE_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.LEAD_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.DEEPSLATE_LEAD_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.URANIUM_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.DEEPSLATE_URANIUM_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.ZIRCON_ORE); // Add creative consumer to creative tab
-				entries.add(ModBlocks.DEEPSLATE_ZIRCON_ORE); // Add creative consumer to creative tab
+				// Add ingots and materials
+				entries.add(ModItems.BLOOM);
 
+				// Add ores
+				entries.add(ModBlocks.BAUXITE_ORE);
+				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE);
+				entries.add(ModBlocks.LEAD_ORE);
+				entries.add(ModBlocks.DEEPSLATE_LEAD_ORE);
+				entries.add(ModBlocks.URANIUM_ORE);
+				entries.add(ModBlocks.DEEPSLATE_URANIUM_ORE);
+				entries.add(ModBlocks.ZIRCON_ORE);
+				entries.add(ModBlocks.DEEPSLATE_ZIRCON_ORE);
 
 				entries.add(ModItems.RAW_BAUXITE);
-				entries.add(ModItems.BLOOM);
 				entries.add(ModItems.RAW_LEAD);
 				entries.add(ModItems.RAW_URANIUM);
 				entries.add(ModItems.ZIRCON);
@@ -89,8 +94,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.CRUSHED_URANIUM);
 
 				entries.add(ModItems.LEAD_POWDER);
-				entries.add(ModItems.STONE_DUST);
 				entries.add(ModItems.ZIRCONIUM_POWDER);
+				entries.add(ModItems.STONE_DUST);
 
 				entries.add(ModItems.ALUMINUM_INGOT);
 				entries.add(ModItems.LEAD_INGOT);
@@ -139,6 +144,37 @@ public class Circuitmod implements ModInitializer {
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 
+		// Register server-side networking handlers
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ToggleMiningPayload.ID, (payload, context) -> {
+			var machinePos = payload.machinePos();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(machinePos) instanceof QuarryBlockEntity quarry) {
+					quarry.toggleMining();
+					LOGGER.info("[SERVER] Toggled mining for quarry at " + machinePos + " by player " + context.player().getName().getString());
+				} else if (context.player().getWorld().getBlockEntity(machinePos) instanceof DrillBlockEntity drill) {
+					drill.toggleMining();
+					LOGGER.info("[SERVER] Toggled mining for drill at " + machinePos + " by player " + context.player().getName().getString());
+				}
+			});
+		});
+		
+		// Register quarry dimensions handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.QuarryDimensionsPayload.ID, (payload, context) -> {
+			var quarryPos = payload.quarryPos();
+			var width = payload.width();
+			var length = payload.length();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(quarryPos) instanceof QuarryBlockEntity quarry) {
+					quarry.setMiningDimensions(width, length);
+					LOGGER.info("[SERVER] Set quarry dimensions at " + quarryPos + " to " + width + "x" + length + " by player " + context.player().getName().getString());
+					
+					// Send sync packet back to the client
+					ModNetworking.sendQuarryDimensionsSync(context.player(), width, length, quarryPos);
+				}
+			});
+		});
 		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
