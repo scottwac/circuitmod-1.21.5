@@ -551,146 +551,108 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private boolean mineNextBlock(World world) {
         // If mining is disabled, do nothing
         if (!miningEnabled) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Mining disabled, skipping block at " + currentMiningPos);
             advanceToNextBlock();
             return false;
         }
 
-        // If we don't have a current mining position, get the next one
-        if (currentMiningPos == null) {
-            currentMiningPos = getNextMiningPos();
+        // --- INSTANTLY FIND NEXT VALID BLOCK TO MINE ---
+        int maxAttempts = 4096; // Prevent infinite loops
+        int attempts = 0;
+        while (attempts < maxAttempts) {
             if (currentMiningPos == null) {
-                // Circuitmod.LOGGER.warn("[QUARRY-MINE] No mining position available");
-                return false;
+                currentMiningPos = getNextMiningPos();
+                if (currentMiningPos == null) {
+                    return false;
+                }
+                currentMiningProgress = 0;
+                currentMiningTicks = 0;
+                totalMiningTicks = 0;
             }
-            
-            // Reset mining progress for new block
-            currentMiningProgress = 0;
-            currentMiningTicks = 0;
-            
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Starting to mine at position: " + currentMiningPos);
+            // Skip if it's the quarry itself, a safe zone block
+            if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            BlockState blockState = world.getBlockState(currentMiningPos);
+            // Skip air, water, lava
+            if (blockState.isAir() || blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Skip bedrock or unbreakable
+            if (blockState.getHardness(world, currentMiningPos) < 0) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Skip if the block is a block entity that's part of our network
+            BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
+            if (targetEntity instanceof IPowerConnectable) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Found a valid block to mine
+            break;
         }
-        
-        // Skip if it's the quarry itself, a safe zone block, air or bedrock
-        if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Position is in safe zone, skipping");
-            advanceToNextBlock();
+        if (attempts >= maxAttempts) {
+            // Could not find a valid block to mine
             return false;
         }
-        
-        BlockState blockState = world.getBlockState(currentMiningPos);
-        if (blockState.isAir()) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is air, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        // Skip water blocks
-        if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is water/lava, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        if (blockState.getHardness(world, currentMiningPos) < 0) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is bedrock or unbreakable, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        // Skip if the block is a block entity that's part of our network
-        BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
-        if (targetEntity instanceof IPowerConnectable) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is part of power network, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        // Calculate energy cost based on block hardness
-        float hardness = blockState.getHardness(world, currentMiningPos);
-        // Convert hardness to energy cost: hardness * 2 + 1 (minimum 1 energy)
+
+        // --- ONLY NOW START MINING PROGRESS ---
+        float hardness = world.getBlockState(currentMiningPos).getHardness(world, currentMiningPos);
         int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
         this.currentBlockEnergyCost = energyCost;
-        
-        // Calculate base mining time for this block (based on hardness)
+
         if (totalMiningTicks == 0) {
-            // Base mining time: 20 ticks per hardness point, minimum 10 ticks
-            // This is the time it would take with 1 energy per tick
             totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
         }
-        
-        // Check if we have any energy to continue mining this block
+
         if (this.energyReceived < 1) {
-            if (world.getTime() % 20 == 0) { // Only log every second
-                // Circuitmod.LOGGER.info("[QUARRY-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
-            }
             return false; // Don't advance position, just wait for more energy
         }
-        
-        // Calculate how much energy to consume this tick based on available energy
-        // More energy = faster mining, but with diminishing returns to prevent instant mining
+
         int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
-        
-        // Scale mining speed with energy consumption using square root for diminishing returns
-        // This means 4x energy gives 2x speed, 9x energy gives 3x speed, etc.
         float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
-        
-        // Consume the calculated energy
         this.energyReceived -= energyToConsume;
-        
-        // Calculate progress based on energy consumed
-        // More energy = more progress per tick
         float progressThisTick = energySpeedMultiplier;
         currentMiningTicks += (int) progressThisTick;
-        
-        // Calculate progress percentage
         currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
         currentMiningProgress = Math.min(100, currentMiningProgress);
-        
-        // Only log progress occasionally to reduce spam
-        if (world.getTime() % 10 == 0) {
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
-        }
-        
-        // Check if we've finished mining this block
+
         if (currentMiningTicks >= totalMiningTicks) {
-            // Get drops from the block
-            ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-            // Circuitmod.LOGGER.info("[QUARRY-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
-            
-            // Add to inventory if there's space
+            ItemStack minedItem = new ItemStack(world.getBlockState(currentMiningPos).getBlock().asItem());
             boolean addedToInventory = false;
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.get(i);
                 if (stack.isEmpty()) {
                     inventory.set(i, minedItem);
                     addedToInventory = true;
-                    // Circuitmod.LOGGER.info("[QUARRY-MINE] Added to empty slot " + i);
                     break;
                 } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
                     stack.increment(1);
                     addedToInventory = true;
-                    // Circuitmod.LOGGER.info("[QUARRY-MINE] Added to existing stack in slot " + i);
                     break;
                 }
             }
-            
-            // If we successfully added to the inventory, remove the block and advance
             if (addedToInventory) {
                 world.removeBlock(currentMiningPos, false);
-                // Circuitmod.LOGGER.info("[QUARRY-SUCCESS] Successfully mined block at " + currentMiningPos);
-                
-                // Only advance to next block if we successfully added the item
                 advanceToNextBlock();
+                currentMiningPos = null;
+                totalMiningTicks = 0;
                 return true;
             } else {
-                // Circuitmod.LOGGER.info("[QUARRY-FAIL] Inventory full, could not mine block - staying at current position");
-                // Don't advance to next block, stay at current position
+                // Inventory full, stay at current position
                 return false;
             }
         }
-        
         return false; // Still mining, not finished yet
     }
     

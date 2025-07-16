@@ -39,6 +39,14 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(MassFabricatorScreenHandler::new, FeatureSet.empty())
         );
     
+    // Register reactor screen handler
+    public static final ScreenHandlerType<ReactorScreenHandler> REACTOR_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "reactor_screen_handler"),
+            new ScreenHandlerType<>(ReactorScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }

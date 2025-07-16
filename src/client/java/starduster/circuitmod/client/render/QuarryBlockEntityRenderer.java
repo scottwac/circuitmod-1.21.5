@@ -1,96 +1,106 @@
 package starduster.circuitmod.client.render;
 
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.Tessellator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 
 import java.util.List;
 
-public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBlockEntity> {
-    
-    public QuarryBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
+@Environment(EnvType.CLIENT)
+public class QuarryBlockEntityRenderer
+    implements BlockEntityRenderer<QuarryBlockEntity> {
+
+    public QuarryBlockEntityRenderer(
+        BlockEntityRendererFactory.Context ctx) { }
+
+    @Override
+    public void render(QuarryBlockEntity entity,
+                       float tickDelta,
+                       MatrixStack matrices,
+                       VertexConsumerProvider vertexConsumers,
+                       int light,
+                       int overlay,
+                       Vec3d cameraPos) {
+        // We do NOT subtract cameraPos here – the dispatcher has already
+        // translated us to (blockPos - cameraPos).
+        matrices.push();
+        VertexConsumer v = vertexConsumers
+            .getBuffer(RenderLayer.getLines());
+
+        // find the min/max X and Z of the quarry perimeter
+        List<net.minecraft.util.math.BlockPos> perim =
+            entity.getPerimeterPositions();
+        if (perim.size() < 2) {
+            matrices.pop();
+            return;
+        }
+
+        int minX = perim.stream().mapToInt(p -> p.getX()).min().getAsInt();
+        int maxX = perim.stream().mapToInt(p -> p.getX()).max().getAsInt();
+        int minZ = perim.stream().mapToInt(p -> p.getZ()).min().getAsInt();
+        int maxZ = perim.stream().mapToInt(p -> p.getZ()).max().getAsInt();
+
+        // convert to *local* coords (center of each block)
+        float x0 = (minX - entity.getPos().getX()) + 0.5f;
+        float x1 = (maxX - entity.getPos().getX()) + 0.5f;
+        float z0 = (minZ - entity.getPos().getZ()) + 0.5f;
+        float z1 = (maxZ - entity.getPos().getZ()) + 0.5f;
+
+        // height slightly above ground:
+        float y = 0.1f;
+
+        // draw the four long edges
+        drawThickLine(v, matrices, x0, y, z0, x1, y, z0, 0.05f, 0f, 1f, 0f, 1f);
+        drawThickLine(v, matrices, x1, y, z0, x1, y, z1, 0.05f, 0f, 1f, 0f, 1f);
+        drawThickLine(v, matrices, x1, y, z1, x0, y, z1, 0.05f, 0f, 1f, 0f, 1f);
+        drawThickLine(v, matrices, x0, y, z1, x0, y, z0, 0.05f, 0f, 1f, 0f, 1f);
+
+        matrices.pop();
+    }
+
+    private static void drawThickLine(VertexConsumer consumer,
+                                      MatrixStack ms,
+                                      float x1, float y1, float z1,
+                                      float x2, float y2, float z2,
+                                      float width,
+                                      float r, float g, float b, float a) {
+        // direction
+        float dx = x2 - x1, dz = z2 - z1;
+        // pick a horizontal offset axis perpendicular to the line
+        float offX = dz, offZ = -dx;
+        float len = (float)Math.sqrt(offX*offX + offZ*offZ);
+        if (len > 0) {
+            offX = offX/len * width;
+            offZ = offZ/len * width;
+        }
+        // draw a small “fan” of lines around the centerline
+        int steps = 8;
+        for (int i = 0; i <= steps; i++) {
+            float t = (i/(float)steps) - 0.5f;
+            float ox = offX * t, oz = offZ * t;
+            // each segment is just two verts
+            consumer.vertex(ms.peek(), x1 + ox, y1, z1 + oz)
+                    .color(r, g, b, a).normal(0, 1, 0);
+            consumer.vertex(ms.peek(), x2 + ox, y2, z2 + oz)
+                    .color(r, g, b, a).normal(0, 1, 0);
+        }
     }
 
     @Override
-    public void render(QuarryBlockEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay, Vec3d cameraPos) {
-        // Get the perimeter positions from the quarry
-        List<BlockPos> perimeterPositions = entity.getPerimeterPositions();
-        
-        // Debug logging (only log occasionally to avoid spam)
-        if (System.currentTimeMillis() % 5000 < 50) { // Log every ~5 seconds
-            System.out.println("[QUARRY-RENDER] Rendering quarry at " + entity.getPos() + 
-                ", perimeter positions: " + perimeterPositions.size() + 
-                ", mining area: " + entity.getMiningWidth() + "x" + entity.getMiningLength());
-        }
-        
-        if (perimeterPositions.isEmpty()) {
-            return;
-        }
-        
-        try {
-            // Render lines connecting the perimeter points
-            renderPerimeterLines(matrices, perimeterPositions, 0xFF00FF00); // Green lines
-            
-            if (System.currentTimeMillis() % 5000 < 50) {
-                System.out.println("[QUARRY-RENDER] Rendered perimeter lines");
-            }
-        } catch (Exception e) {
-            System.err.println("[QUARRY-RENDER] Error rendering quarry: " + e.getMessage());
-            e.printStackTrace();
-        }
+    public boolean rendersOutsideBoundingBox(
+        QuarryBlockEntity be) {
+      return true;
     }
 
-    private void renderPerimeterLines(MatrixStack matrices, List<BlockPos> perimeterPositions, int color) {
-        if (perimeterPositions.size() < 4) {
-            return; // Need at least 4 points for a rectangle
-        }
-        
-        // Extract color components
-        int red = (color >> 16) & 0xFF;
-        int green = (color >> 8) & 0xFF;
-        int blue = color & 0xFF;
-        int alpha = 255;
-        
-        // Get tessellator and begin buffer for lines
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.LINES, VertexFormats.POSITION_COLOR);
-        
-        // Get the transformation matrix
-        var matrix = matrices.peek().getPositionMatrix();
-        
-        // Draw lines connecting the perimeter points
-        // We'll draw lines between consecutive points to form the perimeter
-        for (int i = 0; i < perimeterPositions.size(); i++) {
-            BlockPos current = perimeterPositions.get(i);
-            BlockPos next = perimeterPositions.get((i + 1) % perimeterPositions.size());
-            
-            // Draw line from current to next point
-            float x1 = current.getX() + 0.5f;
-            float y1 = current.getY() + 0.1f; // Slightly above ground
-            float z1 = current.getZ() + 0.5f;
-            
-            float x2 = next.getX() + 0.5f;
-            float y2 = next.getY() + 0.1f;
-            float z2 = next.getZ() + 0.5f;
-            
-            // Add the line vertices
-            buffer.vertex(matrix, x1, y1, z1).color(red, green, blue, alpha);
-            buffer.vertex(matrix, x2, y2, z2).color(red, green, blue, alpha);
-        }
-        
-        // Draw the buffer - the buffer.end() should automatically render the lines
-        buffer.end();
+    @Override
+    public int getRenderDistance() {
+      return 96;
     }
-} 
+}
