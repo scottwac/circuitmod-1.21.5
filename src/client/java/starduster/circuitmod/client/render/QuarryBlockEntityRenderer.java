@@ -90,11 +90,7 @@ public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBloc
             buffer.vertex(matrix, x2, y2, z2).color(red, green, blue, alpha);
         }
         
-        // Draw the buffer
-        var builtBuffer = buffer.end();
-        if (builtBuffer != null) {
-            // Use the built buffer directly - it should render automatically
-            // The BuiltBuffer contains the draw parameters and will be rendered
-        }
+        // Draw the buffer - the buffer.end() should automatically render the lines
+        buffer.end();
     }
 } 
