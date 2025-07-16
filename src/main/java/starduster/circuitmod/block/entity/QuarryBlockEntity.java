@@ -58,7 +58,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private BlockPos startPos; // Starting corner of the mining area
     private BlockPos currentPos; // Current mining position
     private int currentY; // Current mining Y level
-    private Direction facingDirection; // Direction the quarry is facing
+    private Direction facingDirection; // Direction the quarry mines (opposite to visual facing)
     private int miningWidth = 16; // Width of the mining area (X direction)
     private int miningLength = 16; // Length of the mining area (Z direction)
     
@@ -421,29 +421,24 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             direction = Direction.NORTH;
         }
         
-        this.facingDirection = direction;
+        // INVERT: Use the opposite direction for mining
+        this.facingDirection = direction.getOpposite();
         
-        // Set the starting corner as the quarry's position
+       
         this.startPos = pos;
         
-        // Start two blocks away in the facing direction to ensure safety
-        // (one block in front of the quarry, then start the area in front of that)
-        BlockPos safeAreaStart = pos.offset(facingDirection, 2);
-        
-        // Calculate mining area bounds using custom dimensions
-        // Width is in X direction, Length is in Z direction
-        // For a 2x2 area, we want exactly 2 blocks in each direction
-        // So we need to adjust the calculation to avoid creating a 3x3 area
-        
+        // INVERT: Start the mining area in the opposite direction (behind the quarry)
+        BlockPos safeAreaStart = pos.offset(this.facingDirection, 2);
+       
         int minX = safeAreaStart.getX();
         int maxX = safeAreaStart.getX() + miningWidth - 1;
         int minZ = safeAreaStart.getZ();
         int maxZ = safeAreaStart.getZ() + miningLength - 1;
         
-        // Double-check that quarry is not in the mining area
+        
         if (isPositionInArea(pos, minX, maxX, minZ, maxZ)) {
             // If somehow the quarry is still in the area, push it one more block away
-            safeAreaStart = pos.offset(facingDirection, 3);
+            safeAreaStart = pos.offset(this.facingDirection, 3);
             minX = safeAreaStart.getX();
             maxX = safeAreaStart.getX() + miningWidth - 1;
             minZ = safeAreaStart.getZ();
@@ -462,7 +457,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Start mining at the quarry's Y level
         this.currentY = pos.getY();
         
-        Circuitmod.LOGGER.info("[QUARRY-AREA] Initialized mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {}", 
+        Circuitmod.LOGGER.info("[QUARRY-AREA] Initialized mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {} (INVERTED - mining in opposite direction)", 
             miningWidth, miningLength, pos, minX, maxX, minZ, maxZ);
     }
     
@@ -746,7 +741,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return true;
         }
         
-        // Additional safety: consider blocks immediately in front of the quarry in its facing direction
+        // Additional safety: consider blocks immediately in the mining direction (opposite to visual facing)
         if (facingDirection != null) {
             BlockPos inFront = pos.offset(facingDirection);
             if (targetPos.equals(inFront)) {

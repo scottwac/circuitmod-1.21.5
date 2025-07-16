@@ -121,6 +121,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(ItemPipeBlockEntity::new, ModBlocks.ITEM_PIPE).build()
     );
 
+    // Add nuke block entity
+    public static final BlockEntityType<NukeBlockEntity> NUKE_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "nuke"),
+        FabricBlockEntityTypeBuilder.create(NukeBlockEntity::new, ModBlocks.NUKE).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

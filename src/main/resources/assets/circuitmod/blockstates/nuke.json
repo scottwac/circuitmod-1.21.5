@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "circuitmod:block/nuke" }
+    "primed=false": { "model": "circuitmod:block/nuke" },
+    "primed=true": { "model": "circuitmod:block/nuke_primed" }
   }
 } 
