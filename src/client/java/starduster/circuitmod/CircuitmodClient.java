@@ -10,7 +10,6 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
 import starduster.circuitmod.client.render.DrillBlockEntityRenderer;
-import starduster.circuitmod.client.render.ItemPipeBlockEntityRenderer;
 import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreen;
@@ -38,10 +37,12 @@ public class CircuitmodClient implements ClientModInitializer {
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
-		BlockEntityRendererFactories.register(ModBlockEntities.ITEM_PIPE, ItemPipeBlockEntityRenderer::new);
 		
 		// Initialize client networking
 		starduster.circuitmod.network.ClientNetworking.initialize();
+		
+		// Initialize client network animator
+		starduster.circuitmod.network.ClientNetworkAnimator.initialize();
 		
 		// Register client connection/disconnection handlers for debugging
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

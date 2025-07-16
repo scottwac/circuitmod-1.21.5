@@ -10,6 +10,7 @@ import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.screen.QuarryScreenHandler;
 import starduster.circuitmod.screen.DrillScreenHandler;
 import starduster.circuitmod.screen.QuarryScreen;
+import net.minecraft.item.ItemStack;
 
 public class ClientNetworking {
     /**
@@ -111,6 +112,24 @@ public class ClientNetworking {
                     quarryScreen.updateTextFields(width, length);
                     Circuitmod.LOGGER.info("[CLIENT] Updated quarry screen text fields with dimensions: {}x{}", width, length);
                 }
+            });
+        });
+        
+        // Register handler for item move animations
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ItemMovePayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            ItemStack stack = payload.stack();
+            BlockPos from = payload.from();
+            BlockPos to = payload.to();
+            long startTick = payload.startTick();
+            int durationTicks = payload.durationTicks();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // Add the animation to the client animator
+                ClientNetworkAnimator.addAnimation(stack, from, to, startTick, durationTicks);
+                Circuitmod.LOGGER.info("[CLIENT] Received item move animation: {} from {} to {}", 
+                    stack.getItem().getName().getString(), from, to);
             });
         });
         

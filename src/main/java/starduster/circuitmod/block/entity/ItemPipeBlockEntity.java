@@ -7,8 +7,10 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
@@ -19,6 +21,7 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.ItemPipeBlock;
+import starduster.circuitmod.network.PipeNetworkAnimator;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -27,13 +30,14 @@ import org.jetbrains.annotations.Nullable;
  * similar to hoppers but forming networks.
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
-    private static final int COOLDOWN_TIME = 1; // Much faster than vanilla hoppers (was 8)
     private static final int INVENTORY_SIZE = 1; // A pipe only holds one item at a time
+    private static final int COOLDOWN_TICKS = 1; // Much faster than vanilla hoppers (was 8)
+    public static final int ANIMATION_TICKS = 8; // how many ticks the slide should take
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     private int transferCooldown = -1;
     private long lastTickTime;
-    private Direction lastInputDirection = null; // Track where the item came from
+    private @Nullable Direction lastInputDirection = null; // Track where the item came from
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ITEM_PIPE, pos, state);
@@ -51,7 +55,12 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         blockEntity.lastTickTime = world.getTime();
         
         if (!blockEntity.needsCooldown()) {
-            blockEntity.setTransferCooldown(0);
+            // Debug logging for tick processing (reduced frequency)
+            if (world.getTime() % 20 == 0) { // Only log every second
+                Circuitmod.LOGGER.info("[PIPE-TICK] Processing tick at " + pos + 
+                                      ", hasItem: " + !blockEntity.isEmpty() + 
+                                      ", lastInputDir: " + blockEntity.lastInputDirection);
+            }
             
             // Try to extract from inventory above first
             boolean didWork = extractFromAbove(world, pos, blockEntity);
@@ -61,8 +70,12 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 didWork = transferItem(world, pos, state, blockEntity) || didWork;
             }
             
+            // Always set cooldown to prevent constant ticking
+            blockEntity.setTransferCooldown(COOLDOWN_TICKS);
+            
             if (didWork) {
-                blockEntity.setTransferCooldown(COOLDOWN_TIME);
+                // Only log when work is actually done
+                Circuitmod.LOGGER.info("[PIPE-TICK-WORK] Work done at " + pos + ", calling markDirty");
                 blockEntity.markDirty();
             }
         }
@@ -92,11 +105,21 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             // Try to extract an item from each slot
             for (int i = 0; i < aboveInventory.size(); i++) {
-                            if (extract(blockEntity, aboveInventory, i, extractDirection)) {
-                blockEntity.lastInputDirection = Direction.UP;
-                blockEntity.markDirty();
-                return true;
-            }
+                if (extract(blockEntity, aboveInventory, i, extractDirection)) {
+                    // Set input direction to UP, but allow immediate downward flow
+                    blockEntity.lastInputDirection = Direction.UP;
+                    blockEntity.markDirty();
+                    
+                    // Send animation for item entering the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        BlockPos animationFromPos = pos.up();
+                        ItemStack extractedStack = blockEntity.getStack(0);
+                        PipeNetworkAnimator.sendMoveAnimation(serverWorld, extractedStack.copy(), animationFromPos, pos, ANIMATION_TICKS);
+                    }
+                    
+                    Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted item from inventory above at " + pos);
+                    return true;
+                }
             }
         }
         
@@ -111,6 +134,15 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             if (extract(blockEntity, itemEntity)) {
                 blockEntity.lastInputDirection = Direction.UP;
                 blockEntity.markDirty();
+                
+                // Send animation for item entering the pipe
+                if (world instanceof ServerWorld serverWorld) {
+                    BlockPos animationFromPos = pos.up();
+                    ItemStack extractedStack = blockEntity.getStack(0);
+                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, extractedStack.copy(), animationFromPos, pos, ANIMATION_TICKS);
+                }
+                
+                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted item from entity at " + pos);
                 return true;
             }
         }
@@ -126,7 +158,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             return false;
         }
         
-        // First try to output to the inventory below
+        // Priority 1: Try to output to the inventory below (highest priority)
         BlockPos belowPos = pos.down();
         Inventory belowInventory = getInventoryAt(world, belowPos);
         
@@ -139,12 +171,21 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 // Successfully transferred at least part of the stack
                 blockEntity.setStack(0, remaining);
                 blockEntity.markDirty();
+                
+                // Send animation for item leaving the pipe
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, belowPos, ANIMATION_TICKS);
+                }
+                
                 return true;
             }
         }
         
-        // If we couldn't output below, try to transfer to connected pipes
-        for (Direction direction : Direction.values()) {
+        // Priority 2: Try to transfer to connected pipes (avoid creating loops)
+        // Define priority order for pipe transfers to encourage flow in one direction
+        Direction[] priorityDirections = getPriorityDirections(blockEntity.lastInputDirection);
+        
+        for (Direction direction : priorityDirections) {
             // Skip the direction we got the item from to prevent sending back
             if (direction == blockEntity.lastInputDirection) {
                 continue;
@@ -168,19 +209,30 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     continue; // Skip if the neighbor pipe already has an item
                 }
                 
+                // Check if transferring to this pipe would create a loop
+                if (wouldCreateLoop(pos, neighborPos, direction, blockEntity.lastInputDirection)) {
+                    continue;
+                }
+                
                 // Transfer the item to the next pipe
                 ItemStack currentStack = blockEntity.getStack(0);
                 neighborPipe.setStack(0, currentStack.copy());
                 neighborPipe.lastInputDirection = direction.getOpposite();
-                neighborPipe.setTransferCooldown(COOLDOWN_TIME); // Set cooldown for the receiving pipe
+                neighborPipe.setTransferCooldown(COOLDOWN_TICKS);
                 neighborPipe.markDirty();
+                
+                // Send animation to clients
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, neighborPos, ANIMATION_TICKS);
+                }
                 
                 blockEntity.setStack(0, ItemStack.EMPTY);
                 blockEntity.markDirty();
+                Circuitmod.LOGGER.info("[PIPE-TRANSFER] Transferred item to neighbor pipe at " + neighborPos + " from " + pos);
                 return true;
             }
             
-            // If it's an inventory (not below), try to insert
+            // Priority 3: Try to insert into side inventories (lowest priority)
             Inventory neighborInventory = getInventoryAt(world, neighborPos);
             if (neighborInventory != null) {
                 ItemStack currentStack = blockEntity.getStack(0);
@@ -190,9 +242,72 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     // Successfully transferred at least part of the stack
                     blockEntity.setStack(0, remaining);
                     blockEntity.markDirty();
+                    
+                    // Send animation for item leaving the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, neighborPos, ANIMATION_TICKS);
+                    }
+                    
                     return true;
                 }
             }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get priority directions for item transfer to prevent loops.
+     * Prioritizes downward flow and avoids going back to source.
+     */
+    private static Direction[] getPriorityDirections(@Nullable Direction lastInputDirection) {
+        // Always prioritize DOWN first (gravity-like behavior)
+        if (lastInputDirection == null) {
+            // No input direction, try all directions with DOWN first
+            return new Direction[]{Direction.DOWN, Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP};
+        }
+        
+        // Create priority list avoiding the input direction
+        java.util.List<Direction> priorities = new java.util.ArrayList<>();
+        
+        // Always try DOWN first (unless that's where we came from)
+        if (lastInputDirection != Direction.DOWN) {
+            priorities.add(Direction.DOWN);
+        }
+        
+        // Add horizontal directions
+        for (Direction dir : new Direction[]{Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}) {
+            if (dir != lastInputDirection) {
+                priorities.add(dir);
+            }
+        }
+        
+        // Add UP last (unless that's where we came from)
+        if (lastInputDirection != Direction.UP) {
+            priorities.add(Direction.UP);
+        }
+        
+        return priorities.toArray(new Direction[0]);
+    }
+    
+    /**
+     * Check if transferring an item would create a loop.
+     * This is a simple heuristic to prevent immediate bounce-backs.
+     */
+    private static boolean wouldCreateLoop(BlockPos fromPos, BlockPos toPos, Direction transferDirection, @Nullable Direction lastInputDirection) {
+        // If we just received an item from the direction we're trying to send to, it's likely a loop
+        if (lastInputDirection != null && transferDirection == lastInputDirection) {
+            return true;
+        }
+        
+        // Additional check: if we're trying to send an item back in the opposite direction
+        // of where we received it from (and it's horizontal), it might be a loop
+        if (lastInputDirection != null && transferDirection == lastInputDirection.getOpposite()) {
+            // Allow vertical transfers (up/down) but be more restrictive with horizontal
+            if (lastInputDirection.getAxis() == Direction.Axis.Y || transferDirection.getAxis() == Direction.Axis.Y) {
+                return false; // Allow vertical flow
+            }
+            return true; // Prevent horizontal bouncing
         }
         
         return false;
@@ -371,24 +486,53 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
 
     @Override
     public ItemStack getStack(int slot) {
-        return this.inventory.get(0);
+        ItemStack stack = this.inventory.get(0);
+        // Only log occasionally to avoid spam
+        if (world != null && world.isClient() && !stack.isEmpty() && world.getTime() % 20 == 0) {
+            Circuitmod.LOGGER.info("[PIPE-GET-STACK] getStack called at " + this.getPos() + 
+                                  ", slot: " + slot + 
+                                  ", item: " + stack.getItem().getName().getString() + 
+                                  ", count: " + stack.getCount());
+        }
+        return stack;
     }
 
     @Override
     public ItemStack removeStack(int slot, int amount) {
-        return !this.inventory.get(0).isEmpty() ? this.inventory.get(0).split(amount) : ItemStack.EMPTY;
+        ItemStack stack = !this.inventory.get(0).isEmpty() ? this.inventory.get(0).split(amount) : ItemStack.EMPTY;
+        if (!stack.isEmpty()) {
+            markDirty();
+        }
+        return stack;
     }
 
     @Override
     public ItemStack removeStack(int slot) {
         ItemStack stack = this.inventory.get(0);
         this.inventory.set(0, ItemStack.EMPTY);
+        markDirty();
         return stack;
     }
 
     @Override
     public void setStack(int slot, ItemStack stack) {
+        // Only log when actually setting a non-empty stack or clearing a stack
+        if (!stack.isEmpty() || !this.inventory.get(0).isEmpty()) {
+            Circuitmod.LOGGER.info("[PIPE-SET-STACK] setStack called at " + this.getPos() + 
+                                  ", slot: " + slot + 
+                                  ", item: " + (stack.isEmpty() ? "empty" : stack.getItem().getName().getString()) +
+                                  ", count: " + stack.getCount() +
+                                  ", isClient: " + (world != null && world.isClient()));
+        }
+        
         this.inventory.set(0, stack);
+        
+        // Reset input direction when pipe becomes empty to prevent stale data
+        if (stack.isEmpty()) {
+            this.lastInputDirection = null;
+        }
+        
+        markDirty();
     }
 
     @Override
@@ -399,13 +543,26 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     @Override
     public void clear() {
         this.inventory.clear();
+        markDirty();
     }
+    
+
     
     /**
      * Get the direction from which the last item entered this pipe.
      */
-    public Direction getLastInputDirection() {
+    public @Nullable Direction getLastInputDirection() {
         return this.lastInputDirection;
+    }
+    
+    /**
+     * Debug method to log the current state of the pipe.
+     */
+    public void debugLogState(String context) {
+        Circuitmod.LOGGER.info("[PIPE-DEBUG-" + context + "] Pipe at " + this.getPos() + 
+                              ", hasItem: " + !getStack(0).isEmpty() + 
+                              ", lastInputDir: " + lastInputDirection + 
+                              ", isClient: " + (world != null && world.isClient()));
     }
     
     @Override
@@ -415,24 +572,18 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         // Save the inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
         
-        // Save the cooldown
-        nbt.putInt("TransferCooldown", this.transferCooldown);
-        
         // Save the last input direction if we have one
         if (this.lastInputDirection != null) {
             nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
         }
-    }
-    
-    @Override
-    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-        // Write current state to NBT for client sync
-        NbtCompound nbt = new NbtCompound();
-        Inventories.writeNbt(nbt, this.inventory, registries);
-        if (this.lastInputDirection != null) {
-            nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
+        
+        // Debug logging for NBT writing (reduced frequency)
+        if (world != null && world.getTime() % 20 == 0) { // Only log every second
+            Circuitmod.LOGGER.info("[PIPE-NBT-WRITE] Writing NBT at " + this.getPos() + 
+                                  ", hasItem: " + !getStack(0).isEmpty() + 
+                                  ", lastInputDir: " + lastInputDirection + 
+                                  ", isClient: " + (world != null && world.isClient()));
         }
-        return nbt;
     }
     
     @Override
@@ -442,13 +593,79 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         // Load the inventory
         Inventories.readNbt(nbt, this.inventory, registries);
         
-        // Load the cooldown
-        this.transferCooldown = nbt.getInt("TransferCooldown").orElse(-1);
-        
         // Load the last input direction if saved
         if (nbt.contains("LastInputDir")) {
-            int dirOrdinal = nbt.getInt("LastInputDir").orElse(0);
+            int dirOrdinal = nbt.getInt("LastInputDir", 0);
             this.lastInputDirection = Direction.values()[dirOrdinal];
+        } else {
+            this.lastInputDirection = null;
+        }
+        
+        // Debug logging for NBT reading (reduced frequency)
+        if (world != null && world.getTime() % 20 == 0) { // Only log every second
+            Circuitmod.LOGGER.info("[PIPE-NBT-READ] Reading NBT at " + this.getPos() + 
+                                  ", hasItem: " + !getStack(0).isEmpty() + 
+                                  ", lastInputDir: " + lastInputDirection + 
+                                  ", isClient: " + (world != null && world.isClient()) +
+                                  ", nbtKeys: " + nbt.getKeys());
+        }
+    }
+    
+    //
+    // CLIENT SYNC
+    //
+    @Override
+    public @Nullable BlockEntityUpdateS2CPacket toUpdatePacket() {
+        // Called by Minecraft when it needs to send a block‑entity update to the client
+        Circuitmod.LOGGER.info("[PIPE-UPDATE-PACKET] Creating update packet at " + this.getPos() + 
+                              ", hasItem: " + !getStack(0).isEmpty() + 
+                              ", lastInputDir: " + lastInputDirection);
+        return BlockEntityUpdateS2CPacket.create(this);
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+        // send exactly the same data as writeNbt(...)
+        Circuitmod.LOGGER.info("[PIPE-CHUNK-DATA] Creating initial chunk data at " + this.getPos() + 
+                              ", hasItem: " + !getStack(0).isEmpty() + 
+                              ", lastInputDir: " + lastInputDirection);
+        NbtCompound tag = new NbtCompound();
+        writeNbt(tag, registries);
+        return tag;
+    }
+
+    @Override
+    public void markDirty() {
+        super.markDirty();
+        
+        // Only log markDirty calls occasionally to prevent spam
+        if (world != null && world.getTime() % 20 == 0) { // Only log every second
+            Circuitmod.LOGGER.info("[PIPE-MARK-DIRTY] markDirty called at " + this.getPos() + 
+                                  ", hasItem: " + !getStack(0).isEmpty() + 
+                                  ", lastInputDir: " + lastInputDirection + 
+                                  ", isClient: " + (world != null && world.isClient()));
+        }
+        
+        if (world != null && !world.isClient()) {
+            // Build the vanilla packet containing our NBT:
+            BlockEntityUpdateS2CPacket pkt = BlockEntityUpdateS2CPacket.create(this);
+            // Send to every player within 64 blocks in this dimension:
+            ServerWorld sw = (ServerWorld)world;
+            int playerCount = sw.getServer().getPlayerManager().getPlayerList().size();
+            
+            // Only log broadcast occasionally to prevent spam
+            if (world.getTime() % 20 == 0) {
+                Circuitmod.LOGGER.info("[PIPE-BROADCAST] Broadcasting to " + playerCount + " players at " + this.getPos());
+            }
+            
+            sw.getServer().getPlayerManager()
+                .sendToAround(
+                    /* except= */ null,
+                    this.pos.getX(), this.pos.getY(), this.pos.getZ(),
+                    /* radius= */ 64.0,
+                    sw.getRegistryKey(),
+                    pkt
+                );
         }
     }
 } 

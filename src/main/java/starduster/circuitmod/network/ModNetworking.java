@@ -1,6 +1,7 @@
 package starduster.circuitmod.network;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -9,6 +10,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.Circuitmod;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.RegistryByteBuf;
 
 public class ModNetworking {
     /**
@@ -21,6 +24,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(QuarryMiningProgressPayload.ID, QuarryMiningProgressPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MiningEnabledStatusPayload.ID, MiningEnabledStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(QuarryDimensionsSyncPayload.ID, QuarryDimensionsSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ItemMovePayload.ID, ItemMovePayload.CODEC);
         
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
@@ -74,6 +78,24 @@ public class ModNetworking {
             player.getName().getString() + ": " + width + "x" + length + " for quarry at " + quarryPos);
             
         QuarryDimensionsSyncPayload payload = new QuarryDimensionsSyncPayload(quarryPos, width, length);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send an item move animation to a player
+     * 
+     * @param player The player to send the animation to
+     * @param stack The item stack being moved
+     * @param from The starting position
+     * @param to The ending position
+     * @param startTick The server tick when the animation starts
+     * @param durationTicks The duration of the animation in ticks
+     */
+    public static void sendItemMoveAnimation(ServerPlayerEntity player, ItemStack stack, BlockPos from, BlockPos to, long startTick, int durationTicks) {
+        Circuitmod.LOGGER.info("[SERVER] Sending item move animation to player " + 
+            player.getName().getString() + ": " + stack.getItem().getName().getString() + " from " + from + " to " + to);
+            
+        ItemMovePayload payload = new ItemMovePayload(stack, from, to, startTick, durationTicks);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
     
@@ -188,13 +210,47 @@ public class ModNetworking {
         }
     }
 
-    // Energy to Mass Converter networking
+    /**
+     * Payload for item pipe network animations (server -> client)
+     */
+    public record ItemMovePayload(ItemStack stack, BlockPos from, BlockPos to, long startTick, int durationTicks) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ItemMovePayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "item_move"));
+        
+        // Use RegistryByteBuf for ItemStack serialization with proper registry lookup
+        private static final PacketCodec<RegistryByteBuf, ItemStack> ITEM_STACK_CODEC = new PacketCodec<RegistryByteBuf, ItemStack>() {
+            @Override
+            public ItemStack decode(RegistryByteBuf buf) {
+                return ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
+            }
+            
+            @Override
+            public void encode(RegistryByteBuf buf, ItemStack stack) {
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, stack);
+            }
+        };
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<RegistryByteBuf, ItemMovePayload> CODEC = PacketCodec.tuple(
+            ITEM_STACK_CODEC, ItemMovePayload::stack,
+            BlockPos.PACKET_CODEC, ItemMovePayload::from,
+            BlockPos.PACKET_CODEC, ItemMovePayload::to,
+            PacketCodecs.LONG, ItemMovePayload::startTick,
+            PacketCodecs.INTEGER, ItemMovePayload::durationTicks,
+            ItemMovePayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    
     public static final Identifier ENERGY_TO_MASS_SELECT_RESOURCE = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_select_resource");
     public static final Identifier ENERGY_TO_MASS_FIREWORK = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_firework");
-    // Register in initialize()
-    // PayloadTypeRegistry.playC2S().register(ENERGY_TO_MASS_SELECT_RESOURCE, ...);
-    // PayloadTypeRegistry.playS2C().register(ENERGY_TO_MASS_FIREWORK, ...);
-    // TODO: Implement payloads and handlers
+  
     
 
 } 
