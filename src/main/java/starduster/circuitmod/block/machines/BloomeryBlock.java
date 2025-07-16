@@ -103,6 +103,10 @@ public class BloomeryBlock extends BlockWithEntity implements BlockEntityProvide
                 world.playSoundClient(d, e, f, SoundEvents.BLOCK_CAMPFIRE_CRACKLE, SoundCategory.BLOCKS, 0.9F, 0.8F, false);
             }
 
+            if (random.nextDouble() < 0.1) {
+                world.addParticleClient(ParticleTypes.LAVA, d, e, f, (double)0.0F, (double)0.0F, (double)0.0F);
+            }
+
             Direction direction = state.get(Properties.HORIZONTAL_FACING);
             Direction.Axis axis = direction.getAxis();
             double g = 0.52;

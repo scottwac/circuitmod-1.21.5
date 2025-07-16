@@ -1,5 +1,6 @@
 package starduster.circuitmod.block.entity;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
@@ -11,7 +12,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
-
+import starduster.circuitmod.block.machines.BloomeryBlock;
+import starduster.circuitmod.block.machines.Nuke;
 
 
 public class NukeBlockEntity extends BlockEntity {
@@ -72,6 +74,8 @@ public class NukeBlockEntity extends BlockEntity {
             Circuitmod.LOGGER.info("[NUKE-TICK] Primed at " + pos);
             blockEntity.handlePriming((ServerWorld) world);
         }
+
+
     }
     
     private void handlePriming(ServerWorld world) {
@@ -158,7 +162,9 @@ public class NukeBlockEntity extends BlockEntity {
     private void startDetonation(ServerWorld world) {
         isDetonating = true;
         detonationTimer = 0;
-        
+
+        world.setBlockState(pos, world.getBlockState(pos).with(Nuke.DETONATING, true), Block.NOTIFY_ALL);
+
         // Send final warning
         world.getPlayers().stream()
             .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 200)
