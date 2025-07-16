@@ -13,6 +13,7 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyProducer;
+import starduster.circuitmod.power.IPowerConnectable;
 
 public class CreativeGeneratorBlockEntity extends BlockEntity implements IEnergyProducer {
     private static final int ENERGY_PER_TICK = 1;
@@ -20,6 +21,7 @@ public class CreativeGeneratorBlockEntity extends BlockEntity implements IEnergy
     
     private EnergyNetwork network;
     private int tickCounter = 0;
+    private boolean needsNetworkRefresh = false;
     
     public CreativeGeneratorBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CREATIVE_GENERATOR_BLOCK_ENTITY, pos, state);
@@ -53,6 +55,7 @@ public class CreativeGeneratorBlockEntity extends BlockEntity implements IEnergy
             NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
             network.readFromNbt(networkNbt);
         }
+        this.needsNetworkRefresh = true;
     }
     
     // IEnergyProducer implementation
@@ -111,6 +114,45 @@ public class CreativeGeneratorBlockEntity extends BlockEntity implements IEnergy
                         + blockEntity.network.getMaxStorage() + " (+" 
                         + blockEntity.network.getLastTickEnergyProduced() + ", -" 
                         + blockEntity.network.getLastTickEnergyConsumed() + ")"), false);
+                }
+            }
+        }
+        if (blockEntity.needsNetworkRefresh) {
+            blockEntity.findAndJoinNetwork();
+            blockEntity.needsNetworkRefresh = false;
+        }
+    }
+
+    public void findAndJoinNetwork() {
+        if (world == null || world.isClient) return;
+        boolean foundNetwork = false;
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            if (be instanceof IPowerConnectable) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                EnergyNetwork network = connectable.getNetwork();
+                if (network != null && network != this.network) {
+                    if (this.network != null) {
+                        this.network.removeBlock(pos);
+                    }
+                    network.addBlock(pos, this);
+                    foundNetwork = true;
+                    break;
+                }
+            }
+        }
+        if (!foundNetwork && (this.network == null)) {
+            EnergyNetwork newNetwork = new EnergyNetwork();
+            newNetwork.addBlock(pos, this);
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.offset(dir);
+                BlockEntity be = world.getBlockEntity(neighborPos);
+                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
+                    IPowerConnectable connectable = (IPowerConnectable) be;
+                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
+                        newNetwork.addBlock(neighborPos, connectable);
+                    }
                 }
             }
         }

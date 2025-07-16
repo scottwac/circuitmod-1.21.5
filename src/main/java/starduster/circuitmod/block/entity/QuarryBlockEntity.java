@@ -168,6 +168,9 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         }
     };
 
+    // Add this field to the class
+    private boolean needsNetworkRefresh = false;
+
     public QuarryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.QUARRY_BLOCK_ENTITY, pos, state);
     }
@@ -296,10 +299,15 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Load inventory
         Inventories.readNbt(nbt, this.inventory, registries);
+        needsNetworkRefresh = true;
     }
 
     // The tick method called by the ticker in QuarryBlock
     public static void tick(World world, BlockPos pos, BlockState state, QuarryBlockEntity blockEntity) {
+        if (blockEntity.needsNetworkRefresh) {
+            blockEntity.findAndJoinNetwork();
+            blockEntity.needsNetworkRefresh = false;
+        }
         if (world.isClient()) {
             return;
         }
@@ -1125,5 +1133,40 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
         return new QuarryScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
+    }
+
+    public void findAndJoinNetwork() {
+        if (world == null || world.isClient()) return;
+        boolean foundNetwork = false;
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            if (be instanceof IPowerConnectable) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                EnergyNetwork network = connectable.getNetwork();
+                if (network != null && network != this.network) {
+                    if (this.network != null) {
+                        this.network.removeBlock(pos);
+                    }
+                    network.addBlock(pos, this);
+                    foundNetwork = true;
+                    break;
+                }
+            }
+        }
+        if (!foundNetwork && (this.network == null)) {
+            EnergyNetwork newNetwork = new EnergyNetwork();
+            newNetwork.addBlock(pos, this);
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.offset(dir);
+                BlockEntity be = world.getBlockEntity(neighborPos);
+                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
+                    IPowerConnectable connectable = (IPowerConnectable) be;
+                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
+                        newNetwork.addBlock(neighborPos, connectable);
+                    }
+                }
+            }
+        }
     }
 } 

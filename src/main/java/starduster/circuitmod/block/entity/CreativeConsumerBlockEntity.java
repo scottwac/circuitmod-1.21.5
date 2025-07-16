@@ -13,6 +13,7 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
+import starduster.circuitmod.power.IPowerConnectable;
 
 public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyConsumer {
     private static final int ENERGY_DEMAND_PER_TICK = 1;
@@ -21,6 +22,7 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
     private EnergyNetwork network;
     private int tickCounter = 0;
     private int lastReceivedEnergy = 0;
+    private boolean needsNetworkRefresh = false;
     
     public CreativeConsumerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CREATIVE_CONSUMER_BLOCK_ENTITY, pos, state);
@@ -56,6 +58,7 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
             NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
             network.readFromNbt(networkNbt);
         }
+        this.needsNetworkRefresh = true;
     }
     
     // IEnergyConsumer implementation
@@ -124,6 +127,41 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
                         + blockEntity.network.getMaxStorage() + " (+" 
                         + blockEntity.network.getLastTickEnergyProduced() + ", -" 
                         + blockEntity.network.getLastTickEnergyConsumed() + ")"), false);
+                }
+            }
+        }
+    }
+
+    public void findAndJoinNetwork() {
+        if (world == null || world.isClient) return;
+        boolean foundNetwork = false;
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            if (be instanceof IPowerConnectable) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                EnergyNetwork network = connectable.getNetwork();
+                if (network != null && network != this.network) {
+                    if (this.network != null) {
+                        this.network.removeBlock(pos);
+                    }
+                    network.addBlock(pos, this);
+                    foundNetwork = true;
+                    break;
+                }
+            }
+        }
+        if (!foundNetwork && (this.network == null)) {
+            EnergyNetwork newNetwork = new EnergyNetwork();
+            newNetwork.addBlock(pos, this);
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.offset(dir);
+                BlockEntity be = world.getBlockEntity(neighborPos);
+                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
+                    IPowerConnectable connectable = (IPowerConnectable) be;
+                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
+                        newNetwork.addBlock(neighborPos, connectable);
+                    }
                 }
             }
         }

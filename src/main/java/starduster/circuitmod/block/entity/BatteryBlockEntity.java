@@ -30,6 +30,7 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
     private boolean canCharge = true;
     private boolean canDischarge = true;
     private int tickCounter = 0;
+    private boolean needsNetworkRefresh = false;
     
     public BatteryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.BATTERY_BLOCK_ENTITY, pos, state);
@@ -68,6 +69,7 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
         this.canCharge = nbt.getBoolean("can_charge").orElse(true);
         this.canDischarge = nbt.getBoolean("can_discharge").orElse(true);
         this.tickCounter = nbt.getInt("tick_counter").orElse(0);
+        this.needsNetworkRefresh = true;
         
         // Load network data
         if (nbt.contains("energy_network")) {
@@ -270,6 +272,10 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage {
 
     // Add network handling logic to the tick method
     public static void tick(World world, BlockPos pos, BlockState state, BatteryBlockEntity entity) {
+        if (entity.needsNetworkRefresh) {
+            entity.findAndJoinNetwork();
+            entity.needsNetworkRefresh = false;
+        }
         if (world.isClient() || entity.network == null) {
             return;
         }

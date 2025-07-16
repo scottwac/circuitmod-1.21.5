@@ -27,6 +27,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
     private int mergeCheckCooldown = 0;
     private static final int MERGE_CHECK_COOLDOWN_MAX = 20; // Only check every 20 ticks (1 second)
     
+    private boolean needsNetworkRefresh = false;
+    
     public PowerCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_CABLE_BLOCK_ENTITY, pos, state);
     }
@@ -257,6 +259,7 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
             network.readFromNbt(networkNbt);
         }
+        needsNetworkRefresh = true;
     }
     
     // IPowerConnectable implementation
@@ -282,6 +285,10 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
     public static void tick(World world, BlockPos pos, BlockState state, PowerCableBlockEntity blockEntity) {
         if (world.isClient()) {
             return;
+        }
+        if (blockEntity.needsNetworkRefresh) {
+            blockEntity.updateNetworkConnections();
+            blockEntity.needsNetworkRefresh = false;
         }
         
         // Check if we have a network
