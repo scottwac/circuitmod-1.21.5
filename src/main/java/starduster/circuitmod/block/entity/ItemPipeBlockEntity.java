@@ -92,10 +92,11 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             // Try to extract an item from each slot
             for (int i = 0; i < aboveInventory.size(); i++) {
-                if (extract(blockEntity, aboveInventory, i, extractDirection)) {
-                    blockEntity.lastInputDirection = Direction.UP;
-                    return true;
-                }
+                            if (extract(blockEntity, aboveInventory, i, extractDirection)) {
+                blockEntity.lastInputDirection = Direction.UP;
+                blockEntity.markDirty();
+                return true;
+            }
             }
         }
         
@@ -109,6 +110,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         for (ItemEntity itemEntity : world.getEntitiesByClass(ItemEntity.class, box, EntityPredicates.VALID_ENTITY)) {
             if (extract(blockEntity, itemEntity)) {
                 blockEntity.lastInputDirection = Direction.UP;
+                blockEntity.markDirty();
                 return true;
             }
         }
@@ -136,6 +138,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
                 // Successfully transferred at least part of the stack
                 blockEntity.setStack(0, remaining);
+                blockEntity.markDirty();
                 return true;
             }
         }
@@ -173,6 +176,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 neighborPipe.markDirty();
                 
                 blockEntity.setStack(0, ItemStack.EMPTY);
+                blockEntity.markDirty();
                 return true;
             }
             
@@ -185,6 +189,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
                     // Successfully transferred at least part of the stack
                     blockEntity.setStack(0, remaining);
+                    blockEntity.markDirty();
                     return true;
                 }
             }
@@ -396,6 +401,13 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         this.inventory.clear();
     }
     
+    /**
+     * Get the direction from which the last item entered this pipe.
+     */
+    public Direction getLastInputDirection() {
+        return this.lastInputDirection;
+    }
+    
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
@@ -410,6 +422,17 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (this.lastInputDirection != null) {
             nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
         }
+    }
+    
+    @Override
+    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+        // Write current state to NBT for client sync
+        NbtCompound nbt = new NbtCompound();
+        Inventories.writeNbt(nbt, this.inventory, registries);
+        if (this.lastInputDirection != null) {
+            nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
+        }
+        return nbt;
     }
     
     @Override

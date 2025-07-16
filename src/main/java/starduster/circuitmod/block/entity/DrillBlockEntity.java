@@ -56,9 +56,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     private Direction facingDirection; // Direction the quarry is facing
 
     // Networking properties
-    private int lastSentSpeed = 0; // Last mining speed sent to clients
-    private int packetCooldown = 0; // Cooldown to avoid sending too many packets
-    private static final int PACKET_COOLDOWN_MAX = 10; // Only send packets every 10 ticks max (0.5 seconds)
+
 
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
@@ -128,15 +126,6 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                     } else {
 
 
-                        // Force a screen refresh by storing the blocks per second directly
-                        if (value > 0) {
-                            lastSentSpeed = value;
-                        }
-
-                        if (miningSpeed != newMiningSpeed) {
-                            miningSpeed = newMiningSpeed;
-                            markDirty();
-                        }
                     }
                     break;
                 case MINING_ENABLED_INDEX:
@@ -339,33 +328,10 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             needsSync = true;
         }
         
-        // Packet throttling logic to avoid network spam
-        blockEntity.packetCooldown--;
-        if (blockEntity.packetCooldown <= 0) {
-            blockEntity.packetCooldown = 0;
-        }
         
         // Mark dirty if anything changed
         if (needsSync) {
             blockEntity.markDirty();
-            
-            // Send explicit mining speed update packet to all tracking players
-            if (world instanceof ServerWorld serverWorld) {
-                // Convert from blocks/tick to blocks/second for display
-                int blocksPerSecond = blockEntity.miningSpeed * TICKS_PER_SECOND;
-                
-                // Only send packet if it's different from the last one or cooldown is done
-                if (blocksPerSecond != blockEntity.lastSentSpeed || blockEntity.packetCooldown <= 0) {
-                    // Send to all players tracking the quarry block
-                    for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                        ModNetworking.sendMiningSpeedUpdate(player, blocksPerSecond, pos);
-                    }
-                    
-                    // Update the last sent speed and reset cooldown
-                    blockEntity.lastSentSpeed = blocksPerSecond;
-                    blockEntity.packetCooldown = PACKET_COOLDOWN_MAX;
-                }
-            }
             
             // Also do the normal block update
             world.updateListeners(pos, state, state, 3);
@@ -885,15 +851,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         return super.onSyncedBlockEvent(type, data);
     }
     
-    /**
-     * Sets the mining speed directly from a network packet
-     * This is called on the client side when a packet is received
-     * 
-     * @param blocksPerSecond The mining speed in blocks per second
-     */
-    public void setMiningSpeedFromNetwork(int blocksPerSecond) {
-        propertyDelegate.set(MINING_SPEED_INDEX, blocksPerSecond);
-    }
+
     
     /**
      * Sets the mining progress directly from a network packet
