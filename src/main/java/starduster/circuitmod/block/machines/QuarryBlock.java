@@ -11,18 +11,24 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.sound.ModSounds;
 
 public class QuarryBlock extends BlockWithEntity {
     // Use the FACING property from HorizontalFacingBlock
@@ -92,7 +98,32 @@ public class QuarryBlock extends BlockWithEntity {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ? null : 
-            validateTicker(type, ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntity::tick);
+//        return world.isClient ? null :
+//            validateTicker(type, ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntity::tick);
+        if(world.isClient()) {
+            return null;
+        }
+        return validateTicker(type, ModBlockEntities.QUARRY_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
     }
+
+    //private int soundClock = 0;
+//    public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+//        double x = (double)pos.getX() + (double)0.5F;
+//        double y = (double)pos.getY() + (double)0.5F;
+//        double z = (double)pos.getZ() + (double)0.5F;
+//
+//        if(soundClock > 0 && state.get(RUNNING) == false) {
+//            soundClock = 0;
+//        }
+//        if(state.get(RUNNING)) {
+//            soundClock = soundClock + 1;
+//            if(soundClock > 160){
+//                world.playSoundClient(x, y, z, ModSounds.MINER_MACHINE_RUN, SoundCategory.BLOCKS, 1F, 1F, false);
+//                world.addParticleClient(ParticleTypes.LARGE_SMOKE, x, y+1, z, 0.0F, 0.0F, 0.0F);
+//                soundClock = 0;
+//            }
+//            world.addParticleClient(ParticleTypes.FLASH, x, y, z, 0.0F, 0.0F, 0.0F);
+//        }
+//    }
 } 

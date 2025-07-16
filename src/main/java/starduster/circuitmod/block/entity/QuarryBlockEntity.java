@@ -1,5 +1,6 @@
 package starduster.circuitmod.block.entity;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.entity.BlockEntity;
@@ -11,6 +12,7 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
@@ -19,6 +21,7 @@ import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +29,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.block.machines.BloomeryBlock;
+import starduster.circuitmod.block.machines.QuarryBlock;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
@@ -35,6 +40,7 @@ import starduster.circuitmod.screen.QuarryScreenHandler;
 import net.minecraft.block.Blocks;
 
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.sound.ModSounds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -269,8 +275,30 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         }
     }
 
+    private int soundClock = 0;
     // The tick method called by the ticker in QuarryBlock
-    public static void tick(World world, BlockPos pos, BlockState state, QuarryBlockEntity blockEntity) {
+    public void tick(World world, BlockPos pos, BlockState state, QuarryBlockEntity blockEntity) {
+        boolean runningBefore = blockEntity.isMiningEnabled();
+
+//        if(soundClock > 0 && isMiningEnabled() == false) {
+//
+//        }
+        if(isMiningEnabled()) {
+            if(soundClock <= 0){
+                soundClock = 160;
+            }
+            if(soundClock == 160) {
+                world.playSound(null, pos, ModSounds.MINER_MACHINE_RUN, SoundCategory.BLOCKS, 1F, 1F);
+            }
+            soundClock = soundClock - 1;
+            world.setBlockState(pos, world.getBlockState(pos).with(QuarryBlock.RUNNING, true), Block.NOTIFY_ALL);
+        }
+        if(!isMiningEnabled()) {
+            world.setBlockState(pos, world.getBlockState(pos).with(QuarryBlock.RUNNING, false), Block.NOTIFY_ALL);
+            soundClock = 160;
+        }
+
+
         if (blockEntity.needsNetworkRefresh) {
             blockEntity.findAndJoinNetwork();
             blockEntity.needsNetworkRefresh = false;
