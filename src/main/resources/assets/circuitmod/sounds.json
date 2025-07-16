@@ -1,0 +1,8 @@
+{
+  "miner_machine_run": {
+    "subtitle": "sounds.circuitmod.quarry_running",
+    "sounds": [
+      "circuitmod:miner_machine_run"
+    ]
+  }
+}

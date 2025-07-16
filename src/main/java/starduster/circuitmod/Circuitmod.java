@@ -28,6 +28,7 @@ import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
+import starduster.circuitmod.sound.ModSounds;
 import starduster.circuitmod.util.ModItemTags;
 
 import org.slf4j.Logger;
@@ -144,6 +145,7 @@ public class Circuitmod implements ModInitializer {
 		ModItemTags.initialize();
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
+		ModSounds.initialize();
 
 		// Register server-side networking handlers
 		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ToggleMiningPayload.ID, (payload, context) -> {
