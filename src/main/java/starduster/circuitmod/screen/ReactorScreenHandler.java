@@ -8,7 +8,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.block.entity.ReactorBlockBlockEntity;
+import starduster.circuitmod.screen.ModScreenHandlers.ReactorData;
 
 public class ReactorScreenHandler extends ScreenHandler {
     private final Inventory inventory;
@@ -21,12 +23,50 @@ public class ReactorScreenHandler extends ScreenHandler {
     private static final int IS_ACTIVE_INDEX = 2;
     
     // Client constructor
-    public ReactorScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(9), new PropertyDelegate() {
-            public int get(int index) { return 0; }
-            public void set(int index, int value) {}
-            public int size() { return 3; }
-        }, null);
+    public ReactorScreenHandler(int syncId, PlayerInventory playerInventory, ReactorData data) {
+        super(ModScreenHandlers.REACTOR_SCREEN_HANDLER, syncId);
+        
+        // Get the block position from the data
+        BlockPos pos = data.pos();
+        // Look up the block entity in the client world
+        ReactorBlockBlockEntity blockEntity = 
+            (ReactorBlockBlockEntity) playerInventory.player.getWorld().getBlockEntity(pos);
+        
+        // Initialize fields
+        this.inventory = blockEntity;
+        this.propertyDelegate = blockEntity.getPropertyDelegate();
+        this.blockEntity = blockEntity;
+        
+        // Add property delegate for synchronization
+        this.addProperties(propertyDelegate);
+        
+        // Make the inventory accessible to the player
+        inventory.onOpen(playerInventory.player);
+        
+        // Add reactor inventory slots (3x3 grid = 9 slots) for uranium pellets
+        int rows = 3;
+        int columns = 3;
+        int startX = 97; // Position on the right side, starting at x=97
+        int startY = 17; // Starting at y=17
+        
+        // Add the reactor inventory slots
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                this.addSlot(new Slot(inventory, column + row * columns, startX + column * 18, startY + row * 18));
+            }
+        }
+        
+        // Add player inventory slots (3 rows of 9)
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 9; column++) {
+                this.addSlot(new Slot(playerInventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
+            }
+        }
+        
+        // Add player hotbar slots (1 row of 9)
+        for (int column = 0; column < 9; column++) {
+            this.addSlot(new Slot(playerInventory, column, 8 + column * 18, 142));
+        }
     }
     
     // Server constructor

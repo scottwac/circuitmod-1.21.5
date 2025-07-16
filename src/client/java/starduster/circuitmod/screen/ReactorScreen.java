@@ -47,6 +47,11 @@ public class ReactorScreen extends HandledScreen<ReactorScreenHandler> {
         int rodCount = handler.getRodCount();
         boolean isActive = handler.isActive();
         
+        // Debug logging for screen values
+        if (System.currentTimeMillis() % 1000 < 50) { // Log roughly once per second
+            Circuitmod.LOGGER.info("[REACTOR-SCREEN] Energy: {}, Rods: {}, Active: {}", energyProduction, rodCount, isActive);
+        }
+        
         // Draw energy production
         Text energyText = Text.literal("Energy: " + energyProduction + "/tick");
         context.drawText(textRenderer, energyText, 8, 8, ENERGY_COLOR, true);

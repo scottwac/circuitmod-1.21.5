@@ -12,6 +12,10 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import starduster.circuitmod.screen.ModScreenHandlers;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
@@ -26,7 +30,7 @@ import starduster.circuitmod.power.IEnergyProducer;
 import starduster.circuitmod.power.IPowerConnectable;
 import starduster.circuitmod.screen.ReactorScreenHandler;
 
-public class ReactorBlockBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, IEnergyProducer {
+public class ReactorBlockBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.ReactorData>, IEnergyProducer {
     // Energy production properties
     private static final int ENERGY_PER_ROD = 100; // Energy produced per uranium pellet per tick
     private static final int MAX_RODS = 9; // Maximum number of uranium pellets that can be inserted
@@ -47,17 +51,22 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     private static final int IS_ACTIVE_INDEX = 2;
     private static final int PROPERTY_COUNT = 3;
     
+    // Stored PropertyDelegate values for synchronization
+    private int syncedEnergyProduction = 0;
+    private int syncedRodCount = 0;
+    private int syncedActiveStatus = 0;
+    
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
         @Override
         public int get(int index) {
             switch (index) {
                 case ENERGY_PRODUCTION_INDEX:
-                    return getCurrentEnergyProduction();
+                    return syncedEnergyProduction;
                 case ROD_COUNT_INDEX:
-                    return getRodCount();
+                    return syncedRodCount;
                 case IS_ACTIVE_INDEX:
-                    return isActive ? 1 : 0;
+                    return syncedActiveStatus;
                 default:
                     return 0;
             }
@@ -65,7 +74,19 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
 
         @Override
         public void set(int index, int value) {
-            // Read-only properties for now
+            // This method is called by Minecraft's built-in synchronization
+            // Update the stored values when we receive synchronization data
+            switch (index) {
+                case ENERGY_PRODUCTION_INDEX:
+                    syncedEnergyProduction = value;
+                    break;
+                case ROD_COUNT_INDEX:
+                    syncedRodCount = value;
+                    break;
+                case IS_ACTIVE_INDEX:
+                    syncedActiveStatus = value;
+                    break;
+            }
         }
 
         @Override
@@ -73,7 +94,7 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
             return PROPERTY_COUNT;
         }
     };
-
+    
     public ReactorBlockBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REACTOR_BLOCK_BLOCK_ENTITY, pos, state);
     }
@@ -85,6 +106,11 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         // Save reactor state
         nbt.putInt("tick_counter", tickCounter);
         nbt.putBoolean("is_active", isActive);
+        
+        // Save PropertyDelegate values
+        nbt.putInt("synced_energy_production", syncedEnergyProduction);
+        nbt.putInt("synced_rod_count", syncedRodCount);
+        nbt.putInt("synced_active_status", syncedActiveStatus);
         
         // Save network data if we have a network
         if (network != null) {
@@ -104,6 +130,11 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         // Load reactor state
         this.tickCounter = nbt.getInt("tick_counter").orElse(0);
         this.isActive = nbt.getBoolean("is_active").orElse(false);
+        
+        // Load PropertyDelegate values
+        this.syncedEnergyProduction = nbt.getInt("synced_energy_production").orElse(0);
+        this.syncedRodCount = nbt.getInt("synced_rod_count").orElse(0);
+        this.syncedActiveStatus = nbt.getInt("synced_active_status").orElse(0);
         
         // Load network data
         if (nbt.contains("energy_network")) {
@@ -131,6 +162,9 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         // Update tick counter
         blockEntity.tickCounter++;
         
+        // Update packet cooldown
+        // Removed packet cooldown as it's no longer used
+        
         // Check if reactor should be active (has fuel)
         boolean shouldBeActive = blockEntity.getRodCount() > 0;
         
@@ -138,6 +172,9 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         if (blockEntity.isActive != shouldBeActive) {
             blockEntity.isActive = shouldBeActive;
             blockEntity.markDirty();
+            
+            // Update PropertyDelegate values
+            blockEntity.updatePropertyDelegateValues();
             
             // Update the block state to reflect the number of rods
             int rodCount = blockEntity.getRodCount();
@@ -221,10 +258,8 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     public void setWorld(World world) {
         super.setWorld(world);
         
-        // Initialize block state when world is set
-        if (world != null && !world.isClient()) {
-            updateBlockState();
-        }
+        // Don't call updateBlockState here as it can cause deadlocks during world loading
+        // The tick method will handle updating the block state when needed
     }
     
     // Helper methods
@@ -258,6 +293,19 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     
     public PropertyDelegate getPropertyDelegate() {
         return propertyDelegate;
+    }
+    
+    // Update stored PropertyDelegate values
+    private void updatePropertyDelegateValues() {
+        syncedRodCount = getRodCount();
+        syncedEnergyProduction = getCurrentEnergyProduction();
+        syncedActiveStatus = isActive ? 1 : 0;
+        
+        // Debug logging
+        if (world != null && !world.isClient() && world.getTime() % 20 == 0) {
+            Circuitmod.LOGGER.info("[PROPERTY-DELEGATE] Updated values - Energy: {}, Rods: {}, Active: {}", 
+                syncedEnergyProduction, syncedRodCount, syncedActiveStatus);
+        }
     }
     
     // Network connection logic
@@ -325,6 +373,15 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         if (!result.isEmpty()) {
             markDirty();
             updateBlockState();
+            
+            // Update PropertyDelegate values
+            updatePropertyDelegateValues();
+            
+            // Force a block update to trigger PropertyDelegate synchronization
+            if (world != null && !world.isClient()) {
+                world.updateListeners(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+                markDirty();
+            }
         }
         return result;
     }
@@ -335,6 +392,15 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         if (!result.isEmpty()) {
             markDirty();
             updateBlockState();
+            
+            // Update PropertyDelegate values
+            updatePropertyDelegateValues();
+            
+            // Force a block update to trigger PropertyDelegate synchronization
+            if (world != null && !world.isClient()) {
+                world.updateListeners(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+                markDirty();
+            }
         }
         return result;
     }
@@ -349,6 +415,16 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
             }
             markDirty();
             updateBlockState();
+            
+            // Update PropertyDelegate values
+            updatePropertyDelegateValues();
+            
+            // Force a block update to trigger PropertyDelegate synchronization
+            if (world != null && !world.isClient()) {
+                world.updateListeners(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+                // Also mark the block entity as dirty to ensure NBT sync
+                markDirty();
+            }
         }
     }
 
@@ -386,18 +462,23 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
 
     @Override
     public boolean canExtract(int slot, ItemStack stack, Direction dir) {
+
         return true; // Allow extraction from any side
     }
     
     // Helper method to update block state based on rod count
     private void updateBlockState() {
-        if (world != null && !world.isClient()) {
-            int rodCount = getRodCount();
-            BlockState currentState = world.getBlockState(pos);
-            BlockState newState = currentState.with(starduster.circuitmod.block.machines.ReactorBlock.RODS, rodCount);
-            if (!currentState.equals(newState)) {
-                world.setBlockState(pos, newState, 3);
-                Circuitmod.LOGGER.info("[REACTOR-STATE] Updated rod count to " + rodCount + " at " + pos);
+        if (world != null && !world.isClient() && pos != null) {
+            try {
+                int rodCount = getRodCount();
+                BlockState currentState = world.getBlockState(pos);
+                BlockState newState = currentState.with(starduster.circuitmod.block.machines.ReactorBlock.RODS, rodCount);
+                if (!currentState.equals(newState)) {
+                    world.setBlockState(pos, newState, 3);
+                    Circuitmod.LOGGER.info("[REACTOR-STATE] Updated rod count to " + rodCount + " at " + pos);
+                }
+            } catch (Exception e) {
+                Circuitmod.LOGGER.warn("[REACTOR-STATE] Failed to update block state at " + pos + ": " + e.getMessage());
             }
         }
     }
@@ -408,6 +489,11 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         return Text.translatable("block.circuitmod.reactor_block");
     }
     
+    @Override
+    public ModScreenHandlers.ReactorData getScreenOpeningData(ServerPlayerEntity player) {
+        return new ModScreenHandlers.ReactorData(this.pos);
+    }
+
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, net.minecraft.entity.player.PlayerInventory playerInventory, PlayerEntity player) {
         return new ReactorScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);

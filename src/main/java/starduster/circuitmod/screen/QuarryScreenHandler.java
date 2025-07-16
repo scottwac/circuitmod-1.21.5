@@ -10,6 +10,7 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
+import starduster.circuitmod.screen.ModScreenHandlers.QuarryData;
 import starduster.circuitmod.Circuitmod;
 
 public class QuarryScreenHandler extends ScreenHandler {
@@ -19,21 +20,57 @@ public class QuarryScreenHandler extends ScreenHandler {
     
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
-    private static final int MINING_SPEED_INDEX = 1;
-    private static final int MINING_ENABLED_INDEX = 2;
+    private static final int MINING_ENABLED_INDEX = 1;
     
-    // Direct mining speed tracking for more reliable updates
-    private int cachedMiningSpeed = 0;
+
     
     // Client constructor
-    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(12), new PropertyDelegate() {
-            public int get(int index) { return 0; }
-            public void set(int index, int value) {}
-            public int size() { return 3; }
-        }, null);
+    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, QuarryData data) {
+        super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
         
-        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Client constructor called - blockEntity will be null");
+        // Get the block position from the data
+        BlockPos pos = data.pos();
+        // Look up the block entity in the client world
+        QuarryBlockEntity blockEntity = 
+            (QuarryBlockEntity) playerInventory.player.getWorld().getBlockEntity(pos);
+        
+        // Initialize fields
+        this.inventory = blockEntity;
+        this.propertyDelegate = blockEntity.getPropertyDelegate();
+        this.blockEntity = blockEntity;
+        
+        // Add property delegate for synchronization
+        this.addProperties(propertyDelegate);
+        
+        // Make the inventory accessible to the player
+        inventory.onOpen(playerInventory.player);
+        
+        // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
+        int rows = 3;
+        int columns = 4;
+        int startX = 97; // Position on the right side, starting at x=97
+        int startY = 17; // Starting at y=17
+        
+        // Add the quarry inventory slots
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                this.addSlot(new Slot(inventory, column + row * columns, startX + column * 18, startY + row * 18));
+            }
+        }
+        
+        // Add player inventory slots (3 rows of 9)
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 9; column++) {
+                this.addSlot(new Slot(playerInventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
+            }
+        }
+        
+        // Add player hotbar slots (1 row of 9)
+        for (int column = 0; column < 9; column++) {
+            this.addSlot(new Slot(playerInventory, column, 8 + column * 18, 142));
+        }
+        
+        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Client constructor called - blockEntity at pos: {}", pos);
     }
     
     // Server constructor
@@ -52,11 +89,6 @@ public class QuarryScreenHandler extends ScreenHandler {
         
         // Add property delegate for synchronization
         this.addProperties(propertyDelegate);
-        
-        // Initialize the cached value
-        if (propertyDelegate.size() > MINING_SPEED_INDEX) {
-            this.cachedMiningSpeed = propertyDelegate.get(MINING_SPEED_INDEX);
-        }
         
         // Make the inventory accessible to the player
         inventory.onOpen(playerInventory.player);
@@ -122,39 +154,6 @@ public class QuarryScreenHandler extends ScreenHandler {
         }
         
         return newStack;
-    }
-    
-    // Get mining speed for display
-    public int getMiningSpeed() {
-        // First try to get the latest value from the property delegate
-        int miningSpeed = this.propertyDelegate.get(MINING_SPEED_INDEX);
-        
-      //  starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Getting mining speed from property delegate: " + 
-      //      miningSpeed + " (cached: " + cachedMiningSpeed + ")");
-        
-        // Update our cached value if the property delegate has a non-zero value
-        if (miningSpeed > 0) {
-        //    starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Updating cached mining speed to: " + miningSpeed);
-            cachedMiningSpeed = miningSpeed;
-        } else if (cachedMiningSpeed > 0) {
-            // If property delegate returns 0 but we have a cached value, use that
-            // This helps maintain the display between updates
-         //   starduster.circuitmod.Circuitmod.LOGGER.info("[SCREEN-HANDLER] Using cached mining speed: " + cachedMiningSpeed + 
-        //        " (property delegate returned: " + miningSpeed + ")");
-            return cachedMiningSpeed;
-        }
-        
-        return miningSpeed;
-    }
-    
-    /**
-     * Update the mining speed directly
-     * This can be called from the block entity on the client side
-     * 
-     * @param miningSpeed The mining speed in blocks per second
-     */
-    public void updateMiningSpeed(int miningSpeed) {
-        this.cachedMiningSpeed = miningSpeed;
     }
     
     // Get energy received for display

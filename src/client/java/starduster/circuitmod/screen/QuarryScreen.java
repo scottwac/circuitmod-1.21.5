@@ -21,8 +21,8 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     // Green color for the mining speed text
     private static final int MINING_SPEED_COLOR = 0xFF00FF00; // ARGB format (alpha, red, green, blue)
     
-    // Direct mining speed tracking
-    private int displayedMiningSpeed = 0;
+    // Remove mining speed tracking
+    // private int displayedMiningSpeed = 0;
     
     // Toggle mining button
     private ButtonWidget toggleMiningButton;
@@ -58,25 +58,15 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     @Override
     protected void handledScreenTick() {
         super.handledScreenTick();
-        // Update the displayed mining speed from the handler
-        int newSpeed = handler.getMiningSpeed();
-        
-        if (newSpeed != displayedMiningSpeed) {
-            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Updating displayed mining speed from {} to {}", displayedMiningSpeed, newSpeed);
-            displayedMiningSpeed = newSpeed;
-        }
-        
-        // Check mining enabled status and log changes
+        // Remove mining speed update logic
+        // Remove displayedMiningSpeed update
+        // Only keep mining enabled status tracking
         boolean currentMiningEnabled = handler.isMiningEnabled();
-        
         if (currentMiningEnabled != lastMiningEnabled) {
             Circuitmod.LOGGER.info("[QUARRY-SCREEN] Mining enabled status changed: {} -> {}", lastMiningEnabled, currentMiningEnabled);
             lastMiningEnabled = currentMiningEnabled;
         }
-        
-        // Update toggle button (no text, we'll draw texture manually)
         if (toggleMiningButton != null) {
-            // Keep button text empty since we're drawing texture manually
             toggleMiningButton.setMessage(Text.literal(""));
         }
     }
@@ -97,46 +87,20 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         super.render(context, mouseX, mouseY, delta);
-        
-        // Refresh mining speed every render - this ensures we catch updates
-        int currentSpeed = handler.getMiningSpeed();
-        if (currentSpeed != displayedMiningSpeed) {
-            Circuitmod.LOGGER.info("[QUARRY-SCREEN] render() updating mining speed from {} to {}", displayedMiningSpeed, currentSpeed);
-            displayedMiningSpeed = currentSpeed;
-        }
-        
-        // Draw mining speed text in green above the inventory
-        // Use our cached value that gets updated each tick
-        Text miningSpeedText = Text.literal("Mining Speed: " + displayedMiningSpeed + " blocks/sec");
-        int x = (width - backgroundWidth) / 2 + 8;
-        int y = (height - backgroundHeight) / 2 + 6;
-        
-        context.drawText(
-            textRenderer, 
-            miningSpeedText, 
-            x, 
-            y, 
-            MINING_SPEED_COLOR, 
-            false
-        );
-        
+        // Remove mining speed text rendering
         // Draw labels for the text fields
         int baseX = (width - backgroundWidth) / 2;
         int baseY = (height - backgroundHeight) / 2;
-        
         // Width label
         Text widthLabel = Text.literal("Width:");
         context.drawText(textRenderer, widthLabel, baseX + 58, baseY + 8, 0xFFFFFF, false);
-        
         // Length label
         Text lengthLabel = Text.literal("Length:");
         context.drawText(textRenderer, lengthLabel, baseX + 58, baseY + 30, 0xFFFFFF, false);
-        
         // Draw toggle button indicator
         if (toggleMiningButton != null) {
             drawToggleButtonIndicator(context);
         }
-        
         drawMouseoverTooltip(context, mouseX, mouseY);
     }
     

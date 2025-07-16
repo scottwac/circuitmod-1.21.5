@@ -15,6 +15,8 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -37,7 +39,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, IEnergyConsumer {
+public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.QuarryData>, IEnergyConsumer {
     // Energy properties
     private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
@@ -45,8 +47,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private EnergyNetwork network;
     
     // Mining properties
-    private int miningSpeed = 0; // Current mining speed (blocks per tick)
-    private static final int TICKS_PER_SECOND = 20; // Minecraft runs at 20 ticks per second
     private int currentBlockEnergyCost = 1; // Energy cost for the current block being mined
     private boolean miningEnabled = false; // Whether mining is enabled or disabled
     
@@ -72,43 +72,24 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private int miningAreaMaxZ;
     
     // Networking properties
-    private int lastSentSpeed = 0; // Last mining speed sent to clients
     private int packetCooldown = 0; // Cooldown to avoid sending too many packets
     private static final int PACKET_COOLDOWN_MAX = 10; // Only send packets every 10 ticks max (0.5 seconds)
     
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
-    private static final int MINING_SPEED_INDEX = 1;
-    private static final int MINING_ENABLED_INDEX = 2;
-    private static final int PROPERTY_COUNT = 3;
+    private static final int MINING_ENABLED_INDEX = 1;
+    private static final int PROPERTY_COUNT = 2;
     
     // Inventory with custom size (12 slots - 3x4 grid)
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
     
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
-        // Direct storage for client-side property values to avoid synchronization issues
-        private int clientSideMiningSpeed = 0;
-        
         @Override
         public int get(int index) {
             switch (index) {
                 case ENERGY_RECEIVED_INDEX:
-                    if (world != null && world.isClient()) {
-                        
-                    }
                     return energyReceived;
-                case MINING_SPEED_INDEX:
-                    // On client side, use our direct storage
-                    if (world != null && world.isClient()) {
-                        int value = clientSideMiningSpeed > 0 ? clientSideMiningSpeed : miningSpeed * TICKS_PER_SECOND;
-                        return value;
-                    } 
-                    // On server side, calculate as normal
-                    else {
-                        int blocksPerSecond = miningSpeed * TICKS_PER_SECOND;
-                        return blocksPerSecond;
-                    }
                 case MINING_ENABLED_INDEX:
                     return miningEnabled ? 1 : 0;
                 default:
@@ -121,39 +102,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             switch (index) {
                 case ENERGY_RECEIVED_INDEX:
                     energyReceived = value;
-                    if (world != null && world.isClient()) {
-                        
-                    }
-                    break;
-                case MINING_SPEED_INDEX:
-                    // Convert back from blocks per second to blocks per tick
-                    int newMiningSpeed = Math.max(0, value / TICKS_PER_SECOND);
-                    
-                    // Debug logging with client/server distinction
-                    if (world != null && world.isClient()) {
-                        
-                        
-                        // On client side, store the raw blocks/sec value directly
-                        clientSideMiningSpeed = value;
-                        
-                        // Also update mining speed for consistency
-                        if (miningSpeed != newMiningSpeed) {
-                            miningSpeed = newMiningSpeed;
-                            markDirty();
-                        }
-                    } else {
-                        
-                        
-                        // Force a screen refresh by storing the blocks per second directly
-                        if (value > 0) {
-                            lastSentSpeed = value;
-                        }
-                        
-                        if (miningSpeed != newMiningSpeed) {
-                            miningSpeed = newMiningSpeed;
-                            markDirty();
-                        }
-                    }
                     break;
                 case MINING_ENABLED_INDEX:
                     boolean newMiningEnabled = value == 1;
@@ -192,7 +140,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Save mining and energy data
         nbt.putInt("energy_demand", this.energyDemand);
         nbt.putInt("energy_received", this.energyReceived);
-        nbt.putInt("mining_speed", this.miningSpeed);
         nbt.putInt("current_block_energy_cost", this.currentBlockEnergyCost);
         nbt.putBoolean("mining_enabled", this.miningEnabled);
         nbt.putInt("mining_width", this.miningWidth);
@@ -252,7 +199,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Load mining and energy data
         this.energyDemand = nbt.getInt("energy_demand").orElse(MAX_ENERGY_DEMAND);
         this.energyReceived = nbt.getInt("energy_received").orElse(0);
-        this.miningSpeed = nbt.getInt("mining_speed").orElse(0);
         this.currentBlockEnergyCost = nbt.getInt("current_block_energy_cost").orElse(1);
         this.miningEnabled = nbt.getBoolean("mining_enabled").orElse(false);
         this.miningWidth = nbt.getInt("mining_width").orElse(16);
@@ -355,7 +301,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Debug log for diagnostics
         if (world.getTime() % 20 == 0) { // Only log every second
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
-            // Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed + ", network: " + networkInfo);
+            // Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", network: " + networkInfo);
         }
         
         // Process mining operations based on energy available and if mining is enabled
@@ -366,27 +312,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             if (mined) {
                 needsSync = true;
             }
-            
-            // Calculate mining speed for display based on energy consumption
-            if (blockEntity.currentMiningPos != null) {
-                // Calculate speed based on current energy and remaining time
-                int energyToUse = Math.min(blockEntity.energyReceived, MAX_ENERGY_DEMAND);
-                float energySpeedMultiplier = (float) Math.sqrt(energyToUse);
-                
-                int remainingTicks = blockEntity.totalMiningTicks - blockEntity.currentMiningTicks;
-                if (remainingTicks > 0) {
-                    // Estimate blocks per second based on energy-scaled speed
-                    float estimatedBlocksPerSecond = energySpeedMultiplier * TICKS_PER_SECOND / remainingTicks;
-                    blockEntity.miningSpeed = Math.max(1, (int) estimatedBlocksPerSecond);
-                } else {
-                    blockEntity.miningSpeed = Math.max(1, (int) (energySpeedMultiplier * TICKS_PER_SECOND / 20)); // Default calculation
-                }
-            } else {
-                blockEntity.miningSpeed = 0;
-            }
         } else {
-            // Set mining speed to 0 if no energy received or mining is disabled
-            blockEntity.miningSpeed = 0;
+            // No energy received or mining is disabled
             needsSync = true;
         }
         
@@ -403,25 +330,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (needsSync) {
             blockEntity.markDirty();
             
-            // Send explicit mining speed update packet to all tracking players
-            if (world instanceof ServerWorld serverWorld) {
-                // Convert from blocks/tick to blocks/second for display
-                int blocksPerSecond = blockEntity.miningSpeed * TICKS_PER_SECOND;
-                
-                // Only send packet if it's different from the last one or cooldown is done
-                if (blocksPerSecond != blockEntity.lastSentSpeed || blockEntity.packetCooldown <= 0) {
-                    // Send to all players tracking the quarry block
-                    for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                        ModNetworking.sendMiningSpeedUpdate(player, blocksPerSecond, pos);
-                    }
-                    
-                    // Update the last sent speed and reset cooldown
-                    blockEntity.lastSentSpeed = blocksPerSecond;
-                    blockEntity.packetCooldown = PACKET_COOLDOWN_MAX;
-                }
-            }
-            
-            // Also do the normal block update
+            // Do the normal block update
             world.updateListeners(pos, state, state, 3);
         }
         
@@ -979,15 +888,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         return super.onSyncedBlockEvent(type, data);
     }
     
-    /**
-     * Sets the mining speed directly from a network packet
-     * This is called on the client side when a packet is received
-     * 
-     * @param blocksPerSecond The mining speed in blocks per second
-     */
-    public void setMiningSpeedFromNetwork(int blocksPerSecond) {
-        propertyDelegate.set(MINING_SPEED_INDEX, blocksPerSecond);
-    }
+
     
     /**
      * Sets the mining progress directly from a network packet
@@ -1009,13 +910,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         }
     }
     
-    /**
-     * Gets the current mining speed in blocks per second
-     * @return the mining speed
-     */
-    public int getMiningSpeed() {
-        return propertyDelegate.get(MINING_SPEED_INDEX);
-    }
+
     
     /**
      * Gets the current mining position
@@ -1210,6 +1105,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     @Override
     public Text getDisplayName() {
         return Text.translatable("block.circuitmod.quarry_block");
+    }
+    
+    @Override
+    public ModScreenHandlers.QuarryData getScreenOpeningData(ServerPlayerEntity player) {
+        return new ModScreenHandlers.QuarryData(this.pos);
     }
     
     @Override
