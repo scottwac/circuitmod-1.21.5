@@ -53,7 +53,7 @@ public class QuarryBlock extends BlockWithEntity {
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
         Direction facing = ctx.getHorizontalPlayerFacing().getOpposite();
-        Circuitmod.LOGGER.info("Quarry placed with facing direction: " + facing);
+       // Circuitmod.LOGGER.info("Quarry placed with facing direction: " + facing);
         return this.getDefaultState().with(HorizontalFacingBlock.FACING, facing);
     }
 
@@ -73,7 +73,7 @@ public class QuarryBlock extends BlockWithEntity {
             
             if (blockEntity instanceof QuarryBlockEntity) {
                 Direction facing = state.get(HorizontalFacingBlock.FACING);
-                Circuitmod.LOGGER.info("Quarry at " + pos + " has facing direction: " + facing);
+              //  Circuitmod.LOGGER.info("Quarry at " + pos + " has facing direction: " + facing);
                 
                 // Open the screen handler through the named screen handler factory
                 player.openHandledScreen((QuarryBlockEntity) blockEntity);

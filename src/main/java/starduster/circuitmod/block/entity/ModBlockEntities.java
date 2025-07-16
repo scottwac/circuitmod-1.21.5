@@ -128,6 +128,18 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(NukeBlockEntity::new, ModBlocks.NUKE).build()
     );
 
+    public static final BlockEntityType<MegaCreativeGeneratorBlockEntity> MEGA_CREATIVE_GENERATOR_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "mega_creative_generator"),
+        FabricBlockEntityTypeBuilder.create(MegaCreativeGeneratorBlockEntity::new, ModBlocks.MEGA_CREATIVE_GENERATOR).build()
+    );
+
+    public static final BlockEntityType<MassFabricatorBlockEntity> MASS_FABRICATOR_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "mass_fabricator"),
+        FabricBlockEntityTypeBuilder.create(MassFabricatorBlockEntity::new, ModBlocks.MASS_FABRICATOR).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

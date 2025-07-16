@@ -14,6 +14,7 @@ import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.BloomeryScreen;
+import starduster.circuitmod.screen.MassFabricatorScreen;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
@@ -29,6 +30,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.QUARRY_SCREEN_HANDLER, QuarryScreen::new);
 		HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
 		HandledScreens.register(ModScreenHandlers.BLOOMERY_SCREEN_HANDLER, BloomeryScreen::new);
+		HandledScreens.register(ModScreenHandlers.MASS_FABRICATOR_SCREEN_HANDLER, MassFabricatorScreen::new);
 		
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);

@@ -36,7 +36,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, IEnergyConsumer {
     // Energy properties
-    private static final int MAX_ENERGY_DEMAND = 20; // Maximum energy demand per tick
+    private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
     private int energyReceived = 0; // Energy received this tick
     private EnergyNetwork network;
@@ -332,7 +332,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Debug log for diagnostics
         if (world.getTime() % 20 == 0) { // Only log every second
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
-            Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed + ", network: " + networkInfo);
+            // Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed + ", network: " + networkInfo);
         }
         
         // Process mining operations based on energy available and if mining is enabled
@@ -465,8 +465,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Start mining at the quarry's Y level
         this.currentY = pos.getY();
         
-        Circuitmod.LOGGER.info("[QUARRY-AREA] Initialized mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {} (INVERTED - mining in opposite direction)", 
-            miningWidth, miningLength, pos, minX, maxX, minZ, maxZ);
+        // Circuitmod.LOGGER.info("[QUARRY-AREA] Initialized mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {} (INVERTED - mining in opposite direction)", 
+        //     miningWidth, miningLength, pos, minX, maxX, minZ, maxZ);
     }
     
     // Helper method to check if a position is inside a rectangular area
@@ -479,7 +479,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private boolean mineNextBlock(World world) {
         // If mining is disabled, do nothing
         if (!miningEnabled) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Mining disabled, skipping block at " + currentMiningPos);
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Mining disabled, skipping block at " + currentMiningPos);
             advanceToNextBlock();
             return false;
         }
@@ -488,7 +488,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (currentMiningPos == null) {
             currentMiningPos = getNextMiningPos();
             if (currentMiningPos == null) {
-                Circuitmod.LOGGER.warn("[QUARRY-MINE] No mining position available");
+                // Circuitmod.LOGGER.warn("[QUARRY-MINE] No mining position available");
                 return false;
             }
             
@@ -496,32 +496,32 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             currentMiningProgress = 0;
             currentMiningTicks = 0;
             
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Starting to mine at position: " + currentMiningPos);
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Starting to mine at position: " + currentMiningPos);
         }
         
         // Skip if it's the quarry itself, a safe zone block, air or bedrock
         if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Position is in safe zone, skipping");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Position is in safe zone, skipping");
             advanceToNextBlock();
             return false;
         }
         
         BlockState blockState = world.getBlockState(currentMiningPos);
         if (blockState.isAir()) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is air, skipping");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is air, skipping");
             advanceToNextBlock();
             return false;
         }
         
         // Skip water blocks
         if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is water/lava, skipping");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is water/lava, skipping");
             advanceToNextBlock();
             return false;
         }
         
         if (blockState.getHardness(world, currentMiningPos) < 0) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is bedrock or unbreakable, skipping");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is bedrock or unbreakable, skipping");
             advanceToNextBlock();
             return false;
         }
@@ -529,7 +529,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Skip if the block is a block entity that's part of our network
         BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
         if (targetEntity instanceof IPowerConnectable) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block is part of power network, skipping");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block is part of power network, skipping");
             advanceToNextBlock();
             return false;
         }
@@ -545,13 +545,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             // Base mining time: 20 ticks per hardness point, minimum 10 ticks
             // This is the time it would take with 1 energy per tick
             totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
         }
         
         // Check if we have any energy to continue mining this block
         if (this.energyReceived < 1) {
             if (world.getTime() % 20 == 0) { // Only log every second
-                Circuitmod.LOGGER.info("[QUARRY-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
+                // Circuitmod.LOGGER.info("[QUARRY-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
             }
             return false; // Don't advance position, just wait for more energy
         }
@@ -578,14 +578,14 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Only log progress occasionally to reduce spam
         if (world.getTime() % 10 == 0) {
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
         }
         
         // Check if we've finished mining this block
         if (currentMiningTicks >= totalMiningTicks) {
             // Get drops from the block
             ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
+            // Circuitmod.LOGGER.info("[QUARRY-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
             
             // Add to inventory if there's space
             boolean addedToInventory = false;
@@ -594,27 +594,29 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 if (stack.isEmpty()) {
                     inventory.set(i, minedItem);
                     addedToInventory = true;
-                    Circuitmod.LOGGER.info("[QUARRY-MINE] Added to empty slot " + i);
+                    // Circuitmod.LOGGER.info("[QUARRY-MINE] Added to empty slot " + i);
                     break;
                 } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
                     stack.increment(1);
                     addedToInventory = true;
-                    Circuitmod.LOGGER.info("[QUARRY-MINE] Added to existing stack in slot " + i);
+                    // Circuitmod.LOGGER.info("[QUARRY-MINE] Added to existing stack in slot " + i);
                     break;
                 }
             }
             
-            // If we successfully added to the inventory, remove the block
+            // If we successfully added to the inventory, remove the block and advance
             if (addedToInventory) {
                 world.removeBlock(currentMiningPos, false);
-                Circuitmod.LOGGER.info("[QUARRY-SUCCESS] Successfully mined block at " + currentMiningPos);
+                // Circuitmod.LOGGER.info("[QUARRY-SUCCESS] Successfully mined block at " + currentMiningPos);
+                
+                // Only advance to next block if we successfully added the item
+                advanceToNextBlock();
+                return true;
             } else {
-                Circuitmod.LOGGER.info("[QUARRY-FAIL] Inventory full, could not mine block");
+                // Circuitmod.LOGGER.info("[QUARRY-FAIL] Inventory full, could not mine block - staying at current position");
+                // Don't advance to next block, stay at current position
+                return false;
             }
-            
-            // Advance to next block
-            advanceToNextBlock();
-            return true;
         }
         
         return false; // Still mining, not finished yet
@@ -711,9 +713,9 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         currentY = nextY; // Make sure to update the Y level separately
         
         if (!foundSafePosition) {
-            Circuitmod.LOGGER.warn("[QUARRY-POSITION] Couldn't find safe mining position after " + safetyCounter + " attempts");
+            // Circuitmod.LOGGER.warn("[QUARRY-POSITION] Couldn't find safe mining position after " + safetyCounter + " attempts");
         } else {
-            Circuitmod.LOGGER.info("[QUARRY-POSITION] Advanced to position: " + currentPos + " at Y level " + currentY);
+            // Circuitmod.LOGGER.info("[QUARRY-POSITION] Advanced to position: " + currentPos + " at Y level " + currentY);
         }
     }
     
@@ -768,6 +770,16 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         return false;
     }
     
+    // Check if the inventory is full
+    private boolean isInventoryFull() {
+        for (ItemStack stack : inventory) {
+            if (stack.isEmpty()) {
+                return false; // Found an empty slot
+            }
+        }
+        return true; // All slots are occupied
+    }
+    
     // IEnergyConsumer implementation
     @Override
     public boolean canConnectPower(Direction side) {
@@ -787,11 +799,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // If we're changing networks, log it
         if (this.network != null && network != null && this.network != network) {
-            Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " changing networks: " + this.network.getNetworkId() + " -> " + network.getNetworkId());
+            // Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " changing networks: " + this.network.getNetworkId() + " -> " + network.getNetworkId());
         } else if (network != null && this.network == null) {
-            Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " connecting to network: " + network.getNetworkId());
+            // Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " connecting to network: " + network.getNetworkId());
         } else if (this.network != null && network == null) {
-            Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " disconnecting from network: " + this.network.getNetworkId());
+            // Circuitmod.LOGGER.info("[QUARRY-NETWORK] Quarry at " + pos + " disconnecting from network: " + this.network.getNetworkId());
         }
         
         this.network = network;
@@ -817,7 +829,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             
             // Debug logs to diagnose the issue (only log occasionally to avoid spam)
             if (world.getTime() % 20 == 0) { // Only log every second
-                Circuitmod.LOGGER.info("[QUARRY-ENERGY] Energy offered: " + energyOffered + ", consumed: " + energyToConsume + ", accumulated: " + this.energyReceived);
+                // Circuitmod.LOGGER.info("[QUARRY-ENERGY] Energy offered: " + energyOffered + ", consumed: " + energyToConsume + ", accumulated: " + this.energyReceived);
             }
         }
         
@@ -948,7 +960,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             // Mark dirty to trigger a re-render
             markDirty();
             
-            Circuitmod.LOGGER.info("[CLIENT] Updated mining progress: " + miningProgress + "% at " + miningPos);
+            // Circuitmod.LOGGER.info("[CLIENT] Updated mining progress: " + miningProgress + "% at " + miningPos);
         }
     }
     
@@ -999,7 +1011,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     public void setMiningEnabled(boolean enabled) {
         if (miningEnabled != enabled) {
             miningEnabled = enabled;
-            Circuitmod.LOGGER.info("[QUARRY-MINING] Mining enabled: " + enabled);
+            // Circuitmod.LOGGER.info("[QUARRY-MINING] Mining enabled: " + enabled);
             markDirty();
         }
     }
@@ -1021,7 +1033,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         }
         
         miningEnabled = !miningEnabled;
-        Circuitmod.LOGGER.info("[QUARRY-TOGGLE] Mining toggled to: " + miningEnabled);
+        // Circuitmod.LOGGER.info("[QUARRY-TOGGLE] Mining toggled to: " + miningEnabled);
         markDirty();
         
         // Send status update to all players tracking this quarry
@@ -1043,7 +1055,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (world != null && world.isClient()) {
             this.miningEnabled = enabled;
             markDirty();
-            Circuitmod.LOGGER.info("[CLIENT] Updated mining enabled status: " + enabled);
+            // Circuitmod.LOGGER.info("[CLIENT] Updated mining enabled status: " + enabled);
         }
     }
     
@@ -1073,7 +1085,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             this.currentMiningTicks = 0;
             
             markDirty();
-            Circuitmod.LOGGER.info("[QUARRY-DIMENSIONS] Mining dimensions set to: {}x{}", width, length);
+            // Circuitmod.LOGGER.info("[QUARRY-DIMENSIONS] Mining dimensions set to: {}x{}", width, length);
         }
     }
     
@@ -1120,7 +1132,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             }
             
             markDirty();
-            Circuitmod.LOGGER.info("[CLIENT] Updated quarry dimensions from network: {}x{}", width, length);
+            // Circuitmod.LOGGER.info("[CLIENT] Updated quarry dimensions from network: {}x{}", width, length);
         }
     }
     

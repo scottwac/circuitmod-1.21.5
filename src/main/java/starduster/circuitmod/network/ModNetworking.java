@@ -219,4 +219,12 @@ public class ModNetworking {
             return ID;
         }
     }
+
+    // Energy to Mass Converter networking
+    public static final Identifier ENERGY_TO_MASS_SELECT_RESOURCE = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_select_resource");
+    public static final Identifier ENERGY_TO_MASS_FIREWORK = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_firework");
+    // Register in initialize()
+    // PayloadTypeRegistry.playC2S().register(ENERGY_TO_MASS_SELECT_RESOURCE, ...);
+    // PayloadTypeRegistry.playS2C().register(ENERGY_TO_MASS_FIREWORK, ...);
+    // TODO: Implement payloads and handlers
 } 

@@ -16,6 +16,8 @@ import starduster.circuitmod.block.machines.*;
 import starduster.circuitmod.block.networkblocks.BatteryBlock;
 import starduster.circuitmod.block.networkblocks.PowerCableBlock;
 
+import net.minecraft.registry.Registries;
+
 
 public final class ModBlocks {
     // Register our QuarryBlock with a custom block class
@@ -164,6 +166,20 @@ public final class ModBlocks {
             Block.Settings.create()
                     .strength(4.0f, 10.0f)
                     .nonOpaque()
+    );
+
+    public static final Block MEGA_CREATIVE_GENERATOR = register(
+        "mega_creative_generator",
+        MegaCreativeGeneratorBlock::new,
+        Block.Settings.create()
+            .strength(3.5f)
+            .luminance(state -> 5)
+    );
+
+    public static final Block MASS_FABRICATOR = register(
+        "mass_fabricator",
+        MassFabricatorBlock::new,
+        Block.Settings.create().strength(4.0f).requiresTool()
     );
 
 

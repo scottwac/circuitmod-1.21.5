@@ -55,6 +55,8 @@ public final class ModItems {
     public static final Item STEEL_HOE = register("steel_hoe", Item::new, (new Item.Settings()).hoe(ModToolMaterials.STEEL_TOOL_MATERIAL, 2.0F, -1.0F));
 
 
+
+
     // Registration helper
     public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {
         final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod", path));

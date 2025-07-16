@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ONO",
+    "DGD",
+    "ERE"
+  ],
+  "key": {
+    "O": { "item": "minecraft:obsidian" },
+    "N": { "item": "minecraft:netherite_ingot" },
+    "D": { "item": "minecraft:diamond" },
+    "G": { "item": "minecraft:gold_block" },
+    "E": { "item": "minecraft:emerald" },
+    "R": { "item": "minecraft:redstone_block" }
+  },
+  "result": {
+    "item": "circuitmod:mass_fabricator"
+  }
+} 

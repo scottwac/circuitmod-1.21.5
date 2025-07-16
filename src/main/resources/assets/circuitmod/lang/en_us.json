@@ -64,7 +64,23 @@
 
   "block.circuitmod.creative_generator": "Creative Generator",
   "block.circuitmod.creative_consumer": "Creative Consumer",
+  "block.circuitmod.mega_creative_generator": "Mega Creative Generator",
 
-
-  "itemgroup.circuitmod.main": "Circuit Mod"
+  "itemgroup.circuitmod.main": "Circuit Mod",
+  "block.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
+  "item.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
+  "gui.circuitmod.energy_to_mass_converter.title": "Energy to Mass Converter",
+  "gui.circuitmod.energy_to_mass_converter.button.diamond": "Diamond",
+  "gui.circuitmod.energy_to_mass_converter.button.emerald": "Emerald",
+  "gui.circuitmod.energy_to_mass_converter.button.netherite": "Netherite Ingot",
+  "gui.circuitmod.energy_to_mass_converter.button.gold": "Gold Ingot",
+  "gui.circuitmod.energy_to_mass_converter.progress": "Progress: %d%%",
+  "block.circuitmod.mass_fabricator": "Mass Fabricator",
+  "item.circuitmod.mass_fabricator": "Mass Fabricator",
+  "gui.circuitmod.mass_fabricator.title": "Mass Fabricator",
+  "gui.circuitmod.mass_fabricator.button.diamond": "Diamond",
+  "gui.circuitmod.mass_fabricator.button.emerald": "Emerald",
+  "gui.circuitmod.mass_fabricator.button.netherite": "Netherite Ingot",
+  "gui.circuitmod.mass_fabricator.button.gold": "Gold Ingot",
+  "gui.circuitmod.mass_fabricator.progress": "Progress: %d%%"
 }

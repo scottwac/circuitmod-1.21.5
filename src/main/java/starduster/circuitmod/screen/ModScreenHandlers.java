@@ -32,6 +32,13 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(BloomeryScreenHandler::new, FeatureSet.empty())
         );
     
+    public static final ScreenHandlerType<MassFabricatorScreenHandler> MASS_FABRICATOR_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "mass_fabricator_screen_handler"),
+            new ScreenHandlerType<>(MassFabricatorScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }
