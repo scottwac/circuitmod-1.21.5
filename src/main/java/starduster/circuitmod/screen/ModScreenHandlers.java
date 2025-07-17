@@ -49,6 +49,15 @@ public class ModScreenHandlers {
             BlueprintDeskData::new
         );
     }
+    
+    // Data class for constructor screen opening data
+    public record ConstructorData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, ConstructorData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            ConstructorData::pos,
+            ConstructorData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -94,6 +103,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "blueprint_desk_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new BlueprintDeskScreenHandler(syncId, inventory), BlueprintDeskData.PACKET_CODEC)
+        );
+    
+    // Register constructor screen handler
+    public static final ExtendedScreenHandlerType<ConstructorScreenHandler, ConstructorData> CONSTRUCTOR_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "constructor_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new ConstructorScreenHandler(syncId, inventory, data), ConstructorData.PACKET_CODEC)
         );
     
     public static void initialize() {
