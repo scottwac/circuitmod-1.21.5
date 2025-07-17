@@ -46,8 +46,8 @@ public class ReactorScreenHandler extends ScreenHandler {
         // Add reactor inventory slots (3x3 grid = 9 slots) for uranium pellets
         int rows = 3;
         int columns = 3;
-        int startX = 97; // Position on the right side, starting at x=97
-        int startY = 17; // Starting at y=17
+        int startX = 98+9; // Position on the right side, starting at x=97
+        int startY = 18; // Starting at y=17
         
         // Add the reactor inventory slots
         for (int row = 0; row < rows; row++) {
@@ -86,8 +86,8 @@ public class ReactorScreenHandler extends ScreenHandler {
         // Add reactor inventory slots (3x3 grid = 9 slots) for uranium pellets
         int rows = 3;
         int columns = 3;
-        int startX = 97; // Position on the right side, starting at x=97
-        int startY = 17; // Starting at y=17
+        int startX = 98+9; // Position on the right side, starting at x=97
+        int startY = 18; // Starting at y=17
         
         // Add the reactor inventory slots
         for (int row = 0; row < rows; row++) {
