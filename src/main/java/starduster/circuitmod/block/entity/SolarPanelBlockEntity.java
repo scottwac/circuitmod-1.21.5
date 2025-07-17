@@ -80,11 +80,19 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
             blockEntity.updateEnergyProduction(world, pos);
         }
         
+        // Initialize energy production if it's still 0 and we haven't updated yet
+        if (blockEntity.currentEnergyProduction == 0 && blockEntity.tickCounter < UPDATE_INTERVAL) {
+            blockEntity.updateEnergyProduction(world, pos);
+        }
+        
         // Debug logging (only log occasionally to avoid spam)
         if (world.getTime() % 100 == 0) { // Only log every 5 seconds
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-TICK] Light: {}, Energy: {}, Network: {}", 
-                blockEntity.lastLightLevel, blockEntity.currentEnergyProduction, networkInfo);
+            long timeOfDay = world.getTimeOfDay() % 24000;
+            float hour = (timeOfDay / 1000.0f);
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-TICK] Light: {}, Energy: {}, Network: {}, Tick: {}, Time: {} ({}:{}), Hour: {:.1f}", 
+                blockEntity.lastLightLevel, blockEntity.currentEnergyProduction, networkInfo, blockEntity.tickCounter, 
+                timeOfDay, (int)hour, (int)((hour % 1.0f) * 60), hour);
         }
     }
     
@@ -94,6 +102,8 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     private void updateEnergyProduction(World world, BlockPos pos) {
         if (world.isClient()) return;
         
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-UPDATE] Starting energy production update at {}", pos);
+        
         // Check if there's a clear path to the sky
         BlockPos skyPos = pos.up();
         boolean canSeeSky = world.isSkyVisible(skyPos);
@@ -102,13 +112,14 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
             // If blocked from sky, provide minimal energy
             this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
             this.lastLightLevel = 0.0f;
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Blocked from sky, minimal energy: {}", this.currentEnergyProduction);
             return;
         }
         
         // Get sky light level at the position above the solar panel
         int skyLightLevel = world.getLightLevel(skyPos);
         
-        // Get time of day (0-24000, where 6000 is noon and 18000 is midnight)
+        // Get time of day (0-24000, where 0=6AM, 6000=noon, 12000=6PM, 18000=midnight)
         long timeOfDay = world.getTimeOfDay() % 24000;
         
         // Calculate efficiency based on time of day (peak at noon)
@@ -137,6 +148,10 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         }
         this.lastLightLevel = lightEfficiency;
         
+        // Debug logging
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Sky: {}, Light: {}, Time: {}, TimeEff: {}, WeatherEff: {}, LightEff: {}, TotalEff: {}, Energy: {}", 
+            canSeeSky, skyLightLevel, timeOfDay, timeEfficiency, weatherEfficiency, lightEfficiency, totalEfficiency, this.currentEnergyProduction);
+        
         // Mark dirty to save the updated state
         markDirty();
     }
@@ -145,12 +160,12 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
      * Calculates time-based efficiency (peak at noon, minimum at midnight)
      */
     private float calculateTimeEfficiency(long timeOfDay) {
-        // Convert to hours (0-24)
+        // In Minecraft: 0=6AM, 6000=noon, 12000=6PM, 18000=midnight
+        // Convert to a 0-24 hour scale where 0=6AM
         float hour = (timeOfDay / 1000.0f);
         
-        // Dawn starts at 6 AM (6000 ticks), dusk ends at 6 PM (18000 ticks)
-        if (hour < 6.0f || hour > 18.0f) {
-            // Night time - no energy production
+        // Night time: 18:00 (6PM) to 6:00 (6AM) - no energy production
+        if (hour >= 18.0f || hour < 6.0f) {
             return 0.0f;
         } else if (hour >= 10.0f && hour <= 14.0f) {
             // Peak hours (10 AM - 2 PM) - maximum efficiency
@@ -256,6 +271,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     
     @Override
     public int getMaxOutput() {
+        // Debug logging to see what the network is requesting
+        if (world != null && !world.isClient() && world.getTime() % 100 == 0) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-MAX-OUTPUT] Current production: {}, Network: {}", 
+                currentEnergyProduction, network != null ? network.getNetworkId() : "NO NETWORK");
+        }
         return currentEnergyProduction;
     }
     

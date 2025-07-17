@@ -82,5 +82,7 @@
   "gui.circuitmod.mass_fabricator.button.emerald": "Emerald",
   "gui.circuitmod.mass_fabricator.button.netherite": "Netherite Ingot",
   "gui.circuitmod.mass_fabricator.button.gold": "Gold Ingot",
-  "gui.circuitmod.mass_fabricator.progress": "Progress: %d%%"
+  "gui.circuitmod.mass_fabricator.progress": "Progress: %d%%",
+  
+  "death.attack.electrocution": "%1$s was killed by electrocution"
 }
