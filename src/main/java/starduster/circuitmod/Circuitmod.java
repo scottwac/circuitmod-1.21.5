@@ -179,6 +179,23 @@ public class Circuitmod implements ModInitializer {
 			});
 		});
 		
+		// Register drill dimensions handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.DrillDimensionsPayload.ID, (payload, context) -> {
+			var drillPos = payload.drillPos();
+			var height = payload.height();
+			var width = payload.width();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(drillPos) instanceof DrillBlockEntity drill) {
+					drill.setMiningDimensions(height, width);
+					LOGGER.info("[SERVER] Set drill dimensions at " + drillPos + " to " + height + "x" + width + " by player " + context.player().getName().getString());
+					
+					// Send sync packet back to the client
+					ModNetworking.sendDrillDimensionsUpdate(context.player(), height, width);
+				}
+			});
+		});
+		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());

@@ -31,6 +31,15 @@ public class ModScreenHandlers {
             QuarryData::new
         );
     }
+    
+    // Data class for drill screen opening data
+    public record DrillData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, DrillData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            DrillData::pos,
+            DrillData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -40,12 +49,12 @@ public class ModScreenHandlers {
         );
 
     // Register the drill screen handler type
-    public static final ScreenHandlerType<DrillScreenHandler> DRILL_SCREEN_HANDLER =
-            Registry.register(
-                    Registries.SCREEN_HANDLER,
-                    Identifier.of(Circuitmod.MOD_ID, "drill_screen_handler"),
-                    new ScreenHandlerType<>(DrillScreenHandler::new, FeatureSet.empty())
-            );
+    public static final ExtendedScreenHandlerType<DrillScreenHandler, DrillData> DRILL_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "drill_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new DrillScreenHandler(syncId, inventory, data), DrillData.PACKET_CODEC)
+        );
     
     // Register bloomery screen handler
     public static final ScreenHandlerType<BloomeryScreenHandler> BLOOMERY_SCREEN_HANDLER = 

@@ -87,7 +87,10 @@ public class DrillBlock extends BlockWithEntity {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ? null : 
-            validateTicker(type, ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntity::tick);
+        if(world.isClient()) {
+            return null;
+        }
+        return validateTicker(type, ModBlockEntities.DRILL_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
     }
 } 

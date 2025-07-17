@@ -41,16 +41,16 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             return;
         }
         
-        Circuitmod.LOGGER.info("Cable at " + pos + " is updating network connections");
+        // Circuitmod.LOGGER.info("Cable at " + pos + " is updating network connections");
         
         // Check surrounding blocks and either join an existing network or create a new one
         if (network == null) {
             // No network yet, so create or join
-            Circuitmod.LOGGER.info("Cable has no network, trying to find or create one");
+            // Circuitmod.LOGGER.info("Cable has no network, trying to find or create one");
             joinExistingNetworkOrCreateNew();
         } else {
             // We have a network, check if we need to merge with other networks
-            Circuitmod.LOGGER.info("Cable already has a network with " + network.getSize() + " blocks, checking for merges");
+            // Circuitmod.LOGGER.info("Cable already has a network with " + network.getSize() + " blocks, checking for merges");
             checkAndMergeWithNeighboringNetworks();
         }
     }
@@ -326,7 +326,7 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         // This is fast and runs every tick
         if (cable.getNetwork() != null && cable.getNetwork().getSize() > 0) {
             if (!cable.getNetwork().getConnectedBlockPositions().contains(pos)) {
-                Circuitmod.LOGGER.info("Cable at " + pos + " not found in its own network, reconnecting...");
+                // Circuitmod.LOGGER.info("Cable at " + pos + " not found in its own network, reconnecting...");
                 cable.updateNetworkConnections();
             }
         }
@@ -409,11 +409,11 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                     connectable.canConnectPower(dir.getOpposite()) && 
                     cable.canConnectPower(dir)) {
                     
-                    Circuitmod.LOGGER.info("Cable at " + pos + " found unconnected neighbor at " + neighborPos);
+                    // Circuitmod.LOGGER.info("Cable at " + pos + " found unconnected neighbor at " + neighborPos);
                     
                     // Add the block to our network
                     cable.network.addBlock(neighborPos, connectable);
-                    Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to network " + cable.network.getNetworkId());
+                    // Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to network " + cable.network.getNetworkId());
                 }
                 // If the neighbor has a different network, merge them
                 else if (connectable.getNetwork() != null && 

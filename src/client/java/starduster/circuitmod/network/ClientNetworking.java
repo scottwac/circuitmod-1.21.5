@@ -10,6 +10,7 @@ import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.screen.QuarryScreenHandler;
 import starduster.circuitmod.screen.DrillScreenHandler;
 import starduster.circuitmod.screen.QuarryScreen;
+import starduster.circuitmod.screen.DrillScreen;
 import net.minecraft.item.ItemStack;
 
 public class ClientNetworking {
@@ -115,6 +116,83 @@ public class ClientNetworking {
             });
         });
         
+        // Register handler for drill mining progress updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.DrillMiningProgressPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            int miningProgress = payload.miningProgress();
+            var miningPos = payload.miningPos();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Try to get the drill block entity at the position
+                    if (context.client().world.getBlockEntity(miningPos) instanceof DrillBlockEntity drill) {
+                        // Update the mining progress and position directly
+                        drill.setMiningProgressFromNetwork(miningProgress, miningPos);
+                        Circuitmod.LOGGER.info("[CLIENT] Received drill mining progress update: {}% at {}", miningProgress, miningPos);
+                    }
+                }
+            });
+        });
+        
+        // Register handler for drill mining enabled status updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.DrillMiningEnabledPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            boolean enabled = payload.enabled();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // Also update the screen handler if the screen is open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null && client.player.currentScreenHandler instanceof DrillScreenHandler handler) {
+                    // Update the property delegate through the new method
+                    handler.updateMiningEnabledFromNetwork(enabled);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated DrillScreenHandler mining enabled property to: {}", enabled);
+                }
+            });
+        });
+        
+        // Register handler for drill dimensions sync updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.DrillDimensionsSyncPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            int height = payload.height();
+            int width = payload.width();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Try to get the drill block entity at the position
+                    // Note: We need to find the drill by searching since we don't have the position
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client.player != null) {
+                        BlockPos playerPos = client.player.getBlockPos();
+                        for (int x = -10; x <= 10; x++) {
+                            for (int y = -5; y <= 5; y++) {
+                                for (int z = -10; z <= 10; z++) {
+                                    BlockPos pos = playerPos.add(x, y, z);
+                                    if (context.client().world.getBlockEntity(pos) instanceof DrillBlockEntity drill) {
+                                        // Update the mining dimensions directly
+                                        drill.setMiningDimensionsFromNetwork(height, width);
+                                        Circuitmod.LOGGER.info("[CLIENT] Received drill dimensions sync: {}x{} for drill at {}", height, width, pos);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Also update the screen if it's open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.currentScreen instanceof DrillScreen drillScreen) {
+                    drillScreen.updateTextFields(height, width);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated drill screen text fields with dimensions: {}x{}", height, width);
+                }
+            });
+        });
+        
         // Register handler for item move animations
         ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ItemMovePayload.ID, (payload, context) -> {
             // Extract data from the payload and create a copy to ensure isolation
@@ -179,6 +257,30 @@ public class ClientNetworking {
             Circuitmod.LOGGER.info("[CLIENT] Successfully sent quarry dimensions for quarry at {}", quarryPos);
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send quarry dimensions: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send drill dimensions to the server
+     * 
+     * @param drillPos The position of the drill
+     * @param height The height of the mining area
+     * @param width The width of the mining area
+     */
+    public static void sendDrillDimensions(BlockPos drillPos, int height, int width) {
+        Circuitmod.LOGGER.info("[CLIENT] sendDrillDimensions called with position: {}, height: {}, width: {}", drillPos, height, width);
+        
+        if (drillPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send dimensions for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.DrillDimensionsPayload payload = new ModNetworking.DrillDimensionsPayload(drillPos, height, width);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent drill dimensions for drill at {}", drillPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send drill dimensions: {}", e.getMessage(), e);
         }
     }
 } 

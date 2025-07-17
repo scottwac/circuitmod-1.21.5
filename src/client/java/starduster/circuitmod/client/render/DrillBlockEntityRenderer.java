@@ -1,142 +1,162 @@
 package starduster.circuitmod.client.render;
 
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-
 import starduster.circuitmod.block.entity.DrillBlockEntity;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.model.BlockStateModel;
-import net.minecraft.client.render.model.BlockModelPart;
 
-import java.util.ArrayList;
+
 import java.util.List;
 
-public class DrillBlockEntityRenderer implements BlockEntityRenderer<DrillBlockEntity> {
-    
-    public DrillBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
-        // Constructor for renderer registration
-    }
-    
+@Environment(EnvType.CLIENT)
+public class DrillBlockEntityRenderer
+    implements BlockEntityRenderer<DrillBlockEntity> {
+
+    public DrillBlockEntityRenderer(
+        BlockEntityRendererFactory.Context ctx) { }
+
     @Override
-    public void render(DrillBlockEntity blockEntity, float tickDelta, MatrixStack matrices, 
-                      VertexConsumerProvider vertexConsumers, int light, int overlay, Vec3d cameraPos) {
+    public void render(DrillBlockEntity entity,
+                       float tickDelta,
+                       MatrixStack matrices,
+                       VertexConsumerProvider vertexConsumers,
+                       int light,
+                       int overlay,
+                       Vec3d cameraPos) {
+        // dispatcher already applied (pos - camera), so no camera subtraction here
+        matrices.push();
+        VertexConsumer v = vertexConsumers
+            .getBuffer(RenderLayer.getLines());
+
+        // EXTENSIVE DEBUG LOGGING
+        // System.out.println("[DRILL-RENDER-DEBUG] ========================================");
+        // System.out.println("[DRILL-RENDER-DEBUG] Entity position: " + entity.getPos());
         
-        // Debug: Check if render method is being called
-        System.out.println("[DEBUG] DrillBlockEntityRenderer.render() called for " + blockEntity.getPos());
+        // Get the mining direction directly from the drill entity
+        net.minecraft.util.math.Direction miningDirection = entity.getFacingDirection();
+        // System.out.println("[DRILL-RENDER-DEBUG] Mining direction from entity: " + miningDirection);
         
-        // Get the current mining progress and position
-        int miningProgress = blockEntity.getCurrentMiningProgress();
-        BlockPos miningPos = blockEntity.getCurrentMiningPos();
+        // Get the drill's dimensions
+        int miningHeight = entity.getMiningHeight();
+        int miningWidth = entity.getMiningWidth();
+        // System.out.println("[DRILL-RENDER-DEBUG] Mining dimensions: " + miningWidth + "x" + miningHeight);
         
-        System.out.println("[DEBUG] Mining progress: " + miningProgress + ", mining position: " + miningPos);
+        // Calculate local Y coordinates for the mining area (height direction)
+        float y0 = -miningHeight / 2.0f + 0.5f; // Bottom of mining area
+        float y1 = miningHeight / 2.0f + 0.5f;  // Top of mining area
+        // System.out.println("[DRILL-RENDER-DEBUG] Local Y coordinates: " + y0 + " to " + y1);
         
-        // Only render breaking overlay if we're actually mining
-        if (miningProgress > 0 && miningPos != null) {
-            System.out.println("[DEBUG] Calling renderBreakingOverlay");
-            renderBreakingOverlay(matrices, vertexConsumers, light, overlay, miningProgress, miningPos, blockEntity);
+        // Calculate the cross-sectional rectangle position (always one block in front of drill)
+        float frontX, frontZ;
+        if (miningDirection == Direction.NORTH) {
+            frontX = 0.5f; // Center of drill X
+            frontZ = -0.5f; // 1 block north of drill
+        } else if (miningDirection == Direction.SOUTH) {
+            frontX = 0.5f; // Center of drill X  
+            frontZ = 1.5f; // 1 block south of drill
+        } else if (miningDirection == Direction.EAST) {
+            frontX = 1.5f; // 1 block east of drill
+            frontZ = 0.5f; // Center of drill Z
+        } else { // WEST
+            frontX = -0.5f; // 1 block west of drill
+            frontZ = 0.5f; // Center of drill Z
+        }
+        // System.out.println("[DRILL-RENDER-DEBUG] Cross-sectional rectangle position: (" + frontX + ", " + frontZ + ")");
+        
+        // Calculate width bounds for the cross-sectional rectangle (centered around front position)
+        float width0, width1;
+        if (miningDirection == Direction.NORTH || miningDirection == Direction.SOUTH) {
+            // Width is X direction for north/south facing
+            width0 = frontX - miningWidth / 2.0f + 0.5f; // Left edge
+            width1 = frontX + miningWidth / 2.0f - 0.5f; // Right edge
         } else {
-            System.out.println("[DEBUG] Not rendering breaking overlay - progress: " + miningProgress + ", pos: " + miningPos);
+            // Width is Z direction for east/west facing  
+            width0 = frontZ - miningWidth / 2.0f + 0.5f; // Near edge
+            width1 = frontZ + miningWidth / 2.0f - 0.5f; // Far edge
+        }
+        // System.out.println("[DRILL-RENDER-DEBUG] Width bounds: " + width0 + " to " + width1);
+        // System.out.println("[DRILL-RENDER-DEBUG] ========================================");
+
+        // Draw ONLY the cross-sectional rectangle (one block in front of drill)
+        if (miningDirection == Direction.NORTH || miningDirection == Direction.SOUTH) {
+            // Cross-section is vertical plane in X-Y, fixed Z position
+            drawThickLine(v, matrices, width0, y0, frontZ, width1, y0, frontZ, 0.05f, 0f, 1f, 0f, 1f); // Bottom edge
+            drawThickLine(v, matrices, width1, y0, frontZ, width1, y1, frontZ, 0.05f, 0f, 1f, 0f, 1f); // Right edge
+            drawThickLine(v, matrices, width1, y1, frontZ, width0, y1, frontZ, 0.05f, 0f, 1f, 0f, 1f); // Top edge
+            drawThickLine(v, matrices, width0, y1, frontZ, width0, y0, frontZ, 0.05f, 0f, 1f, 0f, 1f); // Left edge
+        } else {
+            // Cross-section is vertical plane in Z-Y, fixed X position
+            drawThickLine(v, matrices, frontX, y0, width0, frontX, y0, width1, 0.05f, 0f, 1f, 0f, 1f); // Bottom edge
+            drawThickLine(v, matrices, frontX, y0, width1, frontX, y1, width1, 0.05f, 0f, 1f, 0f, 1f); // Right edge  
+            drawThickLine(v, matrices, frontX, y1, width1, frontX, y1, width0, 0.05f, 0f, 1f, 0f, 1f); // Top edge
+            drawThickLine(v, matrices, frontX, y1, width0, frontX, y0, width0, 0.05f, 0f, 1f, 0f, 1f); // Left edge
+        }
+
+        // Draw current mining position indicator (red rectangle)
+        if (entity.getCurrentMiningPos() != null) {
+            net.minecraft.util.math.BlockPos miningPos = entity.getCurrentMiningPos();
+            
+            // Calculate current position relative to drill
+            float currentX = (miningPos.getX() - entity.getPos().getX()) + 0.5f;
+            float currentY = (miningPos.getY() - entity.getPos().getY()) + 0.5f;
+            float currentZ = (miningPos.getZ() - entity.getPos().getZ()) + 0.5f;
+            
+            // Draw a red rectangle at the current mining position (1x1 block indicator)
+            float size = 0.5f; // Half block size for visibility
+            drawThickLine(v, matrices, currentX - size, currentY - size, currentZ - size, 
+                         currentX + size, currentY - size, currentZ - size, 0.05f, 1f, 0f, 0f, 1f);
+            drawThickLine(v, matrices, currentX + size, currentY - size, currentZ - size, 
+                         currentX + size, currentY + size, currentZ - size, 0.05f, 1f, 0f, 0f, 1f);
+            drawThickLine(v, matrices, currentX + size, currentY + size, currentZ - size, 
+                         currentX - size, currentY + size, currentZ - size, 0.05f, 1f, 0f, 0f, 1f);
+            drawThickLine(v, matrices, currentX - size, currentY + size, currentZ - size, 
+                         currentX - size, currentY - size, currentZ - size, 0.05f, 1f, 0f, 0f, 1f);
+        }
+
+        matrices.pop();
+    }
+
+    private static void drawThickLine(VertexConsumer consumer,
+                                      MatrixStack ms,
+                                      float x1, float y1, float z1,
+                                      float x2, float y2, float z2,
+                                      float width,
+                                      float r, float g, float b, float a) {
+        // compute a perpendicular horizontal offset
+        float dx = x2 - x1, dz = z2 - z1;
+        float offX = dz, offZ = -dx;
+        float len = (float)Math.sqrt(offX*offX + offZ*offZ);
+        if (len > 0) {
+            offX = offX/len * width;
+            offZ = offZ/len * width;
+        }
+        // fan of parallel segments
+        int steps = 8;
+        for (int i = 0; i <= steps; i++) {
+            float t = (i/(float)steps) - 0.5f;
+            float ox = offX * t, oz = offZ * t;
+            consumer.vertex(ms.peek(), x1 + ox, y1, z1 + oz)
+                    .color(r, g, b, a).normal(0, 1, 0);
+            consumer.vertex(ms.peek(), x2 + ox, y2, z2 + oz)
+                    .color(r, g, b, a).normal(0, 1, 0);
         }
     }
-    
-    private void renderBreakingOverlay(MatrixStack matrices, VertexConsumerProvider vertexConsumers, 
-                                      int light, int overlay, int progress, BlockPos blockPos, DrillBlockEntity blockEntity) {
-        // Debug: Check if we're being called
-        System.out.println("[DEBUG] renderBreakingOverlay called with progress: " + progress + " at " + blockPos);
-        
-        // Calculate which destroy stage to use (0-9)
-        int destroyStage = (progress * 10) / 100;
-        destroyStage = Math.min(destroyStage, 9); // Clamp to 0-9
-        
-        System.out.println("[DEBUG] Calculated destroyStage: " + destroyStage);
-        
-        if (destroyStage < 0) {
-            System.out.println("[DEBUG] destroyStage < 0, returning early");
-            return;
-        }
-        
-        // Get the block state at the mining position
-        World world = MinecraftClient.getInstance().world;
-        if (world == null) {
-            System.out.println("[DEBUG] world is null, returning early");
-            return;
-        }
-        
-        BlockState blockState = world.getBlockState(blockPos);
-        if (blockState.isAir()) {
-            System.out.println("[DEBUG] blockState is air, returning early");
-            return;
-        }
-        
-        System.out.println("[DEBUG] Block at " + blockPos + " is: " + blockState.getBlock().getName().getString());
-        
-        // Get the block render manager
-        MinecraftClient client = MinecraftClient.getInstance();
-        BlockRenderManager blockRenderManager = client.getBlockRenderManager();
-        
-        if (blockRenderManager == null) {
-            System.out.println("[DEBUG] blockRenderManager is null, returning early");
-            return;
-        }
-        
-        matrices.push();
-        
-        // Translate to the block position relative to the drill block entity
-        BlockPos drillPos = blockEntity.getPos();
-        matrices.translate(
-            blockPos.getX() - drillPos.getX(),
-            blockPos.getY() - drillPos.getY(),
-            blockPos.getZ() - drillPos.getZ()
-        );
-        
-        System.out.println("[DEBUG] Translated to: (" + (blockPos.getX() - drillPos.getX()) + ", " + 
-                          (blockPos.getY() - drillPos.getY()) + ", " + (blockPos.getZ() - drillPos.getZ()) + ")");
-        
-        try {
-            // Get the correct vertex consumer for damage rendering
-            // Use the breaking overlay render layer with the block's texture
-            Identifier textureId = blockState.getBlock().asItem().getRegistryEntry().registryKey().getValue();
-            System.out.println("[DEBUG] Texture ID: " + textureId);
-            
-            VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
-                RenderLayer.getBlockBreaking(textureId)
-            );
-            
-            // Calculate the overlay UV coordinates based on destroy stage
-            // Convert progress (0-100) to float (0.0-1.0) for OverlayTexture.getUv()
-            float progressFloat = destroyStage / 9.0f; // Convert 0-9 to 0.0-1.0
-            int overlayUV = OverlayTexture.getUv(progressFloat, false); // false = not hurt
-            
-            System.out.println("[DEBUG] progressFloat: " + progressFloat + ", overlayUV: " + overlayUV);
-            
-            // Get the block model and render it with our custom overlay
-            BlockStateModel blockStateModel = blockRenderManager.getModel(blockState);
-            List<BlockModelPart> parts = new ArrayList<>();
-            blockStateModel.addParts(world.getRandom(), parts);
-            
-            System.out.println("[DEBUG] Got " + parts.size() + " model parts");
-            
-            // Render the breaking overlay using the block model renderer
-            blockRenderManager.getModelRenderer().render(world, parts, blockState, blockPos, matrices, vertexConsumer, true, overlayUV);
-            
-            System.out.println("[DEBUG] Rendering completed successfully");
-            
-        } catch (Exception e) {
-            System.out.println("[DEBUG] Exception during rendering: " + e.getMessage());
-            e.printStackTrace();
-        }
-        
-        matrices.pop();
+
+    @Override
+    public boolean rendersOutsideBoundingBox(
+        DrillBlockEntity be) {
+      return true;
+    }
+
+    @Override
+    public int getRenderDistance() {
+      return 96;
     }
 } 

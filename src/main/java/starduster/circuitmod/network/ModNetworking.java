@@ -25,10 +25,14 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(MiningEnabledStatusPayload.ID, MiningEnabledStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(QuarryDimensionsSyncPayload.ID, QuarryDimensionsSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ItemMovePayload.ID, ItemMovePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DrillMiningProgressPayload.ID, DrillMiningProgressPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DrillMiningEnabledPayload.ID, DrillMiningEnabledPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DrillDimensionsSyncPayload.ID, DrillDimensionsSyncPayload.CODEC);
         
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuarryDimensionsPayload.ID, QuarryDimensionsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(DrillDimensionsPayload.ID, DrillDimensionsPayload.CODEC);
     }
     
 
@@ -97,6 +101,67 @@ public class ModNetworking {
             
         ItemMovePayload payload = new ItemMovePayload(stack, from, to, startTick, durationTicks);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send a drill mining progress update to players
+     * 
+     * @param players The players to send the update to
+     * @param miningProgress The mining progress (0-100)
+     * @param miningPos The position being mined
+     */
+    public static void sendDrillMiningProgressUpdate(Iterable<ServerPlayerEntity> players, int miningProgress, BlockPos miningPos) {
+        Circuitmod.LOGGER.info("[SERVER] Sending drill mining progress packet: {}% at {}", miningProgress, miningPos);
+            
+        DrillMiningProgressPayload payload = new DrillMiningProgressPayload(miningProgress, miningPos);
+        for (ServerPlayerEntity player : players) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+        }
+    }
+    
+    /**
+     * Send a drill mining enabled status update to players
+     * 
+     * @param players The players to send the update to
+     * @param enabled Whether mining is enabled
+     */
+    public static void sendDrillMiningEnabledUpdate(Iterable<ServerPlayerEntity> players, boolean enabled) {
+        Circuitmod.LOGGER.info("[SERVER] Sending drill mining enabled status: {}", enabled);
+            
+        DrillMiningEnabledPayload payload = new DrillMiningEnabledPayload(enabled);
+        for (ServerPlayerEntity player : players) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+        }
+    }
+    
+    /**
+     * Send drill dimensions sync to a player
+     * 
+     * @param player The player to send the update to
+     * @param height The height of the mining area
+     * @param width The width of the mining area
+     */
+    public static void sendDrillDimensionsUpdate(ServerPlayerEntity player, int height, int width) {
+        Circuitmod.LOGGER.info("[SERVER] Sending drill dimensions sync: {}x{} to player {}", height, width, player.getName().getString());
+            
+        DrillDimensionsSyncPayload payload = new DrillDimensionsSyncPayload(height, width);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send drill dimensions sync to players
+     * 
+     * @param players The players to send the update to
+     * @param height The height of the mining area
+     * @param width The width of the mining area
+     */
+    public static void sendDrillDimensionsUpdate(Iterable<ServerPlayerEntity> players, int height, int width) {
+        Circuitmod.LOGGER.info("[SERVER] Sending drill dimensions sync: {}x{}", height, width);
+            
+        DrillDimensionsSyncPayload payload = new DrillDimensionsSyncPayload(height, width);
+        for (ServerPlayerEntity player : players) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+        }
     }
     
 
@@ -202,6 +267,90 @@ public class ModNetworking {
             PacketCodecs.INTEGER, QuarryDimensionsSyncPayload::width,
             PacketCodecs.INTEGER, QuarryDimensionsSyncPayload::length,
             QuarryDimensionsSyncPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for drill mining progress updates (server -> client)
+     */
+    public record DrillMiningProgressPayload(int miningProgress, BlockPos miningPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<DrillMiningProgressPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "drill_mining_progress"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, DrillMiningProgressPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.INTEGER, DrillMiningProgressPayload::miningProgress,
+            BlockPos.PACKET_CODEC, DrillMiningProgressPayload::miningPos,
+            DrillMiningProgressPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for drill mining enabled status updates (server -> client)
+     */
+    public record DrillMiningEnabledPayload(boolean enabled) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<DrillMiningEnabledPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "drill_mining_enabled"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, DrillMiningEnabledPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.BOOLEAN, DrillMiningEnabledPayload::enabled,
+            DrillMiningEnabledPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+        /**
+     * Payload for drill dimensions sync (server -> client)
+     */
+    public record DrillDimensionsSyncPayload(int height, int width) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<DrillDimensionsSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "drill_dimensions_sync"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, DrillDimensionsSyncPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.INTEGER, DrillDimensionsSyncPayload::height,
+            PacketCodecs.INTEGER, DrillDimensionsSyncPayload::width,
+            DrillDimensionsSyncPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for drill dimensions (client -> server)
+     */
+    public record DrillDimensionsPayload(BlockPos drillPos, int height, int width) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<DrillDimensionsPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "drill_dimensions"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, DrillDimensionsPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, DrillDimensionsPayload::drillPos,
+            PacketCodecs.INTEGER, DrillDimensionsPayload::height,
+            PacketCodecs.INTEGER, DrillDimensionsPayload::width,
+            DrillDimensionsPayload::new
         );
         
         @Override

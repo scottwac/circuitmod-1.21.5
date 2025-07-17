@@ -1,44 +1,57 @@
 package starduster.circuitmod.block.entity;
 
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.block.machines.DrillBlock;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.DrillScreenHandler;
-import starduster.circuitmod.screen.QuarryScreenHandler;
+import net.minecraft.block.Blocks;
 
-public class DrillBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, IEnergyConsumer {
+import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.sound.ModSounds;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class DrillBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.DrillData>, IEnergyConsumer {
     // Energy properties
-    private static final int MAX_ENERGY_DEMAND = 20; // Maximum energy demand per tick
+    private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
     private int energyReceived = 0; // Energy received this tick
     private EnergyNetwork network;
-
+    
     // Mining properties
-    private int miningSpeed = 0; // Current mining speed (blocks per tick)
-    private static final int TICKS_PER_SECOND = 20; // Minecraft runs at 20 ticks per second
     private int currentBlockEnergyCost = 1; // Energy cost for the current block being mined
     private boolean miningEnabled = false; // Whether mining is enabled or disabled
     
@@ -47,53 +60,47 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     private int currentMiningProgress = 0; // Progress on current block (0-100)
     private int totalMiningTicks = 0; // Total ticks needed to mine current block
     private int currentMiningTicks = 0; // Current ticks spent mining
-
-    // Area properties
-    private static final int DEFAULT_AREA_SIZE = 16; // 16x16 square
+    
+    // Area properties - for horizontal mining with fixed depth
     private BlockPos startPos; // Starting corner of the mining area
     private BlockPos currentPos; // Current mining position
-    private int currentY; // Current mining Y level
-    private Direction facingDirection; // Direction the quarry is facing
-
+    private int currentDepth; // Current depth level (distance from start)
+    private int currentY; // Current mining Y level (vertical position)
+    private int currentWidth; // Current width position (X or Z depending on facing)
+    private Direction facingDirection; // Direction the drill mines (same as visual facing)
+    private int miningHeight = 16; // Height of the mining area (Y direction)
+    private int miningWidth = 16; // Width of the mining area (X or Z direction depending on facing)
+    private static final int MINING_DEPTH = 50; // Fixed depth of 50 blocks
+    
+    // Mining area bounds (calculated once and reused)
+    private int miningAreaMinY;
+    private int miningAreaMaxY;
+    private int miningAreaMinWidth;
+    private int miningAreaMaxWidth;
+    
     // Networking properties
-
-
+    private int packetCooldown = 0; // Cooldown to avoid sending too many packets
+    private static final int PACKET_COOLDOWN_MAX = 10; // Only send packets every 10 ticks max (0.5 seconds)
+    
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
-    private static final int MINING_SPEED_INDEX = 1;
-    private static final int MINING_ENABLED_INDEX = 2;
-    private static final int PROPERTY_COUNT = 3;
-
+    private static final int MINING_ENABLED_INDEX = 1;
+    private static final int PROPERTY_COUNT = 2;
+    
     // Inventory with custom size (12 slots - 3x4 grid)
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
-
+    
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
-        // Direct storage for client-side property values to avoid synchronization issues
-        private int clientSideMiningSpeed = 0;
-
         @Override
         public int get(int index) {
             switch (index) {
                 case ENERGY_RECEIVED_INDEX:
-                    if (world != null && world.isClient()) {
-
-                    }
                     return energyReceived;
-                case MINING_SPEED_INDEX:
-                    // On client side, use our direct storage
-                    if (world != null && world.isClient()) {
-                        int value = clientSideMiningSpeed > 0 ? clientSideMiningSpeed : miningSpeed * TICKS_PER_SECOND;
-                        return value;
-                    }
-                    // On server side, calculate as normal
-                    else {
-                        int blocksPerSecond = miningSpeed * TICKS_PER_SECOND;
-                        return blocksPerSecond;
-                    }
                 case MINING_ENABLED_INDEX:
                     return miningEnabled ? 1 : 0;
                 default:
+
                     return 0;
             }
         }
@@ -103,30 +110,6 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             switch (index) {
                 case ENERGY_RECEIVED_INDEX:
                     energyReceived = value;
-                    if (world != null && world.isClient()) {
-
-                    }
-                    break;
-                case MINING_SPEED_INDEX:
-                    // Convert back from blocks per second to blocks per tick
-                    int newMiningSpeed = Math.max(0, value / TICKS_PER_SECOND);
-
-                    // Debug logging with client/server distinction
-                    if (world != null && world.isClient()) {
-
-
-                        // On client side, store the raw blocks/sec value directly
-                        clientSideMiningSpeed = value;
-
-                        // Also update mining speed for consistency
-                        if (miningSpeed != newMiningSpeed) {
-                            miningSpeed = newMiningSpeed;
-                            markDirty();
-                        }
-                    } else {
-
-
-                    }
                     break;
                 case MINING_ENABLED_INDEX:
                     boolean newMiningEnabled = value == 1;
@@ -149,6 +132,11 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
 
     public DrillBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DRILL_BLOCK_ENTITY, pos, state);
+        
+        // Initialize mining area immediately if we have the necessary data
+        if (pos != null && state != null) {
+            initializeMiningArea(pos, state);
+        }
     }
 
     // Save data to NBT when the block is saved
@@ -159,9 +147,16 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         // Save mining and energy data
         nbt.putInt("energy_demand", this.energyDemand);
         nbt.putInt("energy_received", this.energyReceived);
-        nbt.putInt("mining_speed", this.miningSpeed);
         nbt.putInt("current_block_energy_cost", this.currentBlockEnergyCost);
-        nbt.putBoolean("mining_enabled", this.miningEnabled); // Save mining enabled state
+        nbt.putBoolean("mining_enabled", this.miningEnabled);
+        nbt.putInt("mining_height", this.miningHeight);
+        nbt.putInt("mining_width", this.miningWidth);
+        
+        // Save mining area bounds
+        nbt.putInt("mining_area_min_y", this.miningAreaMinY);
+        nbt.putInt("mining_area_max_y", this.miningAreaMaxY);
+        nbt.putInt("mining_area_min_width", this.miningAreaMinWidth);
+        nbt.putInt("mining_area_max_width", this.miningAreaMaxWidth);
         
         // Save mining progress data
         if (currentMiningPos != null) {
@@ -186,7 +181,9 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             nbt.putInt("current_z", currentPos.getZ());
         }
         
+        nbt.putInt("current_depth", this.currentDepth);
         nbt.putInt("current_y_level", this.currentY);
+        nbt.putInt("current_width", this.currentWidth);
         
         if (facingDirection != null) {
             nbt.putInt("facing_direction", facingDirection.ordinal());
@@ -211,12 +208,19 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         // Load mining and energy data
         this.energyDemand = nbt.getInt("energy_demand").orElse(MAX_ENERGY_DEMAND);
         this.energyReceived = nbt.getInt("energy_received").orElse(0);
-        this.miningSpeed = nbt.getInt("mining_speed").orElse(0);
         this.currentBlockEnergyCost = nbt.getInt("current_block_energy_cost").orElse(1);
-        this.miningEnabled = nbt.getBoolean("mining_enabled").orElse(false); // Load mining enabled state
+        this.miningEnabled = nbt.getBoolean("mining_enabled").orElse(false);
+        this.miningHeight = nbt.getInt("mining_height").orElse(16);
+        this.miningWidth = nbt.getInt("mining_width").orElse(16);
+        
+        // Load mining area bounds
+        this.miningAreaMinY = nbt.getInt("mining_area_min_y").orElse(0);
+        this.miningAreaMaxY = nbt.getInt("mining_area_max_y").orElse(0);
+        this.miningAreaMinWidth = nbt.getInt("mining_area_min_width").orElse(0);
+        this.miningAreaMaxWidth = nbt.getInt("mining_area_max_width").orElse(0);
         
         // Load mining progress data
-        if (nbt.contains("current_mining_x") && nbt.contains("current_mining_y") && nbt.contains("current_mining_z")) {
+        if (nbt.contains("current_mining_x")) {
             int x = nbt.getInt("current_mining_x").orElse(0);
             int y = nbt.getInt("current_mining_y").orElse(0);
             int z = nbt.getInt("current_mining_z").orElse(0);
@@ -227,25 +231,27 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         this.currentMiningTicks = nbt.getInt("current_mining_ticks").orElse(0);
         
         // Load mining area data
-        if (nbt.contains("start_x") && nbt.contains("start_y") && nbt.contains("start_z")) {
-            int startX = nbt.getInt("start_x").orElse(0);
-            int startY = nbt.getInt("start_y").orElse(0);
-            int startZ = nbt.getInt("start_z").orElse(0);
-            this.startPos = new BlockPos(startX, startY, startZ);
+        if (nbt.contains("start_x")) {
+            int x = nbt.getInt("start_x").orElse(0);
+            int y = nbt.getInt("start_y").orElse(0);
+            int z = nbt.getInt("start_z").orElse(0);
+            this.startPos = new BlockPos(x, y, z);
         }
         
-        if (nbt.contains("current_x") && nbt.contains("current_y") && nbt.contains("current_z")) {
-            int currentX = nbt.getInt("current_x").orElse(0);
-            int currentY = nbt.getInt("current_y").orElse(0);
-            int currentZ = nbt.getInt("current_z").orElse(0);
-            this.currentPos = new BlockPos(currentX, currentY, currentZ);
+        if (nbt.contains("current_x")) {
+            int x = nbt.getInt("current_x").orElse(0);
+            int y = nbt.getInt("current_y").orElse(0);
+            int z = nbt.getInt("current_z").orElse(0);
+            this.currentPos = new BlockPos(x, y, z);
         }
         
+        this.currentDepth = nbt.getInt("current_depth").orElse(0);
         this.currentY = nbt.getInt("current_y_level").orElse(0);
+        this.currentWidth = nbt.getInt("current_width").orElse(0);
         
         if (nbt.contains("facing_direction")) {
-            int dirOrdinal = nbt.getInt("facing_direction").orElse(0);
-            this.facingDirection = Direction.values()[dirOrdinal];
+            int ordinal = nbt.getInt("facing_direction").orElse(0);
+            this.facingDirection = Direction.values()[ordinal];
         }
         
         // Load network data
@@ -258,10 +264,40 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         // Load inventory
         Inventories.readNbt(nbt, this.inventory, registries);
         needsNetworkRefresh = true;
+        
+        // Initialize mining area on client side if not already done
+        if (world != null && world.isClient() && startPos == null) {
+            initializeMiningArea(pos, world.getBlockState(pos));
+        }
+        
+        // Ensure mining area is properly initialized on both client and server
+        if (startPos == null && pos != null && world != null) {
+            initializeMiningArea(pos, world.getBlockState(pos));
+        }
     }
 
-    // The tick method called by the ticker in QuarryBlock
-    public static void tick(World world, BlockPos pos, BlockState state, DrillBlockEntity blockEntity) {
+    // Sound properties
+    private int soundClock = 0;
+
+    public void tick(World world, BlockPos pos, BlockState state, DrillBlockEntity blockEntity) {
+        boolean runningBefore = blockEntity.isMiningEnabled();
+
+        // Sound and visual state management (like quarry)
+        if(blockEntity.isMiningEnabled()) {
+            if(blockEntity.soundClock <= 0){
+                blockEntity.soundClock = 160;
+            }
+            if(blockEntity.soundClock == 160) {
+                world.playSound(null, pos, ModSounds.MINER_MACHINE_RUN, SoundCategory.BLOCKS, 1F, 1F);
+            }
+            blockEntity.soundClock = blockEntity.soundClock - 1;
+            world.setBlockState(pos, world.getBlockState(pos).with(DrillBlock.RUNNING, true), Block.NOTIFY_ALL);
+        }
+        if(!blockEntity.isMiningEnabled()) {
+            world.setBlockState(pos, world.getBlockState(pos).with(DrillBlock.RUNNING, false), Block.NOTIFY_ALL);
+            blockEntity.soundClock = 160;
+        }
+
         if (blockEntity.needsNetworkRefresh) {
             blockEntity.findAndJoinNetwork();
             blockEntity.needsNetworkRefresh = false;
@@ -275,7 +311,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             blockEntity.initializeMiningArea(pos, state);
         }
         
-        // Safety check - validate that quarry's mining area exists
+        // Safety check - validate that drill's mining area exists
         if (blockEntity.currentPos == null) {
             blockEntity.initializeMiningArea(pos, state);
             return;
@@ -288,7 +324,10 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         boolean needsSync = false;
         
         // Debug log for diagnostics
-      //  Circuitmod.LOGGER.info("[QUARRY-TICK] Energy received: " + blockEntity.energyReceived + ", mining speed: " + blockEntity.miningSpeed);
+        if (world.getTime() % 20 == 0) { // Only log every second
+            String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
+            // Circuitmod.LOGGER.info("[DRILL-TICK] Energy received: " + blockEntity.energyReceived + ", network: " + networkInfo);
+        }
         
         // Process mining operations based on energy available and if mining is enabled
         if (blockEntity.energyReceived > 0 && blockEntity.miningEnabled) {
@@ -298,42 +337,25 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             if (mined) {
                 needsSync = true;
             }
-            
-            // Calculate mining speed for display based on energy consumption
-            if (blockEntity.currentMiningPos != null) {
-                // Calculate speed based on current energy and remaining time
-                int energyToUse = Math.min(blockEntity.energyReceived, MAX_ENERGY_DEMAND);
-                float energySpeedMultiplier = (float) Math.sqrt(energyToUse);
-                
-                int remainingTicks = blockEntity.totalMiningTicks - blockEntity.currentMiningTicks;
-                if (remainingTicks > 0) {
-                    // Estimate blocks per second based on energy-scaled speed
-                    float estimatedBlocksPerSecond = energySpeedMultiplier * TICKS_PER_SECOND / remainingTicks;
-                    blockEntity.miningSpeed = Math.max(1, (int) estimatedBlocksPerSecond);
-                } else {
-                    blockEntity.miningSpeed = Math.max(1, (int) (energySpeedMultiplier * TICKS_PER_SECOND / 20)); // Default calculation
-                }
-            } else {
-                blockEntity.miningSpeed = 0;
-            }
-            
-            // Only reset energy if we have no energy left
-            if (blockEntity.energyReceived <= 0) {
-                blockEntity.energyReceived = 0;
-                needsSync = true;
-            }
         } else {
-            // Set mining speed to 0 if no energy received or mining is disabled
-            blockEntity.miningSpeed = 0;
+            // No energy received or mining is disabled
             needsSync = true;
         }
         
+        // Reset energy received at the end of each tick
+        blockEntity.energyReceived = 0;
+        
+        // Packet throttling logic to avoid network spam
+        blockEntity.packetCooldown--;
+        if (blockEntity.packetCooldown <= 0) {
+            blockEntity.packetCooldown = 0;
+        }
         
         // Mark dirty if anything changed
         if (needsSync) {
             blockEntity.markDirty();
             
-            // Also do the normal block update
+            // Do the normal block update
             world.updateListeners(pos, state, state, 3);
         }
         
@@ -341,362 +363,391 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         if (world instanceof ServerWorld serverWorld && blockEntity.currentMiningPos != null && blockEntity.currentMiningProgress > 0) {
             // Send progress updates every 5 ticks (4 times per second) to avoid spam
             if (world.getTime() % 5 == 0) {
-                for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                    ModNetworking.sendMiningProgressUpdate(player, blockEntity.currentMiningProgress, blockEntity.currentMiningPos, pos);
-                }
+                ModNetworking.sendDrillMiningProgressUpdate(PlayerLookup.tracking(serverWorld, pos), blockEntity.currentMiningProgress, blockEntity.currentMiningPos);
+            }
+        }
+        
+        // Send mining area bounds to clients for rendering (every 20 ticks to avoid spam)
+        if (world instanceof ServerWorld serverWorld && world.getTime() % 20 == 0) {
+            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
+                ModNetworking.sendDrillDimensionsUpdate(PlayerLookup.tracking(serverWorld, pos), blockEntity.miningHeight, blockEntity.miningWidth);
+            }
+        }
+        
+        // Send initial sync to new players (every 100 ticks to avoid spam)
+        if (world instanceof ServerWorld serverWorld && world.getTime() % 100 == 0) {
+            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
+                // Send current mining enabled status
+                ModNetworking.sendDrillMiningEnabledUpdate(PlayerLookup.tracking(serverWorld, pos), blockEntity.miningEnabled);
+                // Send current dimensions
+                ModNetworking.sendDrillDimensionsUpdate(PlayerLookup.tracking(serverWorld, pos), blockEntity.miningHeight, blockEntity.miningWidth);
             }
         }
     }
-    
-    // Initialize the mining area based on the quarry's position and facing direction
+
+    /**
+     * Initializes the mining area based on the drill's position and facing direction
+     */
     private void initializeMiningArea(BlockPos pos, BlockState state) {
-        // Get the facing direction from the block state using HorizontalFacingBlock.FACING
-        Direction direction = null;
-        try {
-            // Get the facing direction directly from the block state
-            direction = state.get(net.minecraft.block.HorizontalFacingBlock.FACING);
-        } catch (Exception e) {
-            direction = Direction.NORTH;
+        // Get the facing direction from the block state
+        Direction facing = state.get(net.minecraft.block.HorizontalFacingBlock.FACING);
+        // INVERT: Use the opposite direction for mining (like quarry)
+        this.facingDirection = facing.getOpposite();
+        
+        // Calculate the starting position (one block in front of the drill IN THE MINING DIRECTION)
+        // The renderer draws the green rectangle here, so mining should start here too
+        BlockPos frontPos = pos.offset(this.facingDirection);
+        this.startPos = frontPos;
+        this.currentPos = frontPos;
+        
+        // System.out.println("[DRILL-DEBUG] Visual facing: " + facing + ", Mining direction: " + this.facingDirection);
+        // System.out.println("[DRILL-DEBUG] Drill position: " + pos + ", Start position: " + frontPos);
+        
+        // Calculate mining area bounds for horizontal mining with fixed depth
+        // The drill mines horizontally with configurable height and width, fixed depth of 50 blocks
+        int centerY = frontPos.getY();
+        
+        // Calculate bounds for Y (height) direction
+        this.miningAreaMinY = centerY - (miningHeight / 2);
+        this.miningAreaMaxY = centerY + (miningHeight / 2) - 1;
+        
+        // Calculate bounds for width direction (X or Z depending on facing)
+        if (this.facingDirection == Direction.NORTH || this.facingDirection == Direction.SOUTH) {
+            // Drill mines North/South, width is X direction
+            int centerX = frontPos.getX();
+            this.miningAreaMinWidth = centerX - (miningWidth / 2);
+            this.miningAreaMaxWidth = centerX + (miningWidth / 2) - 1;
+            // System.out.println("[DRILL-DEBUG] North/South facing - Width is X direction");
+            // System.out.println("[DRILL-DEBUG] centerX: " + centerX + ", miningWidth: " + miningWidth);
+            // System.out.println("[DRILL-DEBUG] miningAreaMinWidth: " + miningAreaMinWidth + ", miningAreaMaxWidth: " + miningAreaMaxWidth);
+        } else {
+            // Drill mines East/West, width is Z direction
+            int centerZ = frontPos.getZ();
+            this.miningAreaMinWidth = centerZ - (miningWidth / 2);
+            this.miningAreaMaxWidth = centerZ + (miningWidth / 2) - 1;
+            // System.out.println("[DRILL-DEBUG] East/West facing - Width is Z direction");
+            // System.out.println("[DRILL-DEBUG] centerZ: " + centerZ + ", miningWidth: " + miningWidth);
+            // System.out.println("[DRILL-DEBUG] miningAreaMinWidth: " + miningAreaMinWidth + ", miningAreaMaxWidth: " + miningAreaMaxWidth);
         }
         
-        // If we couldn't get direction, default to NORTH
-        if (direction == null) {
-            direction = Direction.NORTH;
-        }
+        // Start at the minimum Y and width, depth 0
+        this.currentY = this.miningAreaMinY;
+        this.currentWidth = this.miningAreaMinWidth;
+        this.currentDepth = 0; // Start at depth 0 (front position)
         
-        this.facingDirection = direction;
+        // Mark dirty to trigger client sync
+        markDirty();
         
-        // Set the starting corner as the quarry's position
-        this.startPos = pos;
-        
-        // Start with a smaller 3x3 area for easier visualization
-        int areaSize = 3;
-        
-        // Start two blocks away in the facing direction to ensure safety
-        // (one block in front of the quarry, then start the area in front of that)
-        BlockPos safeAreaStart = pos.offset(facingDirection, 2);
-        
-        // Calculate mining area bounds centered on the safe start position
-        int minX = safeAreaStart.getX() - 1;
-        int maxX = safeAreaStart.getX() + 1;
-        int minZ = safeAreaStart.getZ() - 1;
-        int maxZ = safeAreaStart.getZ() + 1;
-        
-        // Double-check that quarry is not in the mining area
-        if (isPositionInArea(pos, minX, maxX, minZ, maxZ)) {
-            // If somehow the quarry is still in the area, push it one more block away
-            safeAreaStart = pos.offset(facingDirection, 3);
-            minX = safeAreaStart.getX() - 1;
-            maxX = safeAreaStart.getX() + 1;
-            minZ = safeAreaStart.getZ() - 1;
-            maxZ = safeAreaStart.getZ() + 1;
-        }
-        
-        // Start at the corner of the mining area
-        this.currentPos = new BlockPos(minX, pos.getY(), minZ);
-        
-        // Start mining at the quarry's Y level
-        this.currentY = pos.getY();
+        Circuitmod.LOGGER.info("[DRILL-DEBUG] Initialized mining area at {} facing {}, bounds: Y({}-{}), Width({}-{}), Depth: 0-{}", 
+            pos, facing, miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth, MINING_DEPTH);
+        Circuitmod.LOGGER.info("[DRILL-DEBUG] Visual facing: {}, Mining direction: {}, StartPos: {}", 
+            facing, this.facingDirection, frontPos);
     }
-    
-    // Helper method to check if a position is inside a rectangular area
-    private boolean isPositionInArea(BlockPos pos, int minX, int maxX, int minZ, int maxZ) {
-        return pos.getX() >= minX && pos.getX() <= maxX && 
-               pos.getZ() >= minZ && pos.getZ() <= maxZ;
+
+    /**
+     * Checks if a position is within the mining area bounds
+     */
+    private boolean isPositionInArea(BlockPos pos, int minY, int maxY, int minWidth, int maxWidth, int depth) {
+        // Check Y bounds
+        if (pos.getY() < minY || pos.getY() > maxY) {
+            return false;
+        }
+        
+        // Check width bounds (X or Z depending on facing direction)
+        if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+            // Width is X direction
+            if (pos.getX() < minWidth || pos.getX() > maxWidth) {
+                return false;
+            }
+        } else {
+            // Width is Z direction
+            if (pos.getZ() < minWidth || pos.getZ() > maxWidth) {
+                return false;
+            }
+        }
+        
+        // Check depth bounds (distance from start position)
+        int distanceFromStart = Math.abs(pos.getX() - startPos.getX()) + Math.abs(pos.getZ() - startPos.getZ());
+        return distanceFromStart <= depth;
     }
-    
-    // Mining logic to mine a block at the current position
+
+    /**
+     * Attempts to mine the next block in the sequence (quarry-style)
+     */
     private boolean mineNextBlock(World world) {
         // If mining is disabled, do nothing
         if (!miningEnabled) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Mining disabled, skipping block at " + currentMiningPos);
             advanceToNextBlock();
+            return false;
+        }
+        
+        // Debug: Log current mining state
+        // if (currentMiningPos != null) {
+        //     Circuitmod.LOGGER.info("[DRILL-MINING-DEBUG] Current mining position: " + currentMiningPos);
+        //     Circuitmod.LOGGER.info("[DRILL-MINING-DEBUG] Mining progress: " + currentMiningProgress + "%");
+        // }
+
+        // --- INSTANTLY FIND NEXT VALID BLOCK TO MINE ---
+        int maxAttempts = 4096; // Prevent infinite loops
+        int attempts = 0;
+        while (attempts < maxAttempts) {
+            if (currentMiningPos == null) {
+                currentMiningPos = getNextMiningPos();
+                if (currentMiningPos == null) {
+                    return false;
+                }
+                currentMiningProgress = 0;
+                currentMiningTicks = 0;
+                totalMiningTicks = 0;
+            }
+            // Skip if it's the drill itself, a safe zone block
+            if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            BlockState blockState = world.getBlockState(currentMiningPos);
+            // Skip air, water, lava
+            if (blockState.isAir() || blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Skip bedrock or unbreakable
+            if (blockState.getHardness(world, currentMiningPos) < 0) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Skip if the block is a block entity that's part of our network
+            BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
+            if (targetEntity instanceof IPowerConnectable) {
+                advanceToNextBlock();
+                currentMiningPos = null;
+                attempts++;
+                continue;
+            }
+            // Found a valid block to mine
+            break;
+        }
+        if (attempts >= maxAttempts) {
+            // Could not find a valid block to mine
             return false;
         }
 
-        // If we don't have a current mining position, get the next one
-        if (currentMiningPos == null) {
-            currentMiningPos = getNextMiningPos();
-            if (currentMiningPos == null) {
-                Circuitmod.LOGGER.warn("[DRILL-MINE] No mining position available");
-                return false;
-            }
-            
-            // Reset mining progress for new block
-            currentMiningProgress = 0;
-            currentMiningTicks = 0;
-            
-            Circuitmod.LOGGER.info("[DRILL-MINE] Starting to mine at position: " + currentMiningPos);
-        }
-        
-        // Skip if it's the quarry itself, a safe zone block, air or bedrock
-        if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Position is in safe zone, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        BlockState blockState = world.getBlockState(currentMiningPos);
-        if (blockState.isAir()) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Block is air, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        if (blockState.getHardness(world, currentMiningPos) < 0) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Block is bedrock or unbreakable, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        // Skip if the block is a block entity that's part of our network
-        BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
-        if (targetEntity instanceof IPowerConnectable) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Block is part of power network, skipping");
-            advanceToNextBlock();
-            return false;
-        }
-        
-        // Calculate energy cost based on block hardness
-        float hardness = blockState.getHardness(world, currentMiningPos);
-        // Convert hardness to energy cost: hardness * 2 + 1 (minimum 1 energy)
+        // --- ONLY NOW START MINING PROGRESS ---
+        float hardness = world.getBlockState(currentMiningPos).getHardness(world, currentMiningPos);
         int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
         this.currentBlockEnergyCost = energyCost;
-        
-        // Calculate base mining time for this block (based on hardness)
+
         if (totalMiningTicks == 0) {
-            // Base mining time: 20 ticks per hardness point, minimum 10 ticks
-            // This is the time it would take with 1 energy per tick
             totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-            Circuitmod.LOGGER.info("[DRILL-MINE] Block requires " + totalMiningTicks + " base ticks to mine (hardness: " + hardness + ")");
         }
-        
-        // Check if we have any energy to continue mining this block
+
         if (this.energyReceived < 1) {
-            Circuitmod.LOGGER.info("[DRILL-MINE] Not enough energy to continue mining. Required: 1, Available: " + this.energyReceived);
             return false; // Don't advance position, just wait for more energy
         }
-        
-        // Calculate how much energy to consume this tick based on available energy
-        // More energy = faster mining, but with diminishing returns to prevent instant mining
+
         int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
-        
-        // Scale mining speed with energy consumption using square root for diminishing returns
-        // This means 4x energy gives 2x speed, 9x energy gives 3x speed, etc.
         float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
-        
-        // Consume the calculated energy
         this.energyReceived -= energyToConsume;
-        
-        // Calculate progress based on energy consumed
-        // More energy = more progress per tick
         float progressThisTick = energySpeedMultiplier;
         currentMiningTicks += (int) progressThisTick;
-        
-        // Calculate progress percentage
         currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
         currentMiningProgress = Math.min(100, currentMiningProgress);
-        
-        Circuitmod.LOGGER.info("[DRILL-MINE] Mining progress: " + currentMiningProgress + "% (" + currentMiningTicks + "/" + totalMiningTicks + " ticks, speed: " + String.format("%.1f", energySpeedMultiplier) + "x, energy used: " + energyToConsume + ")");
-        
-        // Check if we've finished mining this block
+
         if (currentMiningTicks >= totalMiningTicks) {
-            // Get drops from the block
-            ItemStack minedItem = new ItemStack(blockState.getBlock().asItem());
-            Circuitmod.LOGGER.info("[DRILL-MINE] Finished mining block: " + blockState.getBlock().getName().getString() + " (hardness: " + hardness + ", energy cost: " + energyCost + ", speed multiplier: " + String.format("%.1f", energySpeedMultiplier) + "x)");
-            
-            // Add to inventory if there's space
+            ItemStack minedItem = new ItemStack(world.getBlockState(currentMiningPos).getBlock().asItem());
             boolean addedToInventory = false;
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.get(i);
                 if (stack.isEmpty()) {
                     inventory.set(i, minedItem);
                     addedToInventory = true;
-                    Circuitmod.LOGGER.info("[DRILL-MINE] Added to empty slot " + i);
                     break;
                 } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
                     stack.increment(1);
                     addedToInventory = true;
-                    Circuitmod.LOGGER.info("[DRILL-MINE] Added to existing stack in slot " + i);
                     break;
                 }
             }
-            
-            // If we successfully added to the inventory, remove the block
             if (addedToInventory) {
                 world.removeBlock(currentMiningPos, false);
-                Circuitmod.LOGGER.info("[DRILL-SUCCESS] Successfully mined block at " + currentMiningPos);
+                advanceToNextBlock();
+                currentMiningPos = null;
+                totalMiningTicks = 0;
+                return true;
             } else {
-                Circuitmod.LOGGER.info("[DRILL-FAIL] Inventory full, could not mine block");
+                // Inventory full, stay at current position
+                return false;
             }
-            
-            // Advance to next block
-            advanceToNextBlock();
-            return true;
         }
-        
         return false; // Still mining, not finished yet
     }
-    
-    // Helper method to advance to the next block
+
+    /**
+     * Advances to the next block in the mining sequence
+     */
     private void advanceToNextBlock() {
         currentMiningPos = null;
         currentMiningProgress = 0;
-        totalMiningTicks = 0;
         currentMiningTicks = 0;
-        
-        // Advance the position for the next block
-        if (currentPos != null && startPos != null && facingDirection != null) {
-            // Calculate the safe starting position (2 blocks in front of quarry)
-            BlockPos safeAreaStart = startPos.offset(facingDirection, 2);
-            
-            // Calculate 3x3 mining area bounds centered on the safe start position
-            int minX = safeAreaStart.getX() - 1;
-            int maxX = safeAreaStart.getX() + 1;
-            int minZ = safeAreaStart.getZ() - 1;
-            int maxZ = safeAreaStart.getZ() + 1;
-            
-            advanceToNextPosition(minX, maxX, minZ, maxZ);
-        }
+        advanceToNextPosition(miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth);
     }
-    
-    // Mining logic to get the next position to mine
+
+    /**
+     * Gets the next mining position in the sequence
+     */
     private BlockPos getNextMiningPos() {
         if (currentPos == null || startPos == null || facingDirection == null) {
             return null;
         }
         
-        // Create the position at the current Y level
-        BlockPos miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
-        
-        // Calculate the safe starting position (2 blocks in front of quarry)
-        BlockPos safeAreaStart = startPos.offset(facingDirection, 2);
-        
-        // Calculate 3x3 mining area bounds centered on the safe start position
-        int minX = safeAreaStart.getX() - 1;
-        int maxX = safeAreaStart.getX() + 1;
-        int minZ = safeAreaStart.getZ() - 1;
-        int maxZ = safeAreaStart.getZ() + 1;
-        
-        // Check if the current position is somehow equal to the quarry or in safe zone
-        if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
-            // Move to the next position 
-            advanceToNextPosition(minX, maxX, minZ, maxZ);
+        // Check if we've completed the current Y level
+        if (currentY > miningAreaMaxY) {
+            // Move to next width position
+            currentWidth++;
+            currentY = miningAreaMinY;
             
-            // Try again with the new position, but do it in a loop to avoid stack overflow
-            int attempts = 0;
-            while ((currentPos.equals(pos) || isInSafeZone(new BlockPos(currentPos.getX(), currentY, currentPos.getZ()))) 
-                   && attempts < 10) {
-                attempts++;
-                advanceToNextPosition(minX, maxX, minZ, maxZ);
-            }
-            
-            // Return the new position after advancing
-            miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
-        }
-        
-        return miningPos;
-    }
-    
-    // Helper method to advance to the next position
-    private void advanceToNextPosition(int minX, int maxX, int minZ, int maxZ) {
-        int nextX = currentPos.getX();
-        int nextZ = currentPos.getZ();
-        int nextY = currentY; // Start with the current Y level
-        
-        // Use a counter to prevent infinite loops
-        int safetyCounter = 0;
-        boolean foundSafePosition = false;
-        
-        // Keep trying positions until we find a safe one or hit the safety limit
-        while (!foundSafePosition && safetyCounter < 25) {
-            safetyCounter++;
-            
-            // Move right (increment X)
-            nextX++;
-            
-            // If we've reached the right edge, move to the left edge and down one Z row
-            if (nextX > maxX) {
-                nextX = minX;
-                nextZ++;
+            // Check if we've completed the current width level
+            if (currentWidth > miningAreaMaxWidth) {
+                // We've completed the entire vertical plane, move to next depth level
+                currentDepth++;
+                currentWidth = miningAreaMinWidth;
+                currentY = miningAreaMinY;
                 
-                // If we've completed the entire layer, move down one Y level
-                if (nextZ > maxZ) {
-                    nextZ = minZ;
-                    nextY--; // Decrement Y to move down one level
+                // Check if we've gone too deep (safety check)
+                if (currentDepth >= MINING_DEPTH) {
+                    Circuitmod.LOGGER.warn("[DRILL] Reached maximum depth of {}, stopping mining", MINING_DEPTH);
+                    return null;
                 }
-            }
-            
-            // Check if this position is safe
-            BlockPos nextPos = new BlockPos(nextX, nextY, nextZ);
-            if (!nextPos.equals(pos) && !isInSafeZone(nextPos)) {
-                // Found a safe position
-                foundSafePosition = true;
             }
         }
         
-        // Always update the position, whether we found a safe position or not
-        currentPos = new BlockPos(nextX, currentPos.getY(), nextZ);
-        currentY = nextY; // Make sure to update the Y level separately
+        // Calculate the actual block position based on facing direction
+        int x, y, z;
+        y = currentY;
         
-        if (!foundSafePosition) {
-            Circuitmod.LOGGER.warn("[DRILL-POSITION] Couldn't find safe mining position after " + safetyCounter + " attempts");
+        if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+            // Width is X direction, depth is Z direction
+            x = currentWidth;
+            z = startPos.getZ() + (facingDirection == Direction.NORTH ? -currentDepth : currentDepth);
         } else {
-            Circuitmod.LOGGER.info("[DRILL-POSITION] Advanced to position: " + currentPos + " at Y level " + currentY);
-        }
-    }
-    
-    // Check if the position is in the safe zone around the quarry
-    private boolean isInSafeZone(BlockPos targetPos) {
-        // First, check if it's the quarry itself
-        if (targetPos.equals(pos)) {
-            return true;
+            // Width is Z direction, depth is X direction
+            x = startPos.getX() + (facingDirection == Direction.WEST ? -currentDepth : currentDepth);
+            z = currentWidth;
         }
         
-        // Define a safe zone that includes the quarry itself and adjacent blocks
-        for (Direction dir : Direction.values()) {
-            BlockPos adjacentPos = pos.offset(dir);
-            if (targetPos.equals(adjacentPos)) {
-                return true; // Position is adjacent to the quarry
-            }
+        // Create the next mining position
+        BlockPos nextPos = new BlockPos(x, y, z);
+        
+        // Debug: Log the calculated position
+        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG] Calculated next mining position: " + nextPos);
+        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current depth: " + currentDepth);
+        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current width: " + currentWidth);
+        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current Y: " + currentY);
+        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Facing: " + facingDirection);
+        
+        // Check if this position is safe to mine
+        if (isInSafeZone(nextPos)) {
+            // Skip this position and try the next one
+            advanceToNextPosition(miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth);
+            return getNextMiningPos();
+        }
+        
+        return nextPos;
+    }
+
+    /**
+     * Advances to the next position in the mining sequence
+     */
+    private void advanceToNextPosition(int minY, int maxY, int minWidth, int maxWidth) {
+        if (currentPos == null) {
+            return;
+        }
+        
+        // Move to next Y position
+        currentY++;
+        
+        // If we've reached the end of the Y range, move to next width position
+        if (currentY > maxY) {
+            currentY = minY;
+            currentWidth++;
             
-            // Also check diagonals by combining horizontal directions
-            if (dir.getAxis().isHorizontal()) {
-                for (Direction dir2 : Direction.values()) {
-                    if (dir2.getAxis().isHorizontal() && dir != dir2 && dir != dir2.getOpposite()) {
-                        BlockPos diagonalPos = pos.offset(dir).offset(dir2);
-                        if (targetPos.equals(diagonalPos)) {
-                            return true; // Position is diagonally adjacent
-                        }
-                    }
+            // If we've reached the end of the width range, move to next depth level
+            if (currentWidth > maxWidth) {
+                currentWidth = minWidth;
+                currentDepth++;
+                
+                // Safety check for maximum depth
+                if (currentDepth >= MINING_DEPTH) {
+                    Circuitmod.LOGGER.warn("[DRILL] Reached maximum depth of {}, stopping mining", MINING_DEPTH);
+                    currentPos = null;
+                    return;
                 }
             }
         }
         
-        // Also consider the block the quarry is placed on and the block above
-        if (targetPos.equals(pos.up()) || targetPos.equals(pos.down())) {
-            return true;
+        // Calculate the actual block position based on facing direction
+        int x, y, z;
+        y = currentY;
+        
+        if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+            // Width is X direction, depth is Z direction
+            x = currentWidth;
+            z = startPos.getZ() + (facingDirection == Direction.NORTH ? -currentDepth : currentDepth);
+        } else {
+            // Width is Z direction, depth is X direction
+            x = startPos.getX() + (facingDirection == Direction.WEST ? -currentDepth : currentDepth);
+            z = currentWidth;
         }
         
-        // Additional safety: consider blocks immediately in front of the quarry in its facing direction
-        if (facingDirection != null) {
-            BlockPos inFront = pos.offset(facingDirection);
-            if (targetPos.equals(inFront)) {
-                return true;
-            }
-        }
-        
-        // Also check if it's a power cable or other network component
-        if (world != null && !world.isClient()) {
-            BlockEntity targetEntity = world.getBlockEntity(targetPos);
-            if (targetEntity instanceof IPowerConnectable) {
-                return true;
-            }
-        }
-        
-        return false;
+        // Update current position
+        currentPos = new BlockPos(x, y, z);
     }
-    
+
+    /**
+     * Checks if a position is safe to mine (not the drill itself or bedrock)
+     */
+    private boolean isInSafeZone(BlockPos targetPos) {
+        // Don't mine the drill itself
+        if (targetPos.equals(pos)) {
+            return true; // Safe zone includes the drill
+        }
+        
+        // Don't mine the block directly in front of the drill (where the drill is placed)
+        if (startPos != null && targetPos.equals(startPos)) {
+            return true; // Safe zone includes the starting position
+        }
+        
+        // Don't mine bedrock
+        if (world != null) {
+            BlockState blockState = world.getBlockState(targetPos);
+            if (blockState.isOf(Blocks.BEDROCK)) {
+                return true; // Safe zone includes bedrock
+            }
+        }
+        
+        return false; // Not in safe zone, can mine
+    }
+
+
+
+    /**
+     * Checks if the inventory is full
+     */
+    private boolean isInventoryFull() {
+        for (int i = 0; i < inventory.size(); i++) {
+            if (inventory.get(i).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // IEnergyConsumer implementation
     @Override
     public boolean canConnectPower(Direction side) {
@@ -710,16 +761,6 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     
     @Override
     public void setNetwork(EnergyNetwork network) {
-        // Safety check - don't allow setting null network if we already have one
-        if (network == null && this.network != null) {
-            return;
-        }
-        
-        // If we're changing networks, log it
-        if (this.network != null && network != null && this.network != network) {
-        } else if (network != null && this.network == null) {
-        }
-        
         this.network = network;
         
         // Initialize mining area if not already done
@@ -729,25 +770,27 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     }
     
     @Override
+    public void setWorld(World world) {
+        super.setWorld(world);
+        
+        // Initialize mining area when world is set (important for client-side loading)
+        if (world != null && startPos == null && pos != null) {
+            initializeMiningArea(pos, world.getBlockState(pos));
+        }
+    }
+    
+    @Override
     public int consumeEnergy(int energyOffered) {
         if (world == null || world.isClient()) {
             return 0;
         }
-
+        
         // Calculate how much energy we can actually consume
         int energyToConsume = Math.min(energyOffered, energyDemand);
         
         // Track the received energy for this tick
         if (energyToConsume > 0) {
-            this.energyReceived += energyToConsume; // ACCUMULATE energy instead of setting directly
-            
-            // Debug logs to diagnose the issue
-            Circuitmod.LOGGER.info("[DRILL-DEBUG] Energy offered: " + energyOffered + ", consumed: " + energyToConsume + ", accumulated: " + this.energyReceived);
-        } else {
-            // If we didn't receive any energy, reset mining speed
-            this.energyReceived = 0;
-            this.miningSpeed = 0;
-            markDirty();
+            this.energyReceived += energyToConsume;
         }
         
         return energyToConsume;
@@ -766,13 +809,13 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     public PropertyDelegate getPropertyDelegate() {
         return propertyDelegate;
     }
-    
+
     // Inventory implementation
     @Override
     public int size() {
         return inventory.size();
     }
-
+    
     @Override
     public boolean isEmpty() {
         for (ItemStack stack : inventory) {
@@ -782,22 +825,22 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         }
         return true;
     }
-
+    
     @Override
     public ItemStack getStack(int slot) {
         return inventory.get(slot);
     }
-
+    
     @Override
     public ItemStack removeStack(int slot, int amount) {
         return Inventories.splitStack(inventory, slot, amount);
     }
-
+    
     @Override
     public ItemStack removeStack(int slot) {
         return Inventories.removeStack(inventory, slot);
     }
-
+    
     @Override
     public void setStack(int slot, ItemStack stack) {
         inventory.set(slot, stack);
@@ -805,200 +848,331 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             stack.setCount(getMaxCountPerStack());
         }
     }
-
+    
     @Override
     public boolean canPlayerUse(PlayerEntity player) {
         if (world.getBlockEntity(pos) != this) {
             return false;
         }
-        return player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
+        return player.squaredDistanceTo((double)pos.getX() + 0.5D, (double)pos.getY() + 0.5D, (double)pos.getZ() + 0.5D) <= 64.0D;
     }
-
+    
     @Override
     public void clear() {
         inventory.clear();
     }
     
-    // SidedInventory implementation for automation compatibility
     @Override
     public int[] getAvailableSlots(Direction side) {
-        // All slots are available from all sides
         int[] slots = new int[inventory.size()];
         for (int i = 0; i < slots.length; i++) {
             slots[i] = i;
         }
         return slots;
     }
-
+    
     @Override
     public boolean canInsert(int slot, ItemStack stack, @Nullable Direction dir) {
         return true; // Allow insertion from any side
     }
-
+    
     @Override
     public boolean canExtract(int slot, ItemStack stack, Direction dir) {
         return true; // Allow extraction from any side
     }
-    
-    // Synchronize block entity data to client when changes happen
+
+    // Block entity events
     @Override
     public boolean onSyncedBlockEvent(int type, int data) {
-        // Mark as needing sync on the client
-        if (world != null && world.isClient()) {
-            markDirty();
+        if (type == 0) {
+            // Handle mining enabled toggle
+            boolean enabled = data == 1;
+            if (miningEnabled != enabled) {
+                miningEnabled = enabled;
+                markDirty();
+                Circuitmod.LOGGER.info("[DRILL] Mining toggled to: {}", enabled);
+            }
             return true;
         }
-        return super.onSyncedBlockEvent(type, data);
+        return false;
     }
-    
 
-    
-    /**
-     * Sets the mining progress directly from a network packet
-     * This is called on the client side when a packet is received
-     * 
-     * @param miningProgress The mining progress (0-100)
-     * @param miningPos The position being mined
-     */
+    // Network synchronization methods
     public void setMiningProgressFromNetwork(int miningProgress, BlockPos miningPos) {
-        // Only update on client side
-        if (world != null && world.isClient()) {
-            this.currentMiningProgress = miningProgress;
-            this.currentMiningPos = miningPos;
-            
-            // Mark dirty to trigger a re-render
-            markDirty();
-            
-            Circuitmod.LOGGER.info("[CLIENT] Updated mining progress: " + miningProgress + "% at " + miningPos);
-        }
+        this.currentMiningProgress = miningProgress;
+        this.currentMiningPos = miningPos;
+        Circuitmod.LOGGER.info("[DRILL] Received mining progress update: {} at {}", miningProgress, miningPos);
     }
     
-    /**
-     * Gets the current mining speed in blocks per second
-     * @return the mining speed
-     */
-    public int getMiningSpeed() {
-        return propertyDelegate.get(MINING_SPEED_INDEX);
-    }
-    
-    /**
-     * Gets the current mining position
-     * @return the current mining position, or null if not mining
-     */
     public BlockPos getCurrentMiningPos() {
         return currentMiningPos;
     }
     
-    /**
-     * Gets the current mining progress percentage (0-100)
-     * @return the mining progress percentage
-     */
     public int getCurrentMiningProgress() {
         return currentMiningProgress;
     }
     
-    /**
-     * Gets the total ticks needed to mine the current block
-     * @return the total mining ticks
-     */
     public int getTotalMiningTicks() {
         return totalMiningTicks;
     }
     
-    /**
-     * Gets the current ticks spent mining the current block
-     * @return the current mining ticks
-     */
     public int getCurrentMiningTicks() {
         return currentMiningTicks;
     }
-
-    /**
-     * Toggles the mining enabled state and notifies clients.
-     */
-    public void toggleMining() {
-        if (world == null || world.isClient()) {
-            return;
-        }
-        
-        miningEnabled = !miningEnabled;
-        Circuitmod.LOGGER.info("[DRILL-TOGGLE] Mining toggled to: " + miningEnabled);
-        markDirty();
-        
-        // Send status update to all players tracking this drill
-        if (world instanceof ServerWorld serverWorld) {
-            for (ServerPlayerEntity player : PlayerLookup.tracking(serverWorld, pos)) {
-                ModNetworking.sendMiningEnabledStatus(player, miningEnabled, pos);
+    
+    public void setMiningEnabled(boolean enabled) {
+        if (miningEnabled != enabled) {
+            miningEnabled = enabled;
+            markDirty();
+            
+            // Send network update
+            if (world != null && !world.isClient()) {
+                ModNetworking.sendDrillMiningEnabledUpdate(
+                    PlayerLookup.tracking(this),
+                    enabled
+                );
             }
+            
+            Circuitmod.LOGGER.info("[DRILL] Mining enabled set to: {}", enabled);
         }
     }
-
-    /**
-     * Gets the current mining enabled state.
-     * @return true if mining is enabled, false otherwise.
-     */
+    
     public boolean isMiningEnabled() {
         return miningEnabled;
     }
     
-    /**
-     * Sets the mining enabled state from a network packet.
-     * This is called on the client side when a packet is received.
-     * 
-     * @param enabled Whether mining is enabled
-     */
+    public void toggleMining() {
+        setMiningEnabled(!miningEnabled);
+    }
+    
     public void setMiningEnabledFromNetwork(boolean enabled) {
-        // Only update on client side
-        if (world != null && world.isClient()) {
-            this.miningEnabled = enabled;
+        if (miningEnabled != enabled) {
+            miningEnabled = enabled;
             markDirty();
-            Circuitmod.LOGGER.info("[CLIENT] Updated drill mining enabled status: " + enabled);
+            Circuitmod.LOGGER.info("[DRILL] Mining enabled updated from network: {}", enabled);
         }
     }
     
-    // NamedScreenHandlerFactory implementation
+    public void setMiningDimensions(int height, int width) {
+        // Validate dimensions
+        height = Math.max(1, Math.min(100, height));
+        width = Math.max(1, Math.min(100, width));
+        
+        if (this.miningHeight != height || this.miningWidth != width) {
+            this.miningHeight = height;
+            this.miningWidth = width;
+            
+            // Always reinitialize the mining area when dimensions change
+            // This ensures the drill updates immediately regardless of mining state
+            this.initializeMiningArea(this.pos, this.getCachedState());
+            
+            // Reset current mining position to start from the beginning of the new area
+            this.currentMiningPos = null;
+            this.currentMiningProgress = 0;
+            this.totalMiningTicks = 0;
+            this.currentMiningTicks = 0;
+            
+            markDirty();
+            
+            Circuitmod.LOGGER.info("[DRILL] Mining dimensions set to: {}x{}", height, width);
+        }
+    }
+    
+    public int getMiningHeight() {
+        return miningHeight;
+    }
+    
+    public int getMiningWidth() {
+        return miningWidth;
+    }
+    
+    public int getMiningLength() {
+        return miningWidth; // For drill, length is the same as width (horizontal mining)
+    }
+    
+    public void setMiningDimensionsFromNetwork(int height, int width) {
+        // Only update on client side
+        if (world != null && world.isClient()) {
+            this.miningHeight = height;
+            this.miningWidth = width;
+            
+            // Always reinitialize the mining area to ensure bounds are calculated correctly
+            if (this.startPos != null && this.facingDirection != null) {
+                // Recalculate bounds using the same logic as initializeMiningArea
+                int centerY = startPos.getY();
+                
+                // Calculate bounds for Y (height) direction
+                this.miningAreaMinY = centerY - (miningHeight / 2);
+                this.miningAreaMaxY = centerY + (miningHeight / 2) - 1;
+                
+                // Calculate bounds for width direction (X or Z depending on facing)
+                if (this.facingDirection == Direction.NORTH || this.facingDirection == Direction.SOUTH) {
+                    // Width is X direction
+                    int centerX = startPos.getX();
+                    this.miningAreaMinWidth = centerX - (miningWidth / 2);
+                    this.miningAreaMaxWidth = centerX + (miningWidth / 2) - 1;
+                } else {
+                    // Width is Z direction
+                    int centerZ = startPos.getZ();
+                    this.miningAreaMinWidth = centerZ - (miningWidth / 2);
+                    this.miningAreaMaxWidth = centerZ + (miningWidth / 2) - 1;
+                }
+            } else {
+                // If we don't have startPos or facingDirection, try to initialize the mining area
+                if (pos != null && world != null) {
+                    initializeMiningArea(pos, world.getBlockState(pos));
+                }
+            }
+            
+            markDirty();
+            Circuitmod.LOGGER.info("[DRILL] Mining dimensions updated from network: {}x{}", height, width);
+        }
+    }
+
+    // Screen handler implementation
     @Override
     public Text getDisplayName() {
         return Text.translatable("block.circuitmod.drill_block");
     }
     
     @Override
+    public ModScreenHandlers.DrillData getScreenOpeningData(ServerPlayerEntity player) {
+        return new ModScreenHandlers.DrillData(pos);
+    }
+    
+    @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
         return new DrillScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
-
+    
     public void findAndJoinNetwork() {
-        if (world == null || world.isClient) return;
-        boolean foundNetwork = false;
-        for (Direction dir : Direction.values()) {
-            BlockPos neighborPos = pos.offset(dir);
-            BlockEntity be = world.getBlockEntity(neighborPos);
-            if (be instanceof IPowerConnectable) {
-                IPowerConnectable connectable = (IPowerConnectable) be;
-                EnergyNetwork network = connectable.getNetwork();
-                if (network != null && network != this.network) {
-                    if (this.network != null) {
-                        this.network.removeBlock(pos);
-                    }
-                    network.addBlock(pos, this);
-                    foundNetwork = true;
-                    break;
+        if (world == null || world.isClient()) {
+            return;
+        }
+        
+        // Look for nearby power cables or other power connectables
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos = pos.offset(direction);
+            BlockEntity neighborEntity = world.getBlockEntity(neighborPos);
+            
+            if (neighborEntity instanceof IPowerConnectable connectable) {
+                EnergyNetwork neighborNetwork = connectable.getNetwork();
+                if (neighborNetwork != null) {
+                    // Join the neighbor's network
+                    neighborNetwork.addBlock(pos, this);
+                    Circuitmod.LOGGER.info("[DRILL] Joined network {} at {}", 
+                        neighborNetwork.getNetworkId(), pos);
+                    return;
                 }
             }
         }
-        if (!foundNetwork && (this.network == null)) {
-            EnergyNetwork newNetwork = new EnergyNetwork();
-            newNetwork.addBlock(pos, this);
-            for (Direction dir : Direction.values()) {
-                BlockPos neighborPos = pos.offset(dir);
-                BlockEntity be = world.getBlockEntity(neighborPos);
-                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
-                    IPowerConnectable connectable = (IPowerConnectable) be;
-                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
-                        newNetwork.addBlock(neighborPos, connectable);
-                    }
-                }
-            }
+        
+        // If no network found, create a new one
+        if (network == null) {
+            network = new EnergyNetwork();
+            network.addBlock(pos, this);
+            Circuitmod.LOGGER.info("[DRILL] Created new network {} at {}", 
+                network.getNetworkId(), pos);
         }
     }
+    
+    /**
+     * Gets the perimeter positions for rendering the mining area box
+     */
+    public List<BlockPos> getPerimeterPositions() {
+        List<BlockPos> perimeter = new ArrayList<>();
+        
+        if (startPos == null || facingDirection == null) {
+            // System.out.println("[DRILL-PERIMETER-DEBUG] startPos or facingDirection is null");
+            return perimeter;
+        }
+        
+        // For horizontal mining with fixed depth, we create a rectangle that shows the full mining area
+        // The rectangle should extend from the start position in the mining direction for 50 blocks
+        
+        // System.out.println("[DRILL-PERIMETER-DEBUG] ========================================");
+        // System.out.println("[DRILL-PERIMETER-DEBUG] startPos: " + startPos);
+        // System.out.println("[DRILL-PERIMETER-DEBUG] facingDirection: " + facingDirection);
+        // System.out.println("[DRILL-PERIMETER-DEBUG] miningAreaMinY: " + miningAreaMinY + ", miningAreaMaxY: " + miningAreaMaxY);
+        // System.out.println("[DRILL-PERIMETER-DEBUG] miningAreaMinWidth: " + miningAreaMinWidth + ", miningAreaMaxWidth: " + miningAreaMaxWidth);
+        
+        // Calculate the end position (50 blocks in the mining direction)
+        int endX, endZ;
+        if (facingDirection == Direction.NORTH) {
+            endX = startPos.getX();
+            endZ = startPos.getZ() - MINING_DEPTH;
+        } else if (facingDirection == Direction.SOUTH) {
+            endX = startPos.getX();
+            endZ = startPos.getZ() + MINING_DEPTH;
+        } else if (facingDirection == Direction.EAST) {
+            endX = startPos.getX() + MINING_DEPTH;
+            endZ = startPos.getZ();
+        } else { // WEST
+            endX = startPos.getX() - MINING_DEPTH;
+            endZ = startPos.getZ();
+        }
+        
+        // System.out.println("[DRILL-PERIMETER-DEBUG] End position: (" + endX + ", " + endZ + ")");
+        
+        // Create a simple rectangle showing the mining area at the start position
+        // This will show the cross-section of the mining area that extends 50 blocks in the mining direction
+        
+        // Top edge
+        for (int width = miningAreaMinWidth; width <= miningAreaMaxWidth; width++) {
+            if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+                perimeter.add(new BlockPos(width, miningAreaMaxY, startPos.getZ()));
+            } else {
+                perimeter.add(new BlockPos(startPos.getX(), miningAreaMaxY, width));
+            }
+        }
+        
+        // Right edge
+        for (int y = miningAreaMaxY; y >= miningAreaMinY; y--) {
+            if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+                perimeter.add(new BlockPos(miningAreaMaxWidth, y, startPos.getZ()));
+            } else {
+                perimeter.add(new BlockPos(startPos.getX(), y, miningAreaMaxWidth));
+            }
+        }
+        
+        // Bottom edge
+        for (int width = miningAreaMaxWidth; width >= miningAreaMinWidth; width--) {
+            if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+                perimeter.add(new BlockPos(width, miningAreaMinY, startPos.getZ()));
+            } else {
+                perimeter.add(new BlockPos(startPos.getX(), miningAreaMinY, width));
+            }
+        }
+        
+        // Left edge
+        for (int y = miningAreaMinY; y <= miningAreaMaxY; y++) {
+            if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+                perimeter.add(new BlockPos(miningAreaMinWidth, y, startPos.getZ()));
+            } else {
+                perimeter.add(new BlockPos(startPos.getX(), y, miningAreaMinWidth));
+            }
+        }
+        
+        // System.out.println("[DRILL-PERIMETER-DEBUG] Generated " + perimeter.size() + " perimeter positions");
+        // System.out.println("[DRILL-PERIMETER-DEBUG] First 5 positions: " + perimeter.subList(0, Math.min(5, perimeter.size())));
+        // System.out.println("[DRILL-PERIMETER-DEBUG] ========================================");
+        
+        return perimeter;
+    }
+    
+    /**
+     * Gets the mining area bounds as an array [minY, maxY, minWidth, maxWidth]
+     */
+    public int[] getMiningAreaBounds() {
+        return new int[]{miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth};
+    }
+    
+    /**
+     * Gets the facing direction used for mining (opposite of visual facing)
+     */
+    public Direction getFacingDirection() {
+        return facingDirection;
+    }
+    
+
 } 
