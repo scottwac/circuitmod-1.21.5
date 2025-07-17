@@ -117,19 +117,19 @@ public class ClientNetworking {
         
         // Register handler for item move animations
         ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ItemMovePayload.ID, (payload, context) -> {
-            // Extract data from the payload
-            ItemStack stack = payload.stack();
+            // Extract data from the payload and create a copy to ensure isolation
+            ItemStack stack = payload.stack().copy();
             BlockPos from = payload.from();
             BlockPos to = payload.to();
-            long startTick = payload.startTick();
+            long serverStartTick = payload.startTick();
             int durationTicks = payload.durationTicks();
             
             // Process on the game thread
             context.client().execute(() -> {
-                // Add the animation to the client animator
-                ClientNetworkAnimator.addAnimation(stack, from, to, startTick, durationTicks);
-                Circuitmod.LOGGER.info("[CLIENT] Received item move animation: {} from {} to {}", 
-                    stack.getItem().getName().getString(), from, to);
+                // Use server timing for perfect synchronization with actual transfers
+                ClientNetworkAnimator.addAnimation(stack, from, to, serverStartTick, durationTicks);
+                Circuitmod.LOGGER.info("[CLIENT] Received item move animation: {} from {} to {} (server start: {})", 
+                    stack.getItem().getName().getString(), from, to, serverStartTick);
             });
         });
         

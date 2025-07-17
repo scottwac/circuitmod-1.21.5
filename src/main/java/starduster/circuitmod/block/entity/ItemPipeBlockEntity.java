@@ -31,13 +31,14 @@ import org.jetbrains.annotations.Nullable;
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     private static final int INVENTORY_SIZE = 1; // A pipe only holds one item at a time
-    private static final int COOLDOWN_TICKS = 1; // Much faster than vanilla hoppers (was 8)
-    public static final int ANIMATION_TICKS = 8; // how many ticks the slide should take
+    private static final int COOLDOWN_TICKS = 40; // Slowed down for observation (was 1)
+    public static final int ANIMATION_TICKS = 40; // Animation duration shorter than cooldown for better sync
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     private int transferCooldown = -1;
     private long lastTickTime;
     private @Nullable Direction lastInputDirection = null; // Track where the item came from
+    private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ITEM_PIPE, pos, state);
@@ -114,7 +115,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     if (world instanceof ServerWorld serverWorld) {
                         BlockPos animationFromPos = pos.up();
                         ItemStack extractedStack = blockEntity.getStack(0);
-                        PipeNetworkAnimator.sendMoveAnimation(serverWorld, extractedStack.copy(), animationFromPos, pos, ANIMATION_TICKS);
+                        blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, animationFromPos, pos);
                     }
                     
                     Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted item from inventory above at " + pos);
@@ -139,7 +140,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 if (world instanceof ServerWorld serverWorld) {
                     BlockPos animationFromPos = pos.up();
                     ItemStack extractedStack = blockEntity.getStack(0);
-                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, extractedStack.copy(), animationFromPos, pos, ANIMATION_TICKS);
+                    blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, animationFromPos, pos);
                 }
                 
                 Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted item from entity at " + pos);
@@ -174,7 +175,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 // Send animation for item leaving the pipe
                 if (world instanceof ServerWorld serverWorld) {
-                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, belowPos, ANIMATION_TICKS);
+                    blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, belowPos);
                 }
                 
                 return true;
@@ -223,7 +224,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 // Send animation to clients
                 if (world instanceof ServerWorld serverWorld) {
-                    PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, neighborPos, ANIMATION_TICKS);
+                    blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, neighborPos);
                 }
                 
                 blockEntity.setStack(0, ItemStack.EMPTY);
@@ -245,7 +246,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     
                     // Send animation for item leaving the pipe
                     if (world instanceof ServerWorld serverWorld) {
-                        PipeNetworkAnimator.sendMoveAnimation(serverWorld, currentStack.copy(), pos, neighborPos, ANIMATION_TICKS);
+                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, neighborPos);
                     }
                     
                     return true;
@@ -464,6 +465,23 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                ItemStack.areItemsEqual(first, second);
     }
     
+    /**
+     * Send an animation if enough time has passed since the last one to prevent duplicates
+     */
+    private void sendAnimationIfAllowed(ServerWorld world, ItemStack stack, BlockPos from, BlockPos to) {
+        int currentTick = (int) world.getTime();
+        
+        // Only send animation if at least 3 ticks have passed since the last one
+        if (currentTick - this.lastAnimationTick >= 3) {
+            // Send animation starting immediately
+            PipeNetworkAnimator.sendMoveAnimation(world, stack.copy(), from, to, ANIMATION_TICKS);
+            this.lastAnimationTick = currentTick;
+        } else {
+            Circuitmod.LOGGER.info("[PIPE-ANIMATION-SKIP] Skipped duplicate animation at {} (last: {}, current: {})", 
+                this.getPos(), this.lastAnimationTick, currentTick);
+        }
+    }
+    
     private void setTransferCooldown(int cooldown) {
         this.transferCooldown = cooldown;
     }
@@ -577,6 +595,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
         }
         
+        // Save the last animation tick
+        nbt.putInt("LastAnimationTick", this.lastAnimationTick);
+        
         // Debug logging for NBT writing (reduced frequency)
         if (world != null && world.getTime() % 20 == 0) { // Only log every second
             Circuitmod.LOGGER.info("[PIPE-NBT-WRITE] Writing NBT at " + this.getPos() + 
@@ -600,6 +621,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         } else {
             this.lastInputDirection = null;
         }
+        
+        // Load the last animation tick
+        this.lastAnimationTick = nbt.getInt("LastAnimationTick", -1);
         
         // Debug logging for NBT reading (reduced frequency)
         if (world != null && world.getTime() % 20 == 0) { // Only log every second

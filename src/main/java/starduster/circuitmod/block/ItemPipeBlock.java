@@ -101,6 +101,22 @@ public class ItemPipeBlock extends BlockWithEntity {
     }
 
     @Override
+    protected boolean isTransparent(BlockState state) {
+        return true;
+    }
+
+    @Override
+    protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+        return 1.0F; // Full light level - no shadow casting
+    }
+
+    @Override
+    protected boolean isSideInvisible(BlockState state, BlockState stateFrom, Direction direction) {
+        // Hide faces between adjacent pipe blocks to reduce visual clutter
+        return stateFrom.isOf(this) ? true : super.isSideInvisible(state, stateFrom, direction);
+    }
+
+    @Override
     public BlockRenderType getRenderType(BlockState state) {
         return BlockRenderType.MODEL;
     }

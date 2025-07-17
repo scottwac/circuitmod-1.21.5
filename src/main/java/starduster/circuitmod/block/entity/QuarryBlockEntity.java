@@ -1187,17 +1187,12 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     public List<BlockPos> getPerimeterPositions() {
         List<BlockPos> perimeter = new ArrayList<>();
         
-        System.out.println("[PERIMETER] getPerimeterPositions called for quarry at " + pos);
-        System.out.println("[PERIMETER] startPos: " + startPos + ", facingDirection: " + facingDirection);
-        
         // If mining area isn't initialized, try to initialize it
         if (startPos == null || facingDirection == null) {
             if (world != null && pos != null) {
-                System.out.println("[PERIMETER] Initializing mining area at " + pos);
                 initializeMiningArea(pos, world.getBlockState(pos));
             } else {
                 // If we still can't initialize, return empty list
-                System.out.println("[PERIMETER] Cannot initialize mining area - world or pos is null");
                 return perimeter;
             }
         }
@@ -1212,8 +1207,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         int maxX = this.miningAreaMaxX;
         int minZ = this.miningAreaMinZ;
         int maxZ = this.miningAreaMaxZ;
-        
-        System.out.println("[PERIMETER] Current bounds: X:" + minX + " to " + maxX + ", Z:" + minZ + " to " + maxZ);
         
         // If bounds are not set, try to initialize them
         if (minX == 0 && maxX == 0 && minZ == 0 && maxZ == 0 && startPos != null && facingDirection != null) {
@@ -1286,8 +1279,6 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         for (int z = minZ + 1; z < maxZ; z++) {
             perimeter.add(new BlockPos(maxX, startPos.getY(), z));
         }
-        
-        System.out.println("[PERIMETER] Added " + perimeter.size() + " perimeter positions");
         
         // Debug log the final result
         if (System.currentTimeMillis() % 10000 < 50) { // Log every ~10 seconds
