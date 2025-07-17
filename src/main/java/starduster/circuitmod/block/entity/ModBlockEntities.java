@@ -140,6 +140,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(MassFabricatorBlockEntity::new, ModBlocks.MASS_FABRICATOR).build()
     );
 
+    // Blueprint system block entities
+    public static final BlockEntityType<BlueprintDeskBlockEntity> BLUEPRINT_DESK_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "blueprint_desk"),
+        FabricBlockEntityTypeBuilder.create(BlueprintDeskBlockEntity::new, ModBlocks.BLUEPRINT_DESK).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "R": "minecraft:redstone",
+    "C": "minecraft:crafting_table",
+    "G": "minecraft:glass"
+  },
+  "pattern": [
+    "IGI",
+    "RCR",
+    "III"
+  ],
+  "result": {
+    "count": 2,
+    "id": "circuitmod:blueprint_desk"
+  }
+} 

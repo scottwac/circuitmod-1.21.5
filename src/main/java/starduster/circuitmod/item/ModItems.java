@@ -54,6 +54,9 @@ public final class ModItems {
     public static final Item STEEL_AXE = register("steel_axe", Item::new, (new Item.Settings()).axe(ModToolMaterials.STEEL_TOOL_MATERIAL, 6.0F, -3.1F));
     public static final Item STEEL_HOE = register("steel_hoe", Item::new, (new Item.Settings()).hoe(ModToolMaterials.STEEL_TOOL_MATERIAL, 2.0F, -1.0F));
 
+    // Blueprint item
+    public static final Item BLUEPRINT = register("blueprint", BlueprintItem::new, new Item.Settings().maxCount(1));
+
 
 
 

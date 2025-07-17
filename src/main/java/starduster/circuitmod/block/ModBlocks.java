@@ -41,6 +41,15 @@ public final class ModBlocks {
                     .strength(3.0f, 5.0f)
     );
 
+    // Register blueprint desk block
+    public static final Block BLUEPRINT_DESK = register(
+            "blueprint_desk",
+            BlueprintDeskBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(2.0f, 3.0f)
+    );
+
     // Register bloomery block
     public static final Block BLOOMERY = register(
         "bloomery", 
@@ -181,6 +190,8 @@ public final class ModBlocks {
         MassFabricatorBlock::new,
         Block.Settings.create().strength(4.0f).requiresTool()
     );
+
+    
 
 
     /**

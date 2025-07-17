@@ -40,6 +40,15 @@ public class ModScreenHandlers {
             DrillData::new
         );
     }
+    
+    // Data class for blueprint desk screen opening data
+    public record BlueprintDeskData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, BlueprintDeskData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            BlueprintDeskData::pos,
+            BlueprintDeskData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -77,6 +86,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "reactor_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new ReactorScreenHandler(syncId, inventory, data), ReactorData.PACKET_CODEC)
+        );
+    
+    // Register blueprint desk screen handler
+    public static final ExtendedScreenHandlerType<BlueprintDeskScreenHandler, BlueprintDeskData> BLUEPRINT_DESK_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "blueprint_desk_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new BlueprintDeskScreenHandler(syncId, inventory), BlueprintDeskData.PACKET_CODEC)
         );
     
     public static void initialize() {
