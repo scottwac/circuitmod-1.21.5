@@ -196,6 +196,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             BooleanProperty directionProperty = getDirectionProperty(direction);
             
             if (!state.get(directionProperty)) {
+                if (world.getTime() % 100 == 0) { // Debug log occasionally
+                    Circuitmod.LOGGER.info("[PIPE-CONNECTION] Pipe at {} not connected in direction {}", pos, direction);
+                }
                 continue;
             }
             
@@ -212,6 +215,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 // Check if transferring to this pipe would create a loop
                 if (wouldCreateLoop(pos, neighborPos, direction, blockEntity.lastInputDirection)) {
+                    Circuitmod.LOGGER.info("[PIPE-LOOP-PREVENTION] Prevented loop: {} -> {} (came from {})", 
+                        pos, direction, blockEntity.lastInputDirection);
                     continue;
                 }
                 
@@ -229,7 +234,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 blockEntity.setStack(0, ItemStack.EMPTY);
                 blockEntity.markDirty();
-                Circuitmod.LOGGER.info("[PIPE-TRANSFER] Transferred item to neighbor pipe at " + neighborPos + " from " + pos);
+                Circuitmod.LOGGER.info("[PIPE-TRANSFER] SUCCESS: Transferred {} from {} to {} (direction: {}, lastInput: {})", 
+                    currentStack.getItem().getName().getString(), pos, neighborPos, direction, blockEntity.lastInputDirection);
                 return true;
             }
             
@@ -296,21 +302,14 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
      * This is a simple heuristic to prevent immediate bounce-backs.
      */
     private static boolean wouldCreateLoop(BlockPos fromPos, BlockPos toPos, Direction transferDirection, @Nullable Direction lastInputDirection) {
-        // If we just received an item from the direction we're trying to send to, it's likely a loop
+        // Only prevent immediate bounce-back to the exact same direction we received from
+        // This allows legitimate horizontal flow in pipe networks
         if (lastInputDirection != null && transferDirection == lastInputDirection) {
             return true;
         }
         
-        // Additional check: if we're trying to send an item back in the opposite direction
-        // of where we received it from (and it's horizontal), it might be a loop
-        if (lastInputDirection != null && transferDirection == lastInputDirection.getOpposite()) {
-            // Allow vertical transfers (up/down) but be more restrictive with horizontal
-            if (lastInputDirection.getAxis() == Direction.Axis.Y || transferDirection.getAxis() == Direction.Axis.Y) {
-                return false; // Allow vertical flow
-            }
-            return true; // Prevent horizontal bouncing
-        }
-        
+        // Allow all other transfers including opposite direction transfers
+        // The original logic was too restrictive and prevented legitimate pipe chains
         return false;
     }
     
