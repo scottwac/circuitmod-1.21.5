@@ -17,7 +17,7 @@ import net.minecraft.block.entity.BlockEntity;
 
 public class DrillScreen extends HandledScreen<DrillScreenHandler> {
     // Use generic chest texture
-    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/quarry/quarry_gui.png");
+    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/quarry/drill_gui.png");
     // Green color for the mining speed text
     private static final int MINING_SPEED_COLOR = 0xFF00FF00; // ARGB format (alpha, red, green, blue)
     
@@ -87,10 +87,10 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
         int baseX = (width - backgroundWidth) / 2;
         int baseY = (height - backgroundHeight) / 2;
         // Height label
-        Text heightLabel = Text.literal("Height:");
+        Text heightLabel = Text.literal("");
         context.drawText(textRenderer, heightLabel, baseX + 58, baseY + 8, 0xFFFFFF, false);
         // Width label
-        Text widthLabel = Text.literal("Width:");
+        Text widthLabel = Text.literal("");
         context.drawText(textRenderer, widthLabel, baseX + 58, baseY + 30, 0xFFFFFF, false);
         // Draw toggle button indicator
         if (toggleMiningButton != null) {
@@ -136,7 +136,7 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
     protected void init() {
         super.init();
         // Center the title
-        titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        //titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
         
         // Add toggle mining button at position (18, 52) with size 14x14
         int buttonX = (width - backgroundWidth) / 2 + 18;
@@ -161,7 +161,7 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
                     Circuitmod.LOGGER.error("[DRILL-SCREEN] Could not find drill position, not sending toggle request!");
                 }
             })
-            .dimensions(buttonX, buttonY, 14, 14)
+            .dimensions(buttonX, buttonY, 15, 15)
             .build();
             
         addDrawableChild(toggleMiningButton);
@@ -173,7 +173,7 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
         // Height field: (58, 17) to (93, 36) - size 35x19
         heightField = new TextFieldWidget(
             textRenderer,
-            baseX + 58, baseY + 17, 35, 19,
+            baseX + 58, baseY + 17, 36, 20,
             Text.literal("Height")
         );
         heightField.setMaxLength(3); // Max 3 digits
@@ -202,7 +202,7 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
         // Width field: (58, 39) to (93, 58) - size 35x19
         widthField = new TextFieldWidget(
             textRenderer,
-            baseX + 58, baseY + 39, 35, 19,
+            baseX + 58, baseY + 39, 36, 20,
             Text.literal("Width")
         );
         widthField.setMaxLength(3); // Max 3 digits
@@ -260,8 +260,8 @@ public class DrillScreen extends HandledScreen<DrillScreenHandler> {
         
         // Draw a colored indicator based on mining status
         int color = miningEnabled ? 0xFF00FF00 : 0xFFFF0000; // Green if enabled, red if disabled
-        context.fill(baseX + 18, baseY + 52, baseX + 32, baseY + 66, color);
-    }
+        context.fill(baseX + 19, baseY + 53, baseX + 19+13, baseY + 53+13, color);
+    } //adj done
     
     private BlockPos findDrillPosition() {
         // Try to get position from handler first

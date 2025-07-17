@@ -92,10 +92,10 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         int baseX = (width - backgroundWidth) / 2;
         int baseY = (height - backgroundHeight) / 2;
         // Width label
-        Text widthLabel = Text.literal("Width:");
+        Text widthLabel = Text.literal("");
         context.drawText(textRenderer, widthLabel, baseX + 58, baseY + 8, 0xFFFFFF, false);
         // Length label
-        Text lengthLabel = Text.literal("Length:");
+        Text lengthLabel = Text.literal("");
         context.drawText(textRenderer, lengthLabel, baseX + 58, baseY + 30, 0xFFFFFF, false);
         // Draw toggle button indicator
         if (toggleMiningButton != null) {
@@ -141,7 +141,7 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     protected void init() {
         super.init();
         // Center the title
-        titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        //titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
         
         // Add toggle mining button at position (18, 52) with size 14x14
         int buttonX = (width - backgroundWidth) / 2 + 18;
@@ -166,7 +166,7 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
                     Circuitmod.LOGGER.error("[QUARRY-SCREEN] Could not find quarry position, not sending toggle request!");
                 }
             })
-            .dimensions(buttonX, buttonY, 14, 14)
+            .dimensions(buttonX, buttonY, 15, 15)
             .build();
             
         addDrawableChild(toggleMiningButton);
@@ -178,7 +178,7 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         // Width field: (58, 17) to (93, 36) - size 35x19
         widthField = new TextFieldWidget(
             textRenderer,
-            baseX + 58, baseY + 17, 35, 19,
+            baseX + 58, baseY + 17, 36, 20,
             Text.literal("Width")
         );
         widthField.setMaxLength(3); // Max 3 digits
@@ -207,7 +207,7 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         // Length field: (58, 39) to (93, 58) - size 35x19
         lengthField = new TextFieldWidget(
             textRenderer,
-            baseX + 58, baseY + 39, 35, 19,
+            baseX + 58, baseY + 39, 36, 20,
             Text.literal("Length")
         );
         lengthField.setMaxLength(3); // Max 3 digits
