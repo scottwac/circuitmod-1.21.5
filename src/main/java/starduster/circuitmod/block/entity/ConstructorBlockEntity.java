@@ -30,6 +30,8 @@ import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
+import net.minecraft.item.Item;
+import net.minecraft.block.Blocks;
 
 import java.util.*;
 
@@ -49,18 +51,29 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     private int totalBuildBlocks = 0;
     private String statusMessage = "No blueprint loaded";
     
-    // Current construction position
+    // Current construction position and progress tracking (like quarry)
     private BlockPos currentBuildPos = null;
     private Set<BlockPos> builtPositions = new HashSet<>(); // Track what we've built
+    private int currentBuildProgress = 0; // Progress on current block (0-100)
+    private int totalBuildTicks = 0; // Total ticks needed to build current block
+    private int currentBuildTicks = 0; // Current ticks spent building
     
     // Required materials tracking
     private Map<String, Integer> requiredMaterials = new HashMap<>();
     private Map<String, Integer> availableMaterials = new HashMap<>();
     
+    // Build offset - where the blueprint should be built relative to the Constructor
+    private BlockPos buildOffset = new BlockPos(0, 0, 1); // Default: 1 block in front
+    
     // Energy properties
-    private static final int MAX_ENERGY_DEMAND = 500; // Energy demand per tick when building
-    private int energyDemand = 0; // Current energy demand per tick
+    private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
+    private static final int ENERGY_PER_BLOCK = 100; // Flat energy cost per block (like quarry)
+    private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
     private int energyReceived = 0; // Energy received this tick
+    private boolean isReceivingPower = false; // Track if we're receiving power
+    private boolean hasBlueprintState = false; // Track blueprint state on client side
+    private boolean hasPowerState = false; // Track power state on client side
+    private String clientStatusMessage = "No blueprint loaded"; // Track status message on client side
     private EnergyNetwork network;
     public boolean needsNetworkRefresh = false;
     
@@ -72,7 +85,15 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                 case 0: return building ? 1 : 0;
                 case 1: return buildProgress;
                 case 2: return totalBuildBlocks;
-                case 3: return currentBlueprint != null ? 1 : 0;
+                case 3: 
+                    boolean hasBP = world != null && world.isClient() ? hasBlueprintState : (currentBlueprint != null);
+                    if (world != null && world.getTime() % 100 == 0) { // Log every 5 seconds
+                        Circuitmod.LOGGER.info("[CONSTRUCTOR-PROPERTY] Index 3 (hasBlueprint): {}, hasBlueprintState: {}, currentBlueprint: {}", hasBP ? 1 : 0, hasBlueprintState, currentBlueprint != null ? currentBlueprint.getName() : "null");
+                    }
+                    return hasBP ? 1 : 0;
+                case 4: 
+                    boolean hasPower = world != null && world.isClient() ? hasPowerState : isReceivingPower;
+                    return hasPower ? 1 : 0;
                 default: return 0;
             }
         }
@@ -80,16 +101,37 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         @Override
         public void set(int index, int value) {
             switch (index) {
-                case 0: building = value == 1; break;
+                case 0: 
+                    boolean newBuilding = value == 1;
+                    if (building != newBuilding) {
+                        building = newBuilding;
+                        markDirty();
+                    }
+                    break;
                 case 1: buildProgress = value; break;
                 case 2: totalBuildBlocks = value; break;
-                case 3: break; // Read-only
+                case 3: 
+                    // Update the blueprint state - this is used by the GUI
+                    boolean hasBlueprint = value == 1;
+                    if (world != null && world.isClient()) {
+                        hasBlueprintState = hasBlueprint;
+                        Circuitmod.LOGGER.info("[CONSTRUCTOR-PROPERTY] Setting hasBlueprintState to {} via property delegate", hasBlueprint);
+                    }
+                    break;
+                case 4: 
+                    // Update the power state - this is used by the GUI
+                    boolean hasPower = value == 1;
+                    if (world != null && world.isClient()) {
+                        hasPowerState = hasPower;
+                        Circuitmod.LOGGER.info("[CONSTRUCTOR-PROPERTY] Setting hasPowerState to {} via property delegate", hasPower);
+                    }
+                    break;
             }
         }
 
         @Override
         public int size() {
-            return 4;
+            return 5;
         }
     };
     
@@ -111,6 +153,11 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         nbt.putInt("total_build_blocks", totalBuildBlocks);
         nbt.putString("status_message", statusMessage);
         
+        // Save building progress tracking (like quarry)
+        nbt.putInt("current_build_progress", currentBuildProgress);
+        nbt.putInt("total_build_ticks", totalBuildTicks);
+        nbt.putInt("current_build_ticks", currentBuildTicks);
+        
         // Save current build position
         if (currentBuildPos != null) {
             nbt.putInt("build_x", currentBuildPos.getX());
@@ -130,6 +177,11 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             index++;
         }
         nbt.put("built_positions", builtNbt);
+        
+        // Save build offset
+        nbt.putInt("build_offset_x", buildOffset.getX());
+        nbt.putInt("build_offset_y", buildOffset.getY());
+        nbt.putInt("build_offset_z", buildOffset.getZ());
         
         // Save inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
@@ -155,6 +207,11 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         totalBuildBlocks = nbt.getInt("total_build_blocks").orElse(0);
         statusMessage = nbt.getString("status_message").orElse("No blueprint loaded");
         
+        // Load building progress tracking (like quarry)
+        currentBuildProgress = nbt.getInt("current_build_progress").orElse(0);
+        totalBuildTicks = nbt.getInt("total_build_ticks").orElse(0);
+        currentBuildTicks = nbt.getInt("current_build_ticks").orElse(0);
+        
         // Load current build position
         if (nbt.contains("build_x") && nbt.contains("build_y") && nbt.contains("build_z")) {
             currentBuildPos = new BlockPos(
@@ -179,6 +236,14 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                     builtPositions.add(pos);
                 }
             }
+        }
+        
+        // Load build offset
+        if (nbt.contains("build_offset_x") && nbt.contains("build_offset_y") && nbt.contains("build_offset_z")) {
+            int offsetX = nbt.getInt("build_offset_x").orElse(0);
+            int offsetY = nbt.getInt("build_offset_y").orElse(0);
+            int offsetZ = nbt.getInt("build_offset_z").orElse(1); // Default to 1 block in front
+            buildOffset = new BlockPos(offsetX, offsetY, offsetZ);
         }
         
         // Load inventory
@@ -208,11 +273,15 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             world.setBlockState(pos, state.with(ConstructorBlock.RUNNING, buildingState), Block.NOTIFY_ALL);
         }
         
-        // Set energy demand based on building status
-        entity.energyDemand = entity.building ? MAX_ENERGY_DEMAND : 0;
+        // Set energy demand like quarry - always demand maximum when building
+        if (entity.building && entity.currentBlueprint != null) {
+            entity.energyDemand = MAX_ENERGY_DEMAND;
+        } else {
+            entity.energyDemand = 1; // Small demand when idle to show power connection
+        }
         
-        // Process building if active and has energy
-        if (entity.building && entity.currentBlueprint != null && entity.energyReceived > 0) {
+        // Process building if active (power affects speed, not requirement)
+        if (entity.building && entity.currentBlueprint != null) {
             entity.processBuildingTick();
         }
         
@@ -221,7 +290,42 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             entity.updateMaterialsTracking();
         }
         
-        // Reset energy received at the end of each tick
+        // Update materials tracking periodically
+        if (world.getTime() % 20 == 0) { // Every second
+            entity.updateMaterialsTracking();
+        }
+        
+        // Update power status and reset energy received at the end of each tick
+        boolean wasReceivingPower = entity.isReceivingPower;
+        entity.isReceivingPower = entity.energyReceived > 0;
+        
+        // Send power status updates to clients if it changed
+        if (wasReceivingPower != entity.isReceivingPower) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    starduster.circuitmod.network.ModNetworking.sendConstructorPowerStatusUpdate(player, pos, entity.isReceivingPower);
+                }
+            }
+        }
+        
+        // Send initial sync to nearby players periodically (every 100 ticks to avoid spam)
+        if (world.getTime() % 100 == 0) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    // Send current building status
+                    starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, entity.building, entity.currentBlueprint != null);
+                    // Send current power status
+                    starduster.circuitmod.network.ModNetworking.sendConstructorPowerStatusUpdate(player, pos, entity.isReceivingPower);
+                }
+            }
+        }
+        
+        // Debug logging for power status
+        if (world.getTime() % 20 == 0) { // Log every second
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-POWER] Energy demand: {}, energy received: {}, isReceivingPower: {}", 
+                entity.energyDemand, entity.energyReceived, entity.isReceivingPower);
+        }
+        
         entity.energyReceived = 0;
     }
     
@@ -254,14 +358,40 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                 markDirty();
                 
                 Circuitmod.LOGGER.info("[CONSTRUCTOR] Loaded blueprint: {}", blueprint.getName());
+                
+                // Send status update to nearby players
+                if (world != null && !world.isClient()) {
+                    for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                        if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                            starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, true);
+                            starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                        }
+                    }
+                }
             } else {
                 clearBlueprint();
                 this.statusMessage = "Invalid blueprint";
+                // Send status update to nearby players
+                if (world != null && !world.isClient()) {
+                    for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                        if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                            starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CONSTRUCTOR] Failed to load blueprint", e);
             clearBlueprint();
             this.statusMessage = "Blueprint loading failed";
+            // Send status update to nearby players
+            if (world != null && !world.isClient()) {
+                for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                    if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                        starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                    }
+                }
+            }
         }
     }
     
@@ -279,26 +409,69 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         this.requiredMaterials.clear();
         this.availableMaterials.clear();
         markDirty();
+        
+        // Send status update to nearby players
+        if (world != null && !world.isClient()) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, false);
+                    starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                }
+            }
+        }
     }
     
     /**
      * Starts building the current blueprint
      */
     public void startBuilding() {
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() called");
+        
         if (currentBlueprint == null || world == null || world.isClient()) {
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() - early return: blueprint={}, world={}, isClient={}", 
+                currentBlueprint != null, world != null, world != null && world.isClient());
             return;
         }
         
-        if (!hasRequiredMaterials()) {
-            this.statusMessage = "Missing required materials";
+        // Update materials tracking before checking
+        updateMaterialsTracking();
+        
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() - Required materials: {}", requiredMaterials);
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() - Available materials: {}", availableMaterials);
+        
+        // Check if we have ANY materials available (not all required)
+        boolean hasAnyMaterials = hasAnyMaterialsAvailable();
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() - hasAnyMaterialsAvailable() returned: {}", hasAnyMaterials);
+        
+        if (!hasAnyMaterials) {
+            this.statusMessage = "No materials available";
+            // Send status update to nearby players
+            if (world != null && !world.isClient()) {
+                for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                    if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                        starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                    }
+                }
+            }
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] startBuilding() - No materials available, cannot start building");
             return;
         }
         
         this.building = true;
-        this.statusMessage = "Building: " + currentBlueprint.getName();
+        this.statusMessage = "Building: " + currentBlueprint.getName() + " (partial materials)";
         markDirty();
         
-        Circuitmod.LOGGER.info("[CONSTRUCTOR] Started building: {}", currentBlueprint.getName());
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] Started building with partial materials: {}", currentBlueprint.getName());
+        
+        // Send status update to nearby players
+        if (world != null && !world.isClient()) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, currentBlueprint != null);
+                    starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                }
+            }
+        }
     }
     
     /**
@@ -308,74 +481,304 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         this.building = false;
         this.statusMessage = "Building stopped";
         markDirty();
+        
+        // Send status update to nearby players
+        if (world != null && !world.isClient()) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                }
+            }
+        }
     }
     
     /**
-     * Processes one tick of building
+     * Toggles the building state
+     */
+    public void toggleBuilding() {
+        if (world == null || world.isClient()) {
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] toggleBuilding() - early return: world={}, isClient={}", 
+                world != null, world != null && world.isClient());
+            return;
+        }
+        
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] toggleBuilding() - current building state: {}, hasBlueprint: {}", 
+            building, currentBlueprint != null);
+        
+        if (building) {
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] toggleBuilding() - stopping building");
+            stopBuilding();
+        } else {
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] toggleBuilding() - starting building");
+            startBuilding();
+        }
+    }
+    
+    /**
+     * Processes building operations for one tick (like quarry mining)
      */
     private void processBuildingTick() {
         if (currentBlueprint == null || world == null) {
             return;
         }
         
-        // Try to place one block this tick
-        if (currentBuildPos == null) {
-            currentBuildPos = getNextBuildPosition();
+        // Debug logging for energy consumption
+        if (world.getTime() % 20 == 0) { // Log every second
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-ENERGY] Energy received: {}, energy per block: {}, energy demand: {}", 
+                energyReceived, ENERGY_PER_BLOCK, energyDemand);
         }
         
-        if (currentBuildPos == null) {
-            // No more blocks to place - construction complete
-            this.building = false;
-            this.statusMessage = "Construction complete!";
-            this.buildProgress = totalBuildBlocks;
-            markDirty();
-            return;
-        }
-        
-        // Try to place the block at current position
-        BlockState requiredState = currentBlueprint.getBlockState(currentBuildPos);
-        
-        if (requiredState != null) {
-            ItemStack requiredItem = new ItemStack(requiredState.getBlock().asItem());
+        // If we have energy and are building, try to build the current block
+        if (energyReceived > 0 && building) {
+            // Try to build the current block (this will handle gradual building)
+            boolean built = buildNextBlock(world);
             
-            // Find the required block in inventory
-            for (int slot = 1; slot < inventory.size(); slot++) { // Skip blueprint slot
-                ItemStack stack = inventory.get(slot);
-                if (!stack.isEmpty() && ItemStack.areItemsEqual(stack, requiredItem)) {
-                    // Found the required block - place it
-                    // Calculate world position: constructor is at pos, build relative to it
-                    BlockPos worldPos = pos.add(currentBuildPos);
-                    
-                    if (world.getBlockState(worldPos).isAir() || world.getBlockState(worldPos).isReplaceable()) {
-                        world.setBlockState(worldPos, requiredState, Block.NOTIFY_ALL);
+            if (built) {
+                // Block was completed, mark dirty for sync
+                markDirty();
+            }
+        }
+    }
+    
+    /**
+     * Building logic to build a block at the current position (like quarry mining)
+     */
+    private boolean buildNextBlock(World world) {
+        // If building is disabled, do nothing
+        if (!building) {
+            advanceToNextBlock();
+            return false;
+        }
+
+        // Debug logging to track the building process
+        if (world.getTime() % 20 == 0) { // Log every second
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] buildNextBlock() called - currentBuildPos: {}, energyReceived: {}, building: {}", 
+                currentBuildPos, energyReceived, building);
+        }
+
+        // --- INSTANTLY FIND NEXT VALID BLOCK TO BUILD ---
+        int maxAttempts = 4096; // Prevent infinite loops
+        int attempts = 0;
+        while (attempts < maxAttempts) {
+            if (currentBuildPos == null) {
+                currentBuildPos = getNextBuildPosition();
+                if (currentBuildPos == null) {
+                    // Check if we've built everything we can with available materials
+                    if (buildProgress >= totalBuildBlocks) {
+                        // All blocks built - construction complete
+                        this.building = false;
+                        this.statusMessage = "Construction complete!";
+                        this.buildProgress = totalBuildBlocks;
                         
-                        // Consume the item
-                        stack.decrement(1);
-                        if (stack.isEmpty()) {
-                            inventory.set(slot, ItemStack.EMPTY);
+                        Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Construction complete! All {} blocks built", totalBuildBlocks);
+                        
+                        // Send status update to nearby players
+                        if (world != null && !world.isClient()) {
+                            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                                    starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, currentBlueprint != null);
+                                    starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                                }
+                            }
+                        }
+                        return false;
+                    } else {
+                        // No more positions to build with current materials, but construction not complete
+                        // This means we're waiting for more materials
+                        this.statusMessage = "Waiting for more materials... (" + buildProgress + "/" + totalBuildBlocks + " blocks built)";
+                        
+                        if (world.getTime() % 20 == 0) { // Log every second
+                            Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Waiting for more materials. Built: {}/{}, continuing to search", buildProgress, totalBuildBlocks);
                         }
                         
-                        // Mark as built and advance
-                        builtPositions.add(currentBuildPos);
-                        buildProgress++;
-                        currentBuildPos = null; // Will get next position on next tick
-                        
-                        this.statusMessage = "Building... (" + buildProgress + "/" + totalBuildBlocks + ")";
-                        markDirty();
-                        return;
+                        // Continue searching for buildable positions
+                        attempts++;
+                        continue;
                     }
+                }
+                currentBuildProgress = 0;
+                currentBuildTicks = 0;
+                totalBuildTicks = 0;
+                
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Found next build position: {}", currentBuildPos);
                 }
             }
             
-            // Couldn't find the required block - stop building
-            this.building = false;
-            this.statusMessage = "Missing: " + requiredState.getBlock().getName().getString();
-            markDirty();
-        } else {
-            // Invalid position - skip it
-            builtPositions.add(currentBuildPos);
-            currentBuildPos = null;
+            // Check if we have the required material for this position
+            BlockState requiredState = currentBlueprint.getBlockState(currentBuildPos);
+            if (requiredState == null) {
+                // Invalid position - skip it
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Invalid position - no block state at {}", currentBuildPos);
+                }
+                advanceToNextBlock();
+                currentBuildPos = null;
+                attempts++;
+                continue;
+            }
+            
+            ItemStack requiredItem = new ItemStack(requiredState.getBlock().asItem());
+            boolean foundItem = false;
+            for (int slot = 1; slot < inventory.size(); slot++) { // Skip blueprint slot
+                ItemStack stack = inventory.get(slot);
+                if (!stack.isEmpty() && stack.getItem() == requiredItem.getItem()) {
+                    foundItem = true;
+                    break;
+                }
+            }
+            
+            if (!foundItem) {
+                // Skip this position - no material available, but continue searching
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] No material available for {} at position {}, continuing search", requiredItem.getName().getString(), currentBuildPos);
+                }
+                advanceToNextBlock();
+                currentBuildPos = null;
+                attempts++;
+                continue;
+            }
+            
+            // Check if the target position is buildable
+            // Build the blueprint starting from the position that was the minimum corner of the original scan
+            // The Constructor should build the blueprint exactly where it was originally scanned
+            BlockPos worldPos = pos.add(buildOffset).add(currentBuildPos);
+            BlockState currentState = world.getBlockState(worldPos);
+            
+            // Allow building if the position is air, replaceable, or a common replaceable block
+            boolean canBuild = currentState.isAir() || 
+                              currentState.isReplaceable() || 
+                              currentState.isOf(Blocks.DIRT) ||
+                              currentState.isOf(Blocks.SAND) ||
+                              currentState.isOf(Blocks.GRAVEL) ||
+                              currentState.isOf(Blocks.STONE) ||
+                              currentState.isOf(Blocks.COBBLESTONE) ||
+                              currentState.isOf(Blocks.GRASS_BLOCK) ||
+                              currentState.isOf(Blocks.DEEPSLATE) ||
+                              currentState.isOf(Blocks.TUFF) ||
+                              currentState.isOf(Blocks.CLAY) ||
+                              currentState.isOf(Blocks.SOUL_SAND) ||
+                              currentState.isOf(Blocks.SOUL_SOIL);
+            
+            if (!canBuild) {
+                // Position not available - skip it
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Position not available at world pos {} (current state: {})", worldPos, currentState.getBlock().getName());
+                }
+                advanceToNextBlock();
+                currentBuildPos = null;
+                attempts++;
+                continue;
+            }
+            
+            // Found a valid block to build
+                            if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Found valid block to build: {} at relative position {} (world pos: {})", requiredState.getBlock().getName(), currentBuildPos, worldPos);
+                }
+            break;
         }
+        
+        if (attempts >= maxAttempts) {
+            // Could not find a valid block to build
+            Circuitmod.LOGGER.warn("[CONSTRUCTOR-BUILDING] Could not find valid block to build after {} attempts", maxAttempts);
+            return false;
+        }
+
+        // --- ONLY NOW START BUILDING PROGRESS ---
+        // Flat energy cost like quarry
+        int energyCost = ENERGY_PER_BLOCK;
+        this.totalBuildTicks = Math.max(10, energyCost);
+
+        if (this.energyReceived < 1) {
+            return false; // Don't advance position, just wait for more energy
+        }
+
+        int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
+        float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
+        this.energyReceived -= energyToConsume;
+        float progressThisTick = energySpeedMultiplier;
+        currentBuildTicks += (int) progressThisTick;
+        currentBuildProgress = (currentBuildTicks * 100) / totalBuildTicks;
+        currentBuildProgress = Math.min(100, currentBuildProgress);
+
+        if (world.getTime() % 20 == 0) { // Log every second
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Building progress: {}/{} ticks ({}%)", currentBuildTicks, totalBuildTicks, currentBuildProgress);
+        }
+
+        if (currentBuildTicks >= totalBuildTicks) {
+            // Block is complete - place it
+            BlockState requiredState = currentBlueprint.getBlockState(currentBuildPos);
+            ItemStack requiredItem = new ItemStack(requiredState.getBlock().asItem());
+            // Build the blueprint starting from the position that was the minimum corner of the original scan
+            BlockPos worldPos = pos.add(buildOffset).add(currentBuildPos);
+            
+            // Find and consume the item
+            boolean consumed = false;
+            for (int slot = 1; slot < inventory.size(); slot++) { // Skip blueprint slot
+                ItemStack stack = inventory.get(slot);
+                if (!stack.isEmpty() && stack.getItem() == requiredItem.getItem()) {
+                    stack.decrement(1);
+                    if (stack.isEmpty()) {
+                        inventory.set(slot, ItemStack.EMPTY);
+                    }
+                    consumed = true;
+                    break;
+                }
+            }
+            
+            if (consumed) {
+                // Place the block
+                world.setBlockState(worldPos, requiredState, Block.NOTIFY_ALL);
+                
+                // Mark as built and advance
+                builtPositions.add(currentBuildPos);
+                buildProgress++;
+                advanceToNextBlock();
+                currentBuildPos = null;
+                totalBuildTicks = 0;
+                
+                // Update status message to show progress and material availability
+                int availableCount = 0;
+                int requiredCount = 0;
+                for (Map.Entry<String, Integer> required : requiredMaterials.entrySet()) {
+                    int available = availableMaterials.getOrDefault(required.getKey(), 0);
+                    availableCount += available;
+                    requiredCount += required.getValue();
+                }
+                
+                this.statusMessage = String.format("Building... (%d/%d blocks) - Materials: %d/%d", 
+                    buildProgress, totalBuildBlocks, availableCount, requiredCount);
+                
+                // Send status update to nearby players periodically (every 10 blocks to avoid spam)
+                if (buildProgress % 10 == 0 && world != null && !world.isClient()) {
+                    for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                        if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                            starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                        }
+                    }
+                }
+                
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-BUILDING] Successfully placed block at {}: {}", worldPos, requiredState.getBlock().getName());
+                }
+                return true;
+            } else {
+                // Could not consume item, stay at current position
+                Circuitmod.LOGGER.warn("[CONSTRUCTOR-BUILDING] Could not consume item for block placement");
+                return false;
+            }
+        }
+        return false; // Still building, not finished yet
+    }
+    
+    /**
+     * Helper method to advance to the next block
+     */
+    private void advanceToNextBlock() {
+        currentBuildPos = null;
+        currentBuildProgress = 0;
+        totalBuildTicks = 0;
+        currentBuildTicks = 0;
     }
     
     /**
@@ -396,6 +799,8 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         return null; // All positions built
     }
     
+
+
     /**
      * Updates material tracking for the GUI
      */
@@ -414,11 +819,27 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             }
             
             // Count available materials in inventory
-            for (int slot = 1; slot < inventory.size(); slot++) { // Skip blueprint slot
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Scanning inventory ({} slots):", inventory.size());
+            for (int slot = 1; slot < inventory.size(); slot++) {
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty()) {
-                    String itemName = stack.getName().getString();
-                    availableMaterials.put(itemName, availableMaterials.getOrDefault(itemName, 0) + stack.getCount());
+                    String blockName = stack.getItem().getName().getString();
+                    availableMaterials.put(blockName, availableMaterials.getOrDefault(blockName, 0) + stack.getCount());
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Slot {}: {} x{}", slot, blockName, stack.getCount());
+                } else {
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Slot {}: empty", slot);
+                }
+            }
+            
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Final required: {}", requiredMaterials);
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Final available: {}", availableMaterials);
+        }
+        
+        // Send materials sync to all nearby players (server side only)
+        if (world != null && !world.isClient()) {
+            for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+                if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
+                    starduster.circuitmod.network.ModNetworking.sendConstructorMaterialsSync(player, pos, requiredMaterials, availableMaterials);
                 }
             }
         }
@@ -430,14 +851,41 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     private boolean hasRequiredMaterials() {
         updateMaterialsTracking();
         
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Checking required materials:");
         for (Map.Entry<String, Integer> required : requiredMaterials.entrySet()) {
             int available = availableMaterials.getOrDefault(required.getKey(), 0);
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] {}: required={}, available={}, sufficient={}", 
+                required.getKey(), required.getValue(), available, available >= required.getValue());
             if (available < required.getValue()) {
+                Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Missing required materials - returning false");
                 return false;
             }
         }
         
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] All materials available - returning true");
         return true;
+    }
+    
+    /**
+     * Checks if we have ANY materials available (not all required)
+     * This allows building to start with partial materials
+     */
+    private boolean hasAnyMaterialsAvailable() {
+        updateMaterialsTracking();
+        
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Checking if any materials are available:");
+        for (Map.Entry<String, Integer> required : requiredMaterials.entrySet()) {
+            int available = availableMaterials.getOrDefault(required.getKey(), 0);
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] {}: required={}, available={}", 
+                required.getKey(), required.getValue(), available);
+            if (available > 0) {
+                Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Found available materials - returning true");
+                return true;
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] No materials available - returning false");
+        return false;
     }
     
     // Inventory implementation
@@ -478,6 +926,28 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         if (slot == 0 && world != null && !world.isClient()) {
             loadBlueprint();
         }
+        
+        // Update materials tracking when inventory changes
+        if (slot > 0 && world != null && !world.isClient()) {
+            updateMaterialsTracking();
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-INVENTORY] Slot {} updated with: {}", slot, stack.isEmpty() ? "empty" : stack.getName().getString() + " x" + stack.getCount());
+            
+            // If we're building and new materials were added, update status message
+            if (building && currentBlueprint != null) {
+                int availableCount = 0;
+                int requiredCount = 0;
+                for (Map.Entry<String, Integer> required : requiredMaterials.entrySet()) {
+                    int available = availableMaterials.getOrDefault(required.getKey(), 0);
+                    availableCount += available;
+                    requiredCount += required.getValue();
+                }
+                
+                this.statusMessage = String.format("Building... (%d/%d blocks) - Materials: %d/%d", 
+                    buildProgress, totalBuildBlocks, availableCount, requiredCount);
+                
+                Circuitmod.LOGGER.info("[CONSTRUCTOR-INVENTORY] Updated status after inventory change: {}", this.statusMessage);
+            }
+        }
     }
 
     @Override
@@ -506,6 +976,22 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+        // Debug logging for inventory contents when screen is opened
+        if (world != null && !world.isClient()) {
+            Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Screen opened - Inventory contents:");
+            for (int i = 0; i < inventory.size(); i++) {
+                ItemStack stack = inventory.get(i);
+                if (!stack.isEmpty()) {
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Slot {}: {} x{}", i, stack.getName().getString(), stack.getCount());
+                } else {
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Slot {}: empty", i);
+                }
+            }
+            
+            // Update materials tracking when screen is opened
+            updateMaterialsTracking();
+        }
+        
         return new ConstructorScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
     
@@ -527,6 +1013,9 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     }
     
     public String getStatusMessage() {
+        if (world != null && world.isClient()) {
+            return clientStatusMessage;
+        }
         return statusMessage;
     }
     
@@ -544,6 +1033,59 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     
     public String getBlueprintName() {
         return currentBlueprint != null ? currentBlueprint.getName() : "No Blueprint";
+    }
+    
+    public boolean isReceivingPower() {
+        return isReceivingPower;
+    }
+    
+    /**
+     * Gets the current build offset
+     * @return the build offset relative to the Constructor
+     */
+    public BlockPos getBuildOffset() {
+        return buildOffset;
+    }
+    
+    /**
+     * Sets the build offset
+     * @param offset the new build offset relative to the Constructor
+     */
+    public void setBuildOffset(BlockPos offset) {
+        this.buildOffset = offset;
+        markDirty();
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] Set build offset to: {}", offset);
+    }
+    
+    /**
+     * Update building status from network (client-side only)
+     */
+    public void setBuildingStatusFromNetwork(boolean building, boolean hasBlueprint) {
+        if (world != null && world.isClient()) {
+            this.building = building;
+            this.hasBlueprintState = hasBlueprint;
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] Updated from network: building={}, hasBlueprint={}", building, hasBlueprint);
+        }
+    }
+    
+    /**
+     * Update power status from network (client-side only)
+     */
+    public void setPowerStatusFromNetwork(boolean hasPower) {
+        if (world != null && world.isClient()) {
+            this.hasPowerState = hasPower;
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] Updated power status from network: hasPower={}", hasPower);
+        }
+    }
+    
+    /**
+     * Update status message from network (client-side only)
+     */
+    public void setStatusMessageFromNetwork(String message) {
+        if (world != null && world.isClient()) {
+            this.clientStatusMessage = message;
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] Updated status message from network: {}", message);
+        }
     }
     
     // IEnergyConsumer implementation

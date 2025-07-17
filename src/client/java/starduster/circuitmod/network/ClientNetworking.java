@@ -9,9 +9,13 @@ import starduster.circuitmod.block.entity.QuarryBlockEntity;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.screen.QuarryScreenHandler;
 import starduster.circuitmod.screen.DrillScreenHandler;
+import starduster.circuitmod.screen.ConstructorScreenHandler;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.DrillScreen;
+import starduster.circuitmod.screen.BlueprintDeskScreen;
+import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 import net.minecraft.item.ItemStack;
+import java.util.Map;
 
 public class ClientNetworking {
     /**
@@ -211,6 +215,116 @@ public class ClientNetworking {
             });
         });
         
+        // Register handler for constructor building status updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorBuildingStatusPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            boolean building = payload.building();
+            boolean hasBlueprint = payload.hasBlueprint();
+            var constructorPos = payload.constructorPos();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Try to get the constructor block entity at the position
+                    if (context.client().world.getBlockEntity(constructorPos) instanceof ConstructorBlockEntity constructor) {
+                        // Update the building status directly
+                        constructor.setBuildingStatusFromNetwork(building, hasBlueprint);
+                        Circuitmod.LOGGER.info("[CLIENT] Updated constructor building status: building={}, hasBlueprint={}", building, hasBlueprint);
+                    }
+                }
+                
+                // Also update the screen handler if the screen is open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null && client.player.currentScreenHandler instanceof ConstructorScreenHandler handler) {
+                    // Update the property delegate through the new method
+                    handler.updateBuildingStatusFromNetwork(building, hasBlueprint);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated ConstructorScreenHandler building status: building={}, hasBlueprint={}", building, hasBlueprint);
+                }
+            });
+        });
+        
+        // Register handler for constructor power status updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorPowerStatusPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            boolean hasPower = payload.hasPower();
+            var constructorPos = payload.constructorPos();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Try to get the constructor block entity at the position
+                    if (context.client().world.getBlockEntity(constructorPos) instanceof ConstructorBlockEntity constructor) {
+                        // Update the power status directly
+                        constructor.setPowerStatusFromNetwork(hasPower);
+                        Circuitmod.LOGGER.info("[CLIENT] Updated constructor power status: hasPower={}", hasPower);
+                    }
+                }
+                
+                // Also update the screen handler if the screen is open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null && client.player.currentScreenHandler instanceof ConstructorScreenHandler handler) {
+                    // Update the property delegate through the new method
+                    handler.updatePowerStatusFromNetwork(hasPower);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated ConstructorScreenHandler power status: hasPower={}", hasPower);
+                }
+            });
+        });
+        
+        // Register handler for constructor status message updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorStatusMessagePayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            String message = payload.message();
+            var constructorPos = payload.constructorPos();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Try to get the constructor block entity at the position
+                    if (context.client().world.getBlockEntity(constructorPos) instanceof ConstructorBlockEntity constructor) {
+                        // Update the status message directly
+                        constructor.setStatusMessageFromNetwork(message);
+                        Circuitmod.LOGGER.info("[CLIENT] Updated constructor status message: {}", message);
+                    }
+                }
+            });
+        });
+        
+        // Register handler for blueprint name sync updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNameSyncPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            String name = payload.name();
+            var blueprintDeskPos = payload.blueprintDeskPos();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // Update the screen if it's open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.currentScreen instanceof BlueprintDeskScreen screen) {
+                    screen.updateBlueprintName(name);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated blueprint name in screen: {}", name);
+                }
+            });
+        });
+        
+        // Register handler for constructor materials sync updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorMaterialsSyncPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            BlockPos constructorPos = payload.constructorPos();
+            Map<String, Integer> required = payload.required();
+            Map<String, Integer> available = payload.available();
+
+            // Process on the game thread
+            context.client().execute(() -> {
+                starduster.circuitmod.screen.ConstructorScreenHandler.updateMaterialsFromServer(constructorPos, required, available);
+                Circuitmod.LOGGER.info("[CLIENT] Updated ConstructorScreenHandler materials from server for {}: required={}, available={}", constructorPos, required, available);
+            });
+        });
+        
+
+        
 
     }
     
@@ -281,6 +395,73 @@ public class ClientNetworking {
             Circuitmod.LOGGER.info("[CLIENT] Successfully sent drill dimensions for drill at {}", drillPos);
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send drill dimensions: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send constructor building toggle to the server
+     * 
+     * @param constructorPos The position of the constructor
+     */
+    public static void sendConstructorBuildingToggle(BlockPos constructorPos) {
+        Circuitmod.LOGGER.info("[CLIENT] sendConstructorBuildingToggle called with position: {}", constructorPos);
+        
+        if (constructorPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send toggle request for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.ConstructorBuildingPayload payload = new ModNetworking.ConstructorBuildingPayload(constructorPos);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent constructor building toggle for constructor at {}", constructorPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send constructor building toggle: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send blueprint name update to the server
+     * 
+     * @param blueprintDeskPos The position of the blueprint desk
+     * @param name The new blueprint name
+     */
+    public static void sendBlueprintNameUpdate(BlockPos blueprintDeskPos, String name) {
+        Circuitmod.LOGGER.info("[CLIENT] sendBlueprintNameUpdate called with position: {}, name: {}", blueprintDeskPos, name);
+        
+        if (blueprintDeskPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send name update for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.BlueprintNamePayload payload = new ModNetworking.BlueprintNamePayload(blueprintDeskPos, name);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent blueprint name update for blueprint desk at {}", blueprintDeskPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send blueprint name update: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Request the current blueprint name from the server
+     * 
+     * @param blueprintDeskPos The position of the blueprint desk
+     */
+    public static void requestBlueprintName(BlockPos blueprintDeskPos) {
+        Circuitmod.LOGGER.info("[CLIENT] Requesting blueprint name for position: {}", blueprintDeskPos);
+        
+        if (blueprintDeskPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to request name for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.BlueprintNameRequestPayload payload = new ModNetworking.BlueprintNameRequestPayload(blueprintDeskPos);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent blueprint name request for blueprint desk at {}", blueprintDeskPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send blueprint name request: {}", e.getMessage(), e);
         }
     }
 } 

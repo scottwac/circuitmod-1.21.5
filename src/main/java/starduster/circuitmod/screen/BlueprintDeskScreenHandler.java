@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.item.BlueprintItem;
 import starduster.circuitmod.item.ModItems;
 
@@ -96,6 +97,15 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
     
     public int getScanProgress() {
         return this.propertyDelegate.get(2);
+    }
+    
+    // Get the block entity position (for networking)
+    public BlockPos getBlockEntityPos() {
+        // This is a bit hacky, but we can get the position from the inventory if it's a block entity
+        if (inventory instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blockEntity) {
+            return blockEntity.getPos();
+        }
+        return null;
     }
     
     /**
