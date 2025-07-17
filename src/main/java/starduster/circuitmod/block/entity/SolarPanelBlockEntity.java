@@ -276,10 +276,12 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     
          
     
-    // Getters for interaction and debugging
-   
-      
-      // Getters for debugging/GUI
+          // Getters for interaction and debugging
+    public float getLastLightLevel() {
+        return lastLightLevel;
+    }
+        
+        // Getters for debugging/GUI
     public int getCurrentEnergyProduction() {
         return currentEnergyProduction;
     }
