@@ -10,7 +10,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class ReactorScreen extends HandledScreen<ReactorScreenHandler> {
     // Use generic chest texture for now
-    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/quarry/quarry_gui.png");
+    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/generator/reactor_gui.png");
     // Colors for text
     private static final int ENERGY_COLOR = 0xFF00FF00; // Green
     private static final int ROD_COUNT_COLOR = 0xFFFFFF00; // Yellow
@@ -54,15 +54,15 @@ public class ReactorScreen extends HandledScreen<ReactorScreenHandler> {
         
         // Draw energy production
         Text energyText = Text.literal("Energy: " + energyProduction + "/tick");
-        context.drawText(textRenderer, energyText, 8, 8, ENERGY_COLOR, true);
+        context.drawText(textRenderer, energyText, 8+2, 8+13, ENERGY_COLOR, true);
         
         // Draw rod count
         Text rodText = Text.literal("Rods: " + rodCount + "/9");
-        context.drawText(textRenderer, rodText, 8, 20, ROD_COUNT_COLOR, true);
+        context.drawText(textRenderer, rodText, 8+2, 20+13, ROD_COUNT_COLOR, true);
         
         // Draw status
         Text statusText = Text.literal("Status: " + (isActive ? "Active" : "Inactive"));
-        context.drawText(textRenderer, statusText, 8, 32, STATUS_COLOR, true);
+        context.drawText(textRenderer, statusText, 8+2, 32+13, STATUS_COLOR, true);
         
         // Draw title
         context.drawText(textRenderer, title, titleX, titleY, 0x404040, false);

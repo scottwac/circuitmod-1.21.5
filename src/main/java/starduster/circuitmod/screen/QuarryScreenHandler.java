@@ -48,8 +48,8 @@ public class QuarryScreenHandler extends ScreenHandler {
         // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
         int rows = 3;
         int columns = 4;
-        int startX = 97; // Position on the right side, starting at x=97
-        int startY = 17; // Starting at y=17
+        int startX = 98; // Position on the right side, starting at x=97
+        int startY = 18; // Starting at y=17
         
         // Add the quarry inventory slots
         for (int row = 0; row < rows; row++) {
@@ -96,8 +96,8 @@ public class QuarryScreenHandler extends ScreenHandler {
         // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
         int rows = 3;
         int columns = 4;
-        int startX = 97; // Position on the right side, starting at x=97
-        int startY = 17; // Starting at y=17
+        int startX = 98; // Position on the right side, starting at x=97
+        int startY = 18; // Starting at y=17
         
         // Add the quarry inventory slots
         for (int row = 0; row < rows; row++) {
