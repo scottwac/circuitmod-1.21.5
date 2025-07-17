@@ -125,6 +125,12 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         // Calculate efficiency based on time of day (peak at noon)
         float timeEfficiency = calculateTimeEfficiency(timeOfDay);
         
+        // Debug time calculation
+        float hour = (timeOfDay / 1000.0f);
+        if (hour >= 24.0f) hour -= 24.0f;
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {}, Calculated hour: {:.1f}, Time efficiency: {}", 
+            timeOfDay, hour, timeEfficiency);
+        
         // Calculate efficiency based on weather
         float weatherEfficiency = world.isRaining() ? 0.3f : 1.0f;
         if (world.isThundering()) {
@@ -161,8 +167,13 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
      */
     private float calculateTimeEfficiency(long timeOfDay) {
         // In Minecraft: 0=6AM, 6000=noon, 12000=6PM, 18000=midnight
-        // Convert to a 0-24 hour scale where 0=6AM
+        // Convert to hour of day (0-24 scale where 0=6AM)
         float hour = (timeOfDay / 1000.0f);
+        
+        // Wrap around if we go past 24 hours
+        if (hour >= 24.0f) {
+            hour -= 24.0f;
+        }
         
         // Night time: 18:00 (6PM) to 6:00 (6AM) - no energy production
         if (hour >= 18.0f || hour < 6.0f) {
