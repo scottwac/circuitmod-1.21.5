@@ -24,6 +24,7 @@ import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.BloomeryBlockEntity;
 import starduster.circuitmod.block.entity.CrusherBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.power.EnergyNetwork;
 
 public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider {
     public static final MapCodec<CrusherBlock> CODEC = createCodec(CrusherBlock::new);
@@ -80,7 +81,13 @@ public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider
     @Override
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
-
+        
+        if (!world.isClient) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof CrusherBlockEntity crusher) {
+                crusher.needsNetworkRefresh = true;
+            }
+        }
     }
 
     @Nullable
@@ -96,6 +103,15 @@ public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider
 
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof CrusherBlockEntity crusher) {
+                EnergyNetwork network = crusher.getNetwork();
+                if (network != null) {
+                    network.removeBlock(pos);
+                }
+            }
+        }
         
         super.onStateReplaced(state, world, pos, moved);
     }

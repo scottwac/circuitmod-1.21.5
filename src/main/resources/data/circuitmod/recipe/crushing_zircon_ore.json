@@ -1,0 +1,10 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "circuitmod:zircon_ore",
+  "result_1": {
+    "id": "circuitmod:zirconium_powder"
+  },
+  "result_2": {
+    "id": "circuitmod:stone_dust"
+  }
+} 

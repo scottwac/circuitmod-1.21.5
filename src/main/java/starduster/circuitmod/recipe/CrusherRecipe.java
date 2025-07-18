@@ -57,7 +57,7 @@ public record CrusherRecipe(Ingredient inputItem, ItemStack output1, ItemStack o
         public static final MapCodec<CrusherRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 Ingredient.CODEC.fieldOf("ingredient").forGetter(CrusherRecipe::inputItem),
                 ItemStack.CODEC.fieldOf("result_1").forGetter(CrusherRecipe::output1),
-                ItemStack.CODEC.fieldOf("result_2").forGetter(CrusherRecipe::output2)
+                ItemStack.CODEC.optionalFieldOf("result_2", ItemStack.EMPTY).forGetter(CrusherRecipe::output2)
         ).apply(inst, CrusherRecipe::new));
 
         public static final PacketCodec<RegistryByteBuf, CrusherRecipe> STREAM_CODEC =

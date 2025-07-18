@@ -3,6 +3,8 @@ package starduster.circuitmod.block.machines;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
@@ -21,6 +23,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.TeslaCoilBlockEntity;
+import starduster.circuitmod.block.entity.ModBlockEntities;
 
 public class TeslaCoil extends BlockWithEntity {
     public static final MapCodec<TeslaCoil> CODEC = createCodec(TeslaCoil::new);
@@ -68,9 +71,29 @@ public class TeslaCoil extends BlockWithEntity {
         return BlockRenderType.MODEL;
     }
 
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+        return validateTicker(type, ModBlockEntities.TESLA_COIL_BLOCK_ENTITY, TeslaCoilBlockEntity::tick);
+    }
+
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-
+        if (!world.isClient()) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof TeslaCoilBlockEntity teslaCoil) {
+                // Display tesla coil status when right-clicked
+                String status = teslaCoil.isActive() ? "§aActive" : "§cInactive";
+                player.sendMessage(net.minecraft.text.Text.literal("§6Tesla Coil Status: " + status), false);
+                
+                if (teslaCoil.getNetwork() != null) {
+                    player.sendMessage(net.minecraft.text.Text.literal("§7Energy demand: §e20§7 energy/tick"), false);
+                    player.sendMessage(net.minecraft.text.Text.literal("§7Damage range: §e5§7 blocks"), false);
+                } else {
+                    player.sendMessage(net.minecraft.text.Text.literal("§cNot connected to any network!"), false);
+                }
+            }
+        }
         return ActionResult.SUCCESS;
     }
 
@@ -78,11 +101,19 @@ public class TeslaCoil extends BlockWithEntity {
     @Override
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
-
+        // The block entity will handle network connection in its tick method
     }
 
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            // Handle network updates when this block is removed
+            BlockEntity entity = world.getBlockEntity(pos);
+            if (entity instanceof TeslaCoilBlockEntity teslaCoil) {
+                // Use the new onRemoved method to properly handle network cleanup
+                teslaCoil.onRemoved();
+            }
+        }
         
         super.onStateReplaced(state, world, pos, moved);
     }

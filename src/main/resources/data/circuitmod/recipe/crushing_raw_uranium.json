@@ -1,0 +1,8 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "circuitmod:raw_uranium",
+  "result_1": { 
+    "id": "circuitmod:crushed_uranium" 
+  }
+  
+} 

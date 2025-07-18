@@ -1,0 +1,5 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": { "item": "circuitmod:raw_bauxite" },
+  "result_1": { "id": "circuitmod:crushed_bauxite" }
+} 

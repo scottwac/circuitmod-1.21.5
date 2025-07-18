@@ -1,0 +1,10 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "circuitmod:lead_ore",
+  "result_1": {
+    "id": "circuitmod:lead_powder"
+  },
+  "result_2": {
+    "id": "circuitmod:stone_dust"
+  }
+} 

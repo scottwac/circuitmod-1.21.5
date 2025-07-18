@@ -18,7 +18,7 @@ public class CrusherScreenHandler extends ScreenHandler {
 
     // Client constructor
     public CrusherScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, new SimpleInventory(3), new ArrayPropertyDelegate(4));
+        this(syncId, playerInventory, new SimpleInventory(6), new ArrayPropertyDelegate(2));
     }
 
     // Server constructor
@@ -34,7 +34,7 @@ public class CrusherScreenHandler extends ScreenHandler {
         // Input slot
         this.addSlot(new Slot(inventory, 0, 80, 18));
 
-        // Output slot
+        // Output slots
         this.addSlot(new Slot(inventory, 1, 44, 54));
         this.addSlot(new Slot(inventory, 2, 62, 54));
         this.addSlot(new Slot(inventory, 3, 80, 54));
@@ -69,16 +69,16 @@ public class CrusherScreenHandler extends ScreenHandler {
             ItemStack slotStack = slot.getStack();
             itemStack = slotStack.copy();
             
-            if (invSlot == 2) {
-                // From output slot to player inventory
-                if (!this.insertItem(slotStack, 3, 39, true)) {
+            // If clicking on output slots (1-5), move to player inventory
+            if (invSlot >= 1 && invSlot <= 5) {
+                if (!this.insertItem(slotStack, 6, 42, true)) {
                     return ItemStack.EMPTY;
                 }
-                
                 slot.onQuickTransfer(slotStack, itemStack);
-            } else {
-                // From bloomery slots to player inventory
-                if (!this.insertItem(slotStack, 3, 39, false)) {
+            } 
+            // If clicking on player inventory, try to move to input slot
+            else if (invSlot >= 6) {
+                if (!this.insertItem(slotStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
             }
@@ -100,19 +100,14 @@ public class CrusherScreenHandler extends ScreenHandler {
     }
     
     // Utility methods
-    public boolean isSmelting() {
+    public boolean isCrushing() {
         return propertyDelegate.get(0) > 0;
     }
-    public boolean isBurning() {
-        return propertyDelegate.get(2) > 0;
-    }
-    //TODO refactor delegates
+    
     public int getScaledArrowProgress() {
         int progress = this.propertyDelegate.get(0);
-        int maxProgress = this.propertyDelegate.get(1); // Max Progress
+        int maxProgress = this.propertyDelegate.get(1);
         int arrowPixelSize = 24; // This is the width in pixels of your arrow
-
-        //return maxProgress != 0 && progress != 0 ? progress * arrowPixelSize / maxProgress : 0;
 
         if(maxProgress != 0 && progress != 0) {
             return progress * arrowPixelSize / maxProgress;
@@ -120,5 +115,4 @@ public class CrusherScreenHandler extends ScreenHandler {
             return 0;
         }
     }
-
 } 
