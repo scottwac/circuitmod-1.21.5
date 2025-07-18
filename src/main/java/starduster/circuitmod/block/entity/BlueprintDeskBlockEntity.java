@@ -299,9 +299,9 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
             return;
         }
         
-        // Check if we have a blueprint item in our inventory
+        // Check if we have a blank blueprint item in our inventory
         ItemStack stack = inventory.get(0);
-        if (stack.isEmpty() || !(stack.getItem() instanceof BlueprintItem)) {
+        if (stack.isEmpty() || !stack.isOf(ModItems.BLANK_BLUEPRINT)) {
             // Need a blank blueprint item
             return;
         }
@@ -472,23 +472,12 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         }
         markDirty();
         
-        // Handle blank blueprint conversion
+        // Auto-start scanning when a blank blueprint is inserted
         if (slot == 0 && !stack.isEmpty() && stack.isOf(ModItems.BLANK_BLUEPRINT)) {
-            if (world != null && !world.isClient()) {
-                // Convert blank blueprint to regular blueprint
-                ItemStack blueprintStack = new ItemStack(ModItems.BLUEPRINT);
-                inventory.set(0, blueprintStack);
-                markDirty();
-                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Converted blank blueprint to regular blueprint");
-            }
-        }
-        
-        // Auto-start scanning when a blueprint item is inserted
-        if (slot == 0 && !stack.isEmpty() && stack.getItem() instanceof BlueprintItem) {
             if (hasValidPartner && !isScanning && world != null && !world.isClient()) {
                 // Set a delay to allow name updates to be processed first
                 this.autoScanDelay = 3; // 3 ticks delay
-                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Set auto-scan delay when blueprint inserted");
+                ;
             }
         }
     }
