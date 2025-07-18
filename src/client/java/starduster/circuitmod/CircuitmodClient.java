@@ -10,14 +10,7 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
 import starduster.circuitmod.client.render.DrillBlockEntityRenderer;
-import starduster.circuitmod.screen.DrillScreen;
-import starduster.circuitmod.screen.ModScreenHandlers;
-import starduster.circuitmod.screen.QuarryScreen;
-import starduster.circuitmod.screen.BloomeryScreen;
-import starduster.circuitmod.screen.BlueprintDeskScreen;
-import starduster.circuitmod.screen.ConstructorScreen;
-import starduster.circuitmod.screen.MassFabricatorScreen;
-import starduster.circuitmod.screen.ReactorScreen;
+import starduster.circuitmod.screen.*;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
@@ -37,7 +30,8 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.REACTOR_SCREEN_HANDLER, ReactorScreen::new);
 		HandledScreens.register(ModScreenHandlers.BLUEPRINT_DESK_SCREEN_HANDLER, BlueprintDeskScreen::new);
 		HandledScreens.register(ModScreenHandlers.CONSTRUCTOR_SCREEN_HANDLER, ConstructorScreen::new);
-		
+		HandledScreens.register(ModScreenHandlers.CRUSHER_SCREEN_HANDLER, CrusherScreen::new);
+
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
