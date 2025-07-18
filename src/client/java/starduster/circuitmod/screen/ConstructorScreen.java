@@ -36,7 +36,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     private ButtonWidget startStopButton;
     
     // Scrollable materials section - made smaller and more compact
-    private static final int MAX_MATERIALS_VISIBLE = 6; // Increased since icons are smaller
+    private static final int MAX_MATERIALS_VISIBLE = 3; // Reduced to fit above player inventory
     private static final int MATERIAL_ENTRY_HEIGHT = 12; // Reduced since icons are smaller
     private static final int MATERIALS_AREA_HEIGHT = MAX_MATERIALS_VISIBLE * MATERIAL_ENTRY_HEIGHT;
     private static final int SCROLLBAR_WIDTH = 4;
@@ -60,14 +60,14 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     protected void init() {
         super.init();
         
-        // Create start/stop button - positioned below the materials section
-        int buttonX = this.x + 8;
-        int buttonY = this.y + 120; // Moved down to make room for materials section
+        // Create start/stop button - positioned just to the left of the top row of constructor block inventory
+        int buttonX = this.x + 35; // Moved right so button edge is close to block inventory at x=97
+        int buttonY = this.y + 17; // Aligned with the top row of constructor block inventory
         
         this.startStopButton = ButtonWidget.builder(
-            Text.literal("Start Building"),
+            Text.literal("Build"),
             button -> onStartStopClicked()
-        ).dimensions(buttonX, buttonY, 80, 20).build();
+        ).dimensions(buttonX, buttonY, 60, 16).build(); // Made smaller
         
         this.addDrawableChild(this.startStopButton);
         
@@ -95,11 +95,11 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         
         if (building) {
             // If building, always allow stopping
-            startStopButton.setMessage(Text.literal("Stop Building"));
+            startStopButton.setMessage(Text.literal("Stop"));
             startStopButton.active = true;
         } else if (hasBlueprint && hasPower) {
             // If not building but have blueprint and power, allow starting
-            startStopButton.setMessage(Text.literal("Start Building"));
+            startStopButton.setMessage(Text.literal("Start"));
             startStopButton.active = true;
         } else if (hasBlueprint && !hasPower) {
             // If have blueprint but no power, show disabled state
@@ -229,7 +229,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     private void drawScrollableMaterials(DrawContext context, int mouseX, int mouseY, Map<String, Integer> availableMaterials) {
         int materialsAreaX = 8;
         int materialsAreaY = 45; // Moved up to be below blueprint slot
-        int materialsAreaWidth = 80; // Reduced to prevent overlap with player inventory
+        int materialsAreaWidth = 70; // Further reduced to ensure no overlap with player inventory
         
         // Calculate scroll limits
         int maxScroll = Math.max(0, materialsList.size() - MAX_MATERIALS_VISIBLE);
@@ -338,7 +338,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         }
         
         // Position scrollbar inside the materials area, on the right side
-        int scrollbarX = 85; // Positioned within the 80-pixel materials area width
+        int scrollbarX = 75; // Positioned within the 70-pixel materials area width
         int scrollbarY = 45; // Moved up to match materials area
         int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
         
@@ -373,7 +373,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (scrolling && materialsList.size() > MAX_MATERIALS_VISIBLE) {
-            int scrollbarX = this.x + 85; // Convert back to screen coordinates for mouse interaction
+            int scrollbarX = this.x + 75; // Convert back to screen coordinates for mouse interaction
             int scrollbarY = this.y + 45; // Moved up to match materials area
             int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
             
@@ -394,7 +394,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         
         // Check if clicking on scrollbar
         if (materialsList.size() > MAX_MATERIALS_VISIBLE) {
-            int scrollbarX = this.x + 85; // Convert back to screen coordinates for mouse interaction
+            int scrollbarX = this.x + 75; // Convert back to screen coordinates for mouse interaction
             int scrollbarY = this.y + 45; // Moved up to match materials area
             int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
             
