@@ -113,6 +113,14 @@ public class ModScreenHandlers {
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new ConstructorScreenHandler(syncId, inventory, data), ConstructorData.PACKET_CODEC)
         );
     
+    // Register generator screen handler
+    public static final ScreenHandlerType<GeneratorScreenHandler> GENERATOR_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "generator_screen_handler"),
+            new ScreenHandlerType<>(GeneratorScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }

@@ -7,6 +7,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -14,12 +15,19 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.BloomeryBlock;
 import starduster.circuitmod.block.machines.Nuke;
+import java.util.List;
+import java.util.Random;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.math.Box;
 
 
 public class NukeBlockEntity extends BlockEntity {
     
     // Configuration
-    private static final int DEFAULT_RADIUS = 80; // Default explosion radius
+    private static final int DEFAULT_RADIUS = 20; // Default explosion radius
+    private static final int DEFAULT_VEGETATION_RADIUS = 200; // Additional radius for vegetation destruction
     private static final int DETONATION_TICKS = 60; // 3 seconds at 20 ticks/second
     private static final int EXPLOSION_DURATION_TICKS = 200; // 10 seconds at 20 ticks/second
     
@@ -28,10 +36,12 @@ public class NukeBlockEntity extends BlockEntity {
     private boolean isDetonating = false; // Whether the nuke is currently detonating
     private int detonationTimer = 0; // Timer for detonation sequence
     private int explosionRadius = DEFAULT_RADIUS; // Radius of the explosion
+    private int vegetationRadius = DEFAULT_VEGETATION_RADIUS; // Additional radius for vegetation destruction
     
     // Detonation progress
     private int currentRadius = 0; // Current radius being processed
     private int explosionTimer = 0; // Timer for the explosion phase
+    private boolean vegetationPhase = false; // Whether we're in the vegetation destruction phase
     
     public NukeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.NUKE_BLOCK_ENTITY, pos, state);
@@ -44,8 +54,10 @@ public class NukeBlockEntity extends BlockEntity {
         nbt.putBoolean("is_detonating", isDetonating);
         nbt.putInt("detonation_timer", detonationTimer);
         nbt.putInt("explosion_radius", explosionRadius);
+        nbt.putInt("vegetation_radius", vegetationRadius);
         nbt.putInt("current_radius", currentRadius);
         nbt.putInt("explosion_timer", explosionTimer);
+        nbt.putBoolean("vegetation_phase", vegetationPhase);
     }
     
     @Override
@@ -55,8 +67,10 @@ public class NukeBlockEntity extends BlockEntity {
         this.isDetonating = nbt.getBoolean("is_detonating").orElse(false);
         this.detonationTimer = nbt.getInt("detonation_timer").orElse(0);
         this.explosionRadius = nbt.getInt("explosion_radius").orElse(DEFAULT_RADIUS);
+        this.vegetationRadius = nbt.getInt("vegetation_radius").orElse(DEFAULT_VEGETATION_RADIUS);
         this.currentRadius = nbt.getInt("current_radius").orElse(0);
         this.explosionTimer = nbt.getInt("explosion_timer").orElse(0);
+        this.vegetationPhase = nbt.getBoolean("vegetation_phase").orElse(false);
     }
     
     public static void tick(World world, BlockPos pos, BlockState state, NukeBlockEntity blockEntity) {
@@ -102,28 +116,56 @@ public class NukeBlockEntity extends BlockEntity {
     private void handleDetonation(ServerWorld world) {
         explosionTimer++;
         
-        Circuitmod.LOGGER.info("[NUKE] Processing radius " + currentRadius + "/" + explosionRadius);
-        
-        // Remove all blocks in the current radius layer
-        int blocksRemoved = removeRadiusLayer(world, currentRadius);
-        
-        // Send progress message every 10 radius increments
-        if (currentRadius % 10 == 0 && currentRadius <= explosionRadius) {
-            world.getPlayers().stream()
-                .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 400)
-                .forEach(player -> {
-                    player.sendMessage(net.minecraft.text.Text.literal("§c§lNuclear explosion radius: " + currentRadius + "/" + explosionRadius + " (removed " + blocksRemoved + " blocks)"));
-                });
-        }
-        
-        // Move to next radius
-        currentRadius++;
-        
-        Circuitmod.LOGGER.info("[NUKE] Moved to radius " + currentRadius);
-        
-        // Check if explosion is complete
-        if (currentRadius > explosionRadius) {
-            completeDetonation(world);
+        if (!vegetationPhase) {
+            // Main explosion phase
+            Circuitmod.LOGGER.info("[NUKE] Processing radius " + currentRadius + "/" + explosionRadius);
+            
+            // Remove all blocks in the current radius layer
+            int blocksRemoved = removeRadiusLayer(world, currentRadius);
+            
+            // Send progress message every 10 radius increments
+            if (currentRadius % 10 == 0 && currentRadius <= explosionRadius) {
+                world.getPlayers().stream()
+                    .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 400)
+                    .forEach(player -> {
+                        player.sendMessage(net.minecraft.text.Text.literal("§c§lNuclear explosion radius: " + currentRadius + "/" + explosionRadius + " (removed " + blocksRemoved + " blocks)"));
+                    });
+            }
+            
+            // Move to next radius
+            currentRadius++;
+            
+            Circuitmod.LOGGER.info("[NUKE] Moved to radius " + currentRadius);
+            
+            // Check if main explosion is complete, then start vegetation phase
+            if (currentRadius > explosionRadius) {
+                startVegetationPhase(world);
+            }
+        } else {
+            // Vegetation destruction phase
+            Circuitmod.LOGGER.info("[NUKE] Processing vegetation radius " + currentRadius + "/" + vegetationRadius);
+            
+            // Remove vegetation in the current radius layer
+            int vegetationRemoved = removeVegetationRadiusLayer(world, currentRadius);
+            
+            // Send progress message every 10 radius increments
+            if (currentRadius % 10 == 0 && currentRadius <= vegetationRadius) {
+                world.getPlayers().stream()
+                    .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 400)
+                    .forEach(player -> {
+                        player.sendMessage(net.minecraft.text.Text.literal("§a§lNuclear vegetation destruction radius: " + currentRadius + "/" + vegetationRadius + " (removed " + vegetationRemoved + " vegetation blocks)"));
+                    });
+            }
+            
+            // Move to next radius
+            currentRadius++;
+            
+            Circuitmod.LOGGER.info("[NUKE] Moved to vegetation radius " + currentRadius);
+            
+            // Check if vegetation destruction is complete
+            if (currentRadius > vegetationRadius) {
+                completeDetonation(world);
+            }
         }
     }
     
@@ -144,10 +186,15 @@ public class NukeBlockEntity extends BlockEntity {
                             continue;
                         }
                         
-                        // Remove all blocks regardless of hardness (except bedrock)
+                        // Remove all blocks regardless of hardness (except bedrock), including water
                         BlockState blockState = world.getBlockState(blockPos);
                         if (!blockState.isAir() && blockState.getBlock() != Blocks.BEDROCK) {
-                            world.removeBlock(blockPos, false);
+                            // Special handling for water - remove it completely
+                            if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
+                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            } else {
+                                world.removeBlock(blockPos, false);
+                            }
                             blocksRemoved++;
                         }
                     }
@@ -155,8 +202,419 @@ public class NukeBlockEntity extends BlockEntity {
             }
         }
         
+        // Additional effects for the main explosion radius
+        if (radius == explosionRadius) {
+            // Convert sand to glass in 2x blast radius
+            convertSandToGlass(world);
+            // Start random fires in 1.5x blast radius
+            startRandomFires(world);
+            // Apply radiation effects in 3x blast radius
+            applyRadiationEffects(world);
+            // Apply shockwave effects in 2.5x blast radius
+            applyShockwaveEffects(world);
+            // Apply thermal effects in 1.5x blast radius
+            applyThermalEffects(world);
+            // Remove entities in 2x blast radius
+            removeEntitiesInRadius(world);
+        }
+        
         Circuitmod.LOGGER.info("[NUKE] Removed " + blocksRemoved + " blocks at radius " + radius);
         return blocksRemoved;
+    }
+    
+    private int removeVegetationRadiusLayer(ServerWorld world, int radius) {
+        int vegetationRemoved = 0;
+        
+        // Remove vegetation blocks at the specified radius from the center
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -radius; y <= radius; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    // Check if this position is exactly at the specified radius
+                    double distance = Math.sqrt(x * x + y * y + z * z);
+                    if (Math.abs(distance - radius) < 0.5) { // Within 0.5 blocks of the radius
+                        BlockPos blockPos = pos.add(x, y, z);
+                        
+                        // Don't remove the nuke block itself during the explosion
+                        if (blockPos.equals(pos)) {
+                            continue;
+                        }
+                        
+                        // Handle vegetation blocks (grass, leaves, logs, etc.)
+                        BlockState blockState = world.getBlockState(blockPos);
+                        if (!blockState.isAir() && isVegetationBlock(blockState)) {
+                            // Special handling for grass blocks - replace with dirt
+                            if (blockState.getBlock() == Blocks.GRASS_BLOCK) {
+                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                            } else {
+                                // Remove all other vegetation blocks
+                                world.removeBlock(blockPos, false);
+                            }
+                            vegetationRemoved++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Removed " + vegetationRemoved + " vegetation blocks at radius " + radius);
+        return vegetationRemoved;
+    }
+    
+    private boolean isVegetationBlock(BlockState blockState) {
+        Block block = blockState.getBlock();
+        
+        // Check for grass blocks
+        if (block == Blocks.GRASS_BLOCK || block == Blocks.SHORT_GRASS || block == Blocks.TALL_GRASS || 
+            block == Blocks.FERN || block == Blocks.LARGE_FERN || block == Blocks.DEAD_BUSH) {
+            return true;
+        }
+        
+        // Check for leaves using block tags
+        if (blockState.isIn(BlockTags.LEAVES)) {
+            return true;
+        }
+        
+        // Check for logs using block tags
+        if (blockState.isIn(BlockTags.LOGS)) {
+            return true;
+        }
+        
+        // Check for saplings
+        if (blockState.isIn(BlockTags.SAPLINGS)) {
+            return true;
+        }
+        
+        // Check for flowers
+        if (blockState.isIn(BlockTags.FLOWERS)) {
+            return true;
+        }
+        
+        // Check for crops
+        if (blockState.isIn(BlockTags.CROPS)) {
+            return true;
+        }
+        
+        // Check for specific vegetation blocks
+        if (block == Blocks.VINE || block == Blocks.LILY_PAD || block == Blocks.SEAGRASS || 
+            block == Blocks.TALL_SEAGRASS || block == Blocks.KELP || block == Blocks.KELP_PLANT ||
+            block == Blocks.BAMBOO || block == Blocks.BAMBOO_SAPLING || block == Blocks.CACTUS ||
+            block == Blocks.SUGAR_CANE || block == Blocks.CHORUS_PLANT || block == Blocks.CHORUS_FLOWER ||
+            block == Blocks.NETHER_WART || block == Blocks.CRIMSON_ROOTS || block == Blocks.WARPED_ROOTS ||
+            block == Blocks.NETHER_SPROUTS || block == Blocks.TWISTING_VINES || block == Blocks.WEEPING_VINES) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private void convertSandToGlass(ServerWorld world) {
+        int glassRadius = explosionRadius * 2; // 2x blast radius
+        int sandConverted = 0;
+        
+        // Convert sand to glass in 2x blast radius
+        for (int x = -glassRadius; x <= glassRadius; x++) {
+            for (int y = -glassRadius; y <= glassRadius; y++) {
+                for (int z = -glassRadius; z <= glassRadius; z++) {
+                    double distance = Math.sqrt(x * x + y * y + z * z);
+                    if (distance <= glassRadius) {
+                        BlockPos blockPos = pos.add(x, y, z);
+                        
+                        // Don't convert the nuke block itself
+                        if (blockPos.equals(pos)) {
+                            continue;
+                        }
+                        
+                        BlockState blockState = world.getBlockState(blockPos);
+                        if (blockState.getBlock() == Blocks.SAND || blockState.getBlock() == Blocks.RED_SAND) {
+                            world.setBlockState(blockPos, Blocks.GLASS.getDefaultState(), Block.NOTIFY_ALL);
+                            sandConverted++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Converted " + sandConverted + " sand blocks to glass in 2x blast radius");
+    }
+    
+    private void startRandomFires(ServerWorld world) {
+        int fireRadius = (int)(explosionRadius * 1.5); // 1.5x blast radius
+        int firesStarted = 0;
+        int maxFires = fireRadius * 2; // Number of fires based on radius
+        
+        // Start random fires in 1.5x blast radius
+        for (int i = 0; i < maxFires; i++) {
+            // Generate random position within fire radius
+            int x = world.getRandom().nextInt(fireRadius * 2 + 1) - fireRadius;
+            int y = world.getRandom().nextInt(fireRadius * 2 + 1) - fireRadius;
+            int z = world.getRandom().nextInt(fireRadius * 2 + 1) - fireRadius;
+            
+            double distance = Math.sqrt(x * x + y * y + z * z);
+            if (distance <= fireRadius) {
+                BlockPos blockPos = pos.add(x, y, z);
+                
+                // Don't start fire on the nuke block itself
+                if (blockPos.equals(pos)) {
+                    continue;
+                }
+                
+                BlockState blockState = world.getBlockState(blockPos);
+                BlockState blockBelow = world.getBlockState(blockPos.down());
+                
+                // Start fire on any solid block (not just flammable ones)
+                if (blockState.isAir() && !blockBelow.isAir() && blockBelow.getBlock() != Blocks.LAVA && 
+                    blockBelow.getBlock() != Blocks.WATER && blockBelow.getBlock() != Blocks.BEDROCK) {
+                    world.setBlockState(blockPos, Blocks.FIRE.getDefaultState(), Block.NOTIFY_ALL);
+                    firesStarted++;
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Started " + firesStarted + " random fires in 1.5x blast radius");
+    }
+    
+    private void applyRadiationEffects(ServerWorld world) {
+        int radiationRadius = explosionRadius * 3; // 3x blast radius
+        int effectsApplied = 0;
+        
+        // Apply radiation effects in 3x blast radius
+        for (int x = -radiationRadius; x <= radiationRadius; x++) {
+            for (int y = -radiationRadius; y <= radiationRadius; y++) {
+                for (int z = -radiationRadius; z <= radiationRadius; z++) {
+                    double distance = Math.sqrt(x * x + y * y + z * z);
+                    if (distance <= radiationRadius) {
+                        BlockPos blockPos = pos.add(x, y, z);
+                        
+                        // Don't affect the nuke block itself
+                        if (blockPos.equals(pos)) {
+                            continue;
+                        }
+                        
+                        BlockState blockState = world.getBlockState(blockPos);
+                        Block block = blockState.getBlock();
+                        
+                        // Convert stone to cracked stone
+                        if (block == Blocks.STONE) {
+                            world.setBlockState(blockPos, Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert stone bricks to cracked stone bricks
+                        else if (block == Blocks.STONE_BRICKS) {
+                            world.setBlockState(blockPos, Blocks.CRACKED_STONE_BRICKS.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert grass to dead grass (brown)
+                        else if (block == Blocks.GRASS_BLOCK) {
+                            world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert water to contaminated water (different color via block state)
+                        else if (block == Blocks.WATER) {
+                            // Use a different water level to simulate contamination
+                            world.setBlockState(blockPos, Blocks.WATER.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert wool to black wool (charred)
+                        else if (blockState.isIn(BlockTags.WOOL)) {
+                            world.setBlockState(blockPos, Blocks.BLACK_WOOL.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Applied " + effectsApplied + " radiation effects in 3x blast radius");
+    }
+    
+    private void applyShockwaveEffects(ServerWorld world) {
+        int shockwaveRadius = (int)(explosionRadius * 2.5); // 2.5x blast radius
+        int effectsApplied = 0;
+        
+        // Apply shockwave effects in 2.5x blast radius
+        for (int x = -shockwaveRadius; x <= shockwaveRadius; x++) {
+            for (int y = -shockwaveRadius; y <= shockwaveRadius; y++) {
+                for (int z = -shockwaveRadius; z <= shockwaveRadius; z++) {
+                    double distance = Math.sqrt(x * x + y * y + z * z);
+                    if (distance <= shockwaveRadius) {
+                        BlockPos blockPos = pos.add(x, y, z);
+                        
+                        // Don't affect the nuke block itself
+                        if (blockPos.equals(pos)) {
+                            continue;
+                        }
+                        
+                        BlockState blockState = world.getBlockState(blockPos);
+                        Block block = blockState.getBlock();
+                        
+                        // Break glass panes and windows
+                        if (block == Blocks.GLASS_PANE || block == Blocks.WHITE_STAINED_GLASS_PANE || 
+                            block == Blocks.ORANGE_STAINED_GLASS_PANE || block == Blocks.MAGENTA_STAINED_GLASS_PANE ||
+                            block == Blocks.LIGHT_BLUE_STAINED_GLASS_PANE || block == Blocks.YELLOW_STAINED_GLASS_PANE ||
+                            block == Blocks.LIME_STAINED_GLASS_PANE || block == Blocks.PINK_STAINED_GLASS_PANE ||
+                            block == Blocks.GRAY_STAINED_GLASS_PANE || block == Blocks.LIGHT_GRAY_STAINED_GLASS_PANE ||
+                            block == Blocks.CYAN_STAINED_GLASS_PANE || block == Blocks.PURPLE_STAINED_GLASS_PANE ||
+                            block == Blocks.BLUE_STAINED_GLASS_PANE || block == Blocks.BROWN_STAINED_GLASS_PANE ||
+                            block == Blocks.GREEN_STAINED_GLASS_PANE || block == Blocks.RED_STAINED_GLASS_PANE ||
+                            block == Blocks.BLACK_STAINED_GLASS_PANE) {
+                            world.removeBlock(blockPos, false);
+                            effectsApplied++;
+                        }
+                        // Note: Item frames and paintings are entities, not blocks
+                        // They will be handled by the removeEntitiesInRadius method
+                        // Disable redstone components by breaking them
+                        else if (block == Blocks.REDSTONE_LAMP || block == Blocks.REDSTONE_TORCH || 
+                                 block == Blocks.REDSTONE_WALL_TORCH || block == Blocks.REDSTONE_WIRE ||
+                                 block == Blocks.REPEATER || block == Blocks.COMPARATOR) {
+                            world.removeBlock(blockPos, false);
+                            effectsApplied++;
+                        }
+                        // Break powered rails
+                        else if (block == Blocks.POWERED_RAIL) {
+                            world.setBlockState(blockPos, Blocks.RAIL.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Applied " + effectsApplied + " shockwave effects in 2.5x blast radius");
+    }
+    
+    private void applyThermalEffects(ServerWorld world) {
+        int thermalRadius = (int)(explosionRadius * 1.5); // 1.5x blast radius
+        int effectsApplied = 0;
+        
+        // Apply thermal effects in 1.5x blast radius
+        for (int x = -thermalRadius; x <= thermalRadius; x++) {
+            for (int y = -thermalRadius; y <= thermalRadius; y++) {
+                for (int z = -thermalRadius; z <= thermalRadius; z++) {
+                    double distance = Math.sqrt(x * x + y * y + z * z);
+                    if (distance <= thermalRadius) {
+                        BlockPos blockPos = pos.add(x, y, z);
+                        
+                        // Don't affect the nuke block itself
+                        if (blockPos.equals(pos)) {
+                            continue;
+                        }
+                        
+                        BlockState blockState = world.getBlockState(blockPos);
+                        Block block = blockState.getBlock();
+                        
+                        // Melt ice and snow
+                        if (block == Blocks.ICE || block == Blocks.SNOW || block == Blocks.SNOW_BLOCK) {
+                            world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert wooden items to charcoal (simulate burning)
+                        else if (blockState.isIn(BlockTags.LOGS) || blockState.isIn(BlockTags.PLANKS) ||
+                                 block == Blocks.CRAFTING_TABLE || block == Blocks.CHEST || 
+                                 block == Blocks.TRAPPED_CHEST || block == Blocks.BARREL ||
+                                 block == Blocks.LADDER ||
+                                 // All fence gate variants
+                                 block == Blocks.OAK_FENCE_GATE || block == Blocks.SPRUCE_FENCE_GATE ||
+                                 block == Blocks.BIRCH_FENCE_GATE || block == Blocks.JUNGLE_FENCE_GATE ||
+                                 block == Blocks.ACACIA_FENCE_GATE || block == Blocks.DARK_OAK_FENCE_GATE ||
+                                 block == Blocks.MANGROVE_FENCE_GATE || block == Blocks.CHERRY_FENCE_GATE ||
+                                 block == Blocks.BAMBOO_FENCE_GATE || block == Blocks.CRIMSON_FENCE_GATE ||
+                                 block == Blocks.WARPED_FENCE_GATE ||
+                                 // All door variants
+                                 block == Blocks.OAK_DOOR || block == Blocks.SPRUCE_DOOR ||
+                                 block == Blocks.BIRCH_DOOR || block == Blocks.JUNGLE_DOOR ||
+                                 block == Blocks.ACACIA_DOOR || block == Blocks.DARK_OAK_DOOR ||
+                                 block == Blocks.MANGROVE_DOOR || block == Blocks.CHERRY_DOOR ||
+                                 block == Blocks.BAMBOO_DOOR || block == Blocks.CRIMSON_DOOR ||
+                                 block == Blocks.WARPED_DOOR ||
+                                 // All trapdoor variants
+                                 block == Blocks.OAK_TRAPDOOR || block == Blocks.SPRUCE_TRAPDOOR ||
+                                 block == Blocks.BIRCH_TRAPDOOR || block == Blocks.JUNGLE_TRAPDOOR ||
+                                 block == Blocks.ACACIA_TRAPDOOR || block == Blocks.DARK_OAK_TRAPDOOR ||
+                                 block == Blocks.MANGROVE_TRAPDOOR || block == Blocks.CHERRY_TRAPDOOR ||
+                                 block == Blocks.BAMBOO_TRAPDOOR || block == Blocks.CRIMSON_TRAPDOOR ||
+                                 block == Blocks.WARPED_TRAPDOOR ||
+                                 // All stairs variants
+                                 block == Blocks.OAK_STAIRS || block == Blocks.SPRUCE_STAIRS ||
+                                 block == Blocks.BIRCH_STAIRS || block == Blocks.JUNGLE_STAIRS ||
+                                 block == Blocks.ACACIA_STAIRS || block == Blocks.DARK_OAK_STAIRS ||
+                                 block == Blocks.MANGROVE_STAIRS || block == Blocks.CHERRY_STAIRS ||
+                                 block == Blocks.BAMBOO_STAIRS || block == Blocks.CRIMSON_STAIRS ||
+                                 block == Blocks.WARPED_STAIRS ||
+                                 // All slab variants
+                                 block == Blocks.OAK_SLAB || block == Blocks.SPRUCE_SLAB ||
+                                 block == Blocks.BIRCH_SLAB || block == Blocks.JUNGLE_SLAB ||
+                                 block == Blocks.ACACIA_SLAB || block == Blocks.DARK_OAK_SLAB ||
+                                 block == Blocks.MANGROVE_SLAB || block == Blocks.CHERRY_SLAB ||
+                                 block == Blocks.BAMBOO_SLAB || block == Blocks.CRIMSON_SLAB ||
+                                 block == Blocks.WARPED_SLAB) {
+                            // Replace with charcoal blocks to simulate charred wood
+                            world.setBlockState(blockPos, Blocks.COAL_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Convert wool to black wool (charred)
+                        else if (blockState.isIn(BlockTags.WOOL)) {
+                            world.setBlockState(blockPos, Blocks.BLACK_WOOL.getDefaultState(), Block.NOTIFY_ALL);
+                            effectsApplied++;
+                        }
+                        // Create lava pools in depressions (random chance)
+                        else if (block == Blocks.AIR && world.getRandom().nextInt(100) < 5) { // 5% chance
+                            BlockState blockBelow = world.getBlockState(blockPos.down());
+                            if (blockBelow.getBlock() == Blocks.STONE || blockBelow.getBlock() == Blocks.DIRT) {
+                                world.setBlockState(blockPos, Blocks.LAVA.getDefaultState(), Block.NOTIFY_ALL);
+                                effectsApplied++;
+                            }
+                        }
+                        // Set fire to everything (not just flammable blocks)
+                        else if (block == Blocks.AIR && world.getRandom().nextInt(100) < 10) { // 15% chance for fire
+                            // Check if there's a solid block below to place fire on
+                            BlockState blockBelow = world.getBlockState(blockPos.down());
+                            if (!blockBelow.isAir() && blockBelow.getBlock() != Blocks.LAVA && 
+                                blockBelow.getBlock() != Blocks.WATER && blockBelow.getBlock() != Blocks.BEDROCK) {
+                                world.setBlockState(blockPos, Blocks.FIRE.getDefaultState(), Block.NOTIFY_ALL);
+                                effectsApplied++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Applied " + effectsApplied + " thermal effects in 1.5x blast radius");
+    }
+    
+    private void removeEntitiesInRadius(ServerWorld world) {
+        int entityRadius = explosionRadius * 2; // 2x blast radius
+        int entitiesRemoved = 0;
+        
+        // Get all entities within the radius
+        List<Entity> entities = world.getOtherEntities(null, 
+            new Box(
+                pos.getX() - entityRadius, pos.getY() - entityRadius, pos.getZ() - entityRadius,
+                pos.getX() + entityRadius, pos.getY() + entityRadius, pos.getZ() + entityRadius
+            ));
+        
+        for (Entity entity : entities) {
+            double distance = entity.getBlockPos().getSquaredDistance(pos);
+            if (distance <= entityRadius * entityRadius) {
+                // Remove item frames, paintings, and other decorative entities
+                if (entity.getType() == EntityType.ITEM_FRAME ||
+                    entity.getType() == EntityType.GLOW_ITEM_FRAME ||
+                    entity.getType() == EntityType.PAINTING ||
+                    entity.getType() == EntityType.ARMOR_STAND ||
+                    entity.getType() == EntityType.LEASH_KNOT ||
+                    entity.getType() == EntityType.END_CRYSTAL) {
+                    entity.discard();
+                    entitiesRemoved++;
+                }
+                // Damage other entities (but don't kill them)
+                else if (entity instanceof LivingEntity livingEntity) {
+                    livingEntity.damage(world, world.getDamageSources().explosion(null, null), 10.0f);
+                    entitiesRemoved++;
+                }
+            }
+        }
+        
+        Circuitmod.LOGGER.info("[NUKE] Removed/damaged " + entitiesRemoved + " entities in 2x blast radius");
     }
     
     private void startDetonation(ServerWorld world) {
@@ -176,15 +634,30 @@ public class NukeBlockEntity extends BlockEntity {
         markDirty();
     }
     
+    private void startVegetationPhase(ServerWorld world) {
+        vegetationPhase = true;
+        currentRadius = explosionRadius + 1; // Start from where main explosion left off
+        
+        // Send vegetation phase warning
+        world.getPlayers().stream()
+            .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 400)
+            .forEach(player -> {
+                player.sendMessage(net.minecraft.text.Text.literal("§a§lNuclear vegetation destruction phase initiated!"));
+            });
+        
+        Circuitmod.LOGGER.info("[NUKE] Nuclear vegetation destruction phase started at " + pos);
+        markDirty();
+    }
+    
     private void completeDetonation(ServerWorld world) {
         // Send completion message
         world.getPlayers().stream()
             .filter(player -> player.getBlockPos().getSquaredDistance(pos) <= 200)
             .forEach(player -> {
-                player.sendMessage(net.minecraft.text.Text.literal("§c§lNuclear detonation complete. Explosion radius: " + explosionRadius + " blocks."));
+                player.sendMessage(net.minecraft.text.Text.literal("§c§lNuclear detonation complete. Explosion radius: " + explosionRadius + " blocks, vegetation destruction radius: " + vegetationRadius + " blocks."));
             });
         
-        Circuitmod.LOGGER.info("[NUKE] Nuclear detonation completed. Explosion radius: " + explosionRadius + " blocks at " + pos);
+        Circuitmod.LOGGER.info("[NUKE] Nuclear detonation completed. Explosion radius: " + explosionRadius + " blocks, vegetation destruction radius: " + vegetationRadius + " blocks at " + pos);
         
         // Remove the nuke block itself at the very end
         world.removeBlock(pos, false);
@@ -215,6 +688,21 @@ public class NukeBlockEntity extends BlockEntity {
      */
     public int getExplosionRadius() {
         return explosionRadius;
+    }
+    
+    /**
+     * Set the vegetation destruction radius
+     */
+    public void setVegetationRadius(int radius) {
+        this.vegetationRadius = Math.max(explosionRadius + 1, Math.min(200, radius)); // Clamp between explosion radius + 1 and 200
+        markDirty();
+    }
+    
+    /**
+     * Get the vegetation destruction radius
+     */
+    public int getVegetationRadius() {
+        return vegetationRadius;
     }
     
     /**
