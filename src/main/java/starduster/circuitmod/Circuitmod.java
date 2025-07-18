@@ -67,6 +67,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.DRILL_BLOCK);
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
+				entries.add(ModBlocks.BLUEPRINT_DESK);
 
 				entries.add(ModBlocks.ELECTRIC_CARPET);
 				entries.add(ModBlocks.ITEM_PIPE);
@@ -126,6 +127,9 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.STEEL_AXE);
 				entries.add(ModItems.STEEL_HOE);
 				entries.add(ModItems.STEEL_SWORD);
+
+				// Add blueprint item
+				entries.add(ModItems.BLUEPRINT);
 
 				// Add more mod items here as they are created
 			})
@@ -192,6 +196,45 @@ public class Circuitmod implements ModInitializer {
 					
 					// Send sync packet back to the client
 					ModNetworking.sendDrillDimensionsUpdate(context.player(), height, width);
+				}
+			});
+		});
+		
+		// Register constructor building handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorBuildingPayload.ID, (payload, context) -> {
+			var constructorPos = payload.constructorPos();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(constructorPos) instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity constructor) {
+					constructor.toggleBuilding();
+					LOGGER.info("[SERVER] Toggled building for constructor at " + constructorPos + " by player " + context.player().getName().getString());
+				}
+			});
+		});
+		
+		// Register blueprint name handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNamePayload.ID, (payload, context) -> {
+			var blueprintDeskPos = payload.blueprintDeskPos();
+			var name = payload.name();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(blueprintDeskPos) instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blueprintDesk) {
+					blueprintDesk.setBlueprintName(name);
+					LOGGER.info("[SERVER] Updated blueprint name to '{}' for blueprint desk at {} by player {}", 
+						name, blueprintDeskPos, context.player().getName().getString());
+				}
+			});
+		});
+		
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNameRequestPayload.ID, (payload, context) -> {
+			var blueprintDeskPos = payload.blueprintDeskPos();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(blueprintDeskPos) instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blueprintDesk) {
+					String currentName = blueprintDesk.getCurrentBlueprintName();
+					ModNetworking.sendBlueprintNameSync(context.player(), blueprintDeskPos, currentName);
+					LOGGER.info("[SERVER] Sent blueprint name '{}' to player {} for blueprint desk at {}", 
+						currentName, context.player().getName().getString(), blueprintDeskPos);
 				}
 			});
 		});

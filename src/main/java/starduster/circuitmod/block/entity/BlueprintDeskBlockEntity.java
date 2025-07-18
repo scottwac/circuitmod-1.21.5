@@ -33,8 +33,11 @@ import starduster.circuitmod.item.BlueprintItem;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.screen.BlueprintDeskScreenHandler;
 import starduster.circuitmod.screen.ModScreenHandlers;
+import starduster.circuitmod.network.ModNetworking;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Block entity for the Blueprint Desk.
@@ -48,11 +51,17 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     // Partner desk connection
     private BlockPos partnerPos = null;
     private boolean hasValidPartner = false;
+    private boolean needsPartnerSearch = false; // Flag to delay partner search
+    
+    // Connection mode tracking
+    private static final Map<PlayerEntity, BlockPos> playersInConnectionMode = new HashMap<>();
     
     // Scanning state
     private boolean isScanning = false;
     private int scanProgress = 0;
     private String currentBlueprintName = "New Blueprint";
+    private int autoScanDelay = 0; // Delay before auto-starting scan to allow name updates
+    private static int blueprintCounter = 0; // Counter for generating unique blueprint names
     
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -100,6 +109,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         nbt.putBoolean("is_scanning", isScanning);
         nbt.putInt("scan_progress", scanProgress);
         nbt.putString("blueprint_name", currentBlueprintName);
+        nbt.putInt("auto_scan_delay", autoScanDelay);
         
         // Save inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
@@ -121,6 +131,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         this.isScanning = nbt.getBoolean("is_scanning", false);
         this.scanProgress = nbt.getInt("scan_progress", 0);
         this.currentBlueprintName = nbt.getString("blueprint_name", "New Blueprint");
+        this.autoScanDelay = nbt.getInt("auto_scan_delay", 0);
         
         // Load inventory
         Inventories.readNbt(nbt, this.inventory, registries);
@@ -146,6 +157,18 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
                 Block.NOTIFY_ALL);
         }
         
+
+        
+        // Process auto-scan delay
+        if (entity.autoScanDelay > 0) {
+            entity.autoScanDelay--;
+            if (entity.autoScanDelay == 0 && entity.hasValidPartner && !entity.isScanning) {
+                // Start scanning after delay
+                entity.startScanning();
+                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Auto-started scanning after delay with name: {}", entity.currentBlueprintName);
+            }
+        }
+        
         // Validate partner connection periodically
         if (world.getTime() % 20 == 0) { // Every second
             entity.validatePartnerConnection();
@@ -159,32 +182,61 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     
     /**
      * Finds and connects to a partner blueprint desk
+     * Uses an optimized search pattern to avoid lag
      */
     public void findPartnerDesk() {
         if (world == null || world.isClient()) {
             return;
         }
         
-        // Search in a reasonable radius for another blueprint desk
-        int searchRadius = 300; // blocks
+        // Use a much smaller search radius to avoid lag
+        int searchRadius = 50; // Reduced from 300 to 50 blocks
         
-        for (int x = -searchRadius; x <= searchRadius; x++) {
-            for (int y = -searchRadius; y <= searchRadius; y++) {
-                for (int z = -searchRadius; z <= searchRadius; z++) {
-                    if (x == 0 && y == 0 && z == 0) continue; // Skip self
-                    
-                    BlockPos searchPos = pos.add(x, y, z);
-                    BlockEntity blockEntity = world.getBlockEntity(searchPos);
-                    
-                    if (blockEntity instanceof BlueprintDeskBlockEntity otherDesk) {
-                        // Check if the other desk doesn't have a partner
-                        if (!otherDesk.hasValidPartner) {
-                            // Connect to each other
-                            this.setPartner(searchPos);
-                            otherDesk.setPartner(this.pos);
+        // Search in expanding rings to find the closest partner first
+        for (int radius = 1; radius <= searchRadius; radius++) {
+            // Search the surface of a cube at this radius
+            for (int axis = 0; axis < 3; axis++) {
+                for (int sign = -1; sign <= 1; sign += 2) {
+                    for (int other1 = -radius; other1 <= radius; other1++) {
+                        for (int other2 = -radius; other2 <= radius; other2++) {
+                            int x, y, z;
                             
-                            Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Connected desks at {} and {}", pos, searchPos);
-                            return;
+                            if (axis == 0) {
+                                x = sign * radius;
+                                y = other1;
+                                z = other2;
+                            } else if (axis == 1) {
+                                x = other1;
+                                y = sign * radius;
+                                z = other2;
+                            } else {
+                                x = other1;
+                                y = other2;
+                                z = sign * radius;
+                            }
+                            
+                            // Skip if outside our search radius
+                            if (Math.abs(x) > searchRadius || Math.abs(y) > searchRadius || Math.abs(z) > searchRadius) {
+                                continue;
+                            }
+                            
+                            // Skip self
+                            if (x == 0 && y == 0 && z == 0) continue;
+                            
+                            BlockPos searchPos = pos.add(x, y, z);
+                            BlockEntity blockEntity = world.getBlockEntity(searchPos);
+                            
+                            if (blockEntity instanceof BlueprintDeskBlockEntity otherDesk) {
+                                // Check if the other desk doesn't have a partner
+                                if (!otherDesk.hasValidPartner) {
+                                    // Connect to each other
+                                    this.setPartner(searchPos);
+                                    otherDesk.setPartner(this.pos);
+                                    
+                                    Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Connected desks at {} and {}", pos, searchPos);
+                                    return;
+                                }
+                            }
                         }
                     }
                 }
@@ -247,11 +299,17 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
             return;
         }
         
-        // Check if we have a blueprint item in our inventory
+        // Check if we have a blank blueprint item in our inventory
         ItemStack stack = inventory.get(0);
-        if (stack.isEmpty() || !(stack.getItem() instanceof BlueprintItem)) {
+        if (stack.isEmpty() || !stack.isOf(ModItems.BLANK_BLUEPRINT)) {
             // Need a blank blueprint item
             return;
+        }
+        
+        // Ensure we have a unique name
+        if (currentBlueprintName.equals("New Blueprint")) {
+            currentBlueprintName = generateUniqueBlueprintName();
+            Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Generated unique name for scan: {}", currentBlueprintName);
         }
         
         this.isScanning = true;
@@ -262,7 +320,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         BlockPos startPos = pos;
         BlockPos endPos = partnerPos;
         
-        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Starting scan from {} to {}", startPos, endPos);
+        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Starting scan from {} to {} with name: {}", startPos, endPos, currentBlueprintName);
         
         // Create the blueprint and start async scanning
         BlueprintScanner.scanAreaAsync(startPos, endPos, (ServerWorld) world, currentBlueprintName, 
@@ -300,12 +358,8 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         // Create blueprint item
         ItemStack blueprintStack = BlueprintItem.createWithBlueprint(blueprint, world.getRegistryManager());
         
-        // Replace the blank blueprint item
+        // Replace the blank blueprint item with the completed blueprint
         inventory.set(0, blueprintStack);
-        
-        // Drop additional blueprint as an item entity
-        ItemEntity itemEntity = new ItemEntity(world, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, blueprintStack.copy());
-        world.spawnEntity(itemEntity);
         
         markDirty();
         
@@ -316,8 +370,72 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
      * Sets the name for the next blueprint to be created
      */
     public void setBlueprintName(String name) {
-        this.currentBlueprintName = name;
+        // If no name is provided or it's the default name, generate a unique one
+        if (name == null || name.isEmpty() || name.equals("New Blueprint")) {
+            this.currentBlueprintName = generateUniqueBlueprintName();
+        } else {
+            this.currentBlueprintName = name;
+        }
         markDirty();
+        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Set blueprint name to: {}", this.currentBlueprintName);
+    }
+    
+    /**
+     * Schedules a partner search for the next tick
+     */
+    public void schedulePartnerSearch() {
+        this.needsPartnerSearch = true;
+    }
+    
+    /**
+     * Starts connection mode for a player
+     */
+    public void startConnectionMode(PlayerEntity player) {
+        playersInConnectionMode.put(player, this.pos);
+    }
+    
+    /**
+     * Attempts to connect to another desk when in connection mode
+     */
+    public boolean tryConnectToPartner(PlayerEntity player) {
+        BlockPos firstDeskPos = playersInConnectionMode.get(player);
+        if (firstDeskPos != null && !firstDeskPos.equals(this.pos)) {
+            // Get the first desk
+            if (world != null) {
+                BlockEntity firstDeskEntity = world.getBlockEntity(firstDeskPos);
+                if (firstDeskEntity instanceof BlueprintDeskBlockEntity firstDesk) {
+                    // Connect the desks
+                    this.setPartner(firstDeskPos);
+                    firstDesk.setPartner(this.pos);
+                    
+                    // Clear connection mode
+                    playersInConnectionMode.remove(player);
+                    
+                    // Notify player
+                    player.sendMessage(Text.literal("Blueprint desks connected successfully!"), false);
+                    
+                    Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Player {} connected desks at {} and {}", 
+                        player.getName().getString(), firstDeskPos, this.pos);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Checks if a player is currently in connection mode
+     */
+    public static boolean isPlayerInConnectionMode(PlayerEntity player) {
+        return playersInConnectionMode.containsKey(player);
+    }
+    
+    /**
+     * Cancels connection mode for a player
+     */
+    public static void cancelConnectionMode(PlayerEntity player) {
+        playersInConnectionMode.remove(player);
+        player.sendMessage(Text.literal("Connection mode cancelled"), false);
     }
     
     // Inventory implementation
@@ -354,12 +472,12 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         }
         markDirty();
         
-        // Auto-start scanning when a blueprint item is inserted
-        if (slot == 0 && !stack.isEmpty() && stack.getItem() instanceof BlueprintItem) {
+        // Auto-start scanning when a blank blueprint is inserted
+        if (slot == 0 && !stack.isEmpty() && stack.isOf(ModItems.BLANK_BLUEPRINT)) {
             if (hasValidPartner && !isScanning && world != null && !world.isClient()) {
-                // Start scanning automatically
-                startScanning();
-                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Auto-started scanning when blueprint inserted");
+                // Set a delay to allow name updates to be processed first
+                this.autoScanDelay = 3; // 3 ticks delay
+                ;
             }
         }
     }
@@ -390,6 +508,10 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+        // Send current blueprint name to client when screen opens
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            ModNetworking.sendBlueprintNameSync(serverPlayer, this.pos, this.currentBlueprintName);
+        }
         return new BlueprintDeskScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
     }
     
@@ -408,6 +530,15 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     
     public String getCurrentBlueprintName() {
         return currentBlueprintName;
+    }
+    
+    /**
+     * Generates a unique blueprint name with random numbers
+     */
+    private String generateUniqueBlueprintName() {
+        // Generate a random 6-digit number
+        int randomNumber = (int)(Math.random() * 900000) + 100000; // 100000 to 999999
+        return String.valueOf(randomNumber);
     }
     
     public PropertyDelegate getPropertyDelegate() {

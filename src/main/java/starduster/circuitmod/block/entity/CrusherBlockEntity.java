@@ -23,6 +23,7 @@ public class CrusherBlockEntity extends BlockEntity {
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
 
+
     }
 
     // Add network handling logic to the tick method

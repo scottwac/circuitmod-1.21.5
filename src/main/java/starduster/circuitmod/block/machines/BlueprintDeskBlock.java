@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.BlueprintDeskBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import net.minecraft.text.Text;
 
 /**
  * Primary blueprinter block that handles area scanning and blueprint creation.
@@ -73,8 +74,31 @@ public class BlueprintDeskBlock extends BlockWithEntity {
         if (!world.isClient()) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof BlueprintDeskBlockEntity blueprintDesk) {
-                // Open the GUI or handle right-click actions
-                player.openHandledScreen(blueprintDesk);
+                // Check if player is in connection mode
+                if (BlueprintDeskBlockEntity.isPlayerInConnectionMode(player)) {
+                    if (blueprintDesk.tryConnectToPartner(player)) {
+                        return ActionResult.SUCCESS;
+                    } else {
+                        player.sendMessage(Text.literal("Failed to connect desks. Try again."), false);
+                        return ActionResult.SUCCESS;
+                    }
+                }
+                
+                // Check if player is holding a connection item (like a redstone dust or wire)
+                ItemStack heldItem = player.getMainHandStack();
+                if (heldItem.getItem().toString().contains("redstone") || heldItem.getItem().toString().contains("wire")) {
+                    // Start connection mode
+                    blueprintDesk.startConnectionMode(player);
+                    player.sendMessage(Text.literal("Right-click the second blueprint desk to connect them"), false);
+                    return ActionResult.SUCCESS;
+                } else if (heldItem.isEmpty() && BlueprintDeskBlockEntity.isPlayerInConnectionMode(player)) {
+                    // Cancel connection mode if right-clicking with empty hand
+                    BlueprintDeskBlockEntity.cancelConnectionMode(player);
+                    return ActionResult.SUCCESS;
+                } else {
+                    // Open the GUI normally
+                    player.openHandledScreen(blueprintDesk);
+                }
                 return ActionResult.SUCCESS;
             }
         }
@@ -88,8 +112,6 @@ public class BlueprintDeskBlock extends BlockWithEntity {
         if (!world.isClient()) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof BlueprintDeskBlockEntity blueprintDesk) {
-                // Try to find a partner desk
-                blueprintDesk.findPartnerDesk();
                 Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Placed blueprint desk at {}", pos);
             }
         }

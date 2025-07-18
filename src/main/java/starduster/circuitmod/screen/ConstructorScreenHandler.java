@@ -12,17 +12,24 @@ import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 import starduster.circuitmod.screen.ModScreenHandlers.ConstructorData;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.item.BlueprintItem;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ConstructorScreenHandler extends ScreenHandler {
     private final Inventory inventory;
     private final PropertyDelegate propertyDelegate;
     private final ConstructorBlockEntity blockEntity; // Reference to block entity for getting position
     
+    // Static maps to hold synced materials per constructor position
+    private static final Map<BlockPos, Map<String, Integer>> syncedRequiredMaterials = new HashMap<>();
+    private static final Map<BlockPos, Map<String, Integer>> syncedAvailableMaterials = new HashMap<>();
+    
     // Property delegate indices
     private static final int IS_BUILDING_INDEX = 0;
     private static final int BUILD_PROGRESS_INDEX = 1;
     private static final int TOTAL_BUILD_BLOCKS_INDEX = 2;
     private static final int HAS_BLUEPRINT_INDEX = 3;
+    private static final int IS_RECEIVING_POWER_INDEX = 4;
     
     // Client constructor
     public ConstructorScreenHandler(int syncId, PlayerInventory playerInventory, ConstructorData data) {
@@ -200,6 +207,30 @@ public class ConstructorScreenHandler extends ScreenHandler {
         return this.propertyDelegate.get(HAS_BLUEPRINT_INDEX) == 1;
     }
     
+    // Get power status for display
+    public boolean isReceivingPower() {
+        return this.propertyDelegate.get(IS_RECEIVING_POWER_INDEX) == 1;
+    }
+    
+    // Update building status from client networking
+    public void updateBuildingStatusFromNetwork(boolean building, boolean hasBlueprint) {
+        this.propertyDelegate.set(IS_BUILDING_INDEX, building ? 1 : 0);
+        this.propertyDelegate.set(HAS_BLUEPRINT_INDEX, hasBlueprint ? 1 : 0);
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-HANDLER] Updated building status: building={}, hasBlueprint={}", building, hasBlueprint);
+    }
+    
+    // Update power status from client networking
+    public void updatePowerStatusFromNetwork(boolean hasPower) {
+        // Update the block entity's state directly on client side
+        if (blockEntity != null) {
+            blockEntity.setPowerStatusFromNetwork(hasPower);
+        }
+        // Also update the property delegate for immediate GUI updates
+        this.propertyDelegate.set(IS_RECEIVING_POWER_INDEX, hasPower ? 1 : 0);
+        Circuitmod.LOGGER.info("[CONSTRUCTOR-HANDLER] Updated power status: hasPower={}", hasPower);
+    }
+    
+    
     // Get block position (for client-side networking)
     public BlockPos getBlockPos() {
         return blockEntity != null ? blockEntity.getPos() : BlockPos.ORIGIN;
@@ -208,5 +239,26 @@ public class ConstructorScreenHandler extends ScreenHandler {
     // Get the block entity (for direct access when needed)
     public ConstructorBlockEntity getBlockEntity() {
         return blockEntity;
+    }
+    
+    // Get block entity position for materials sync
+    public BlockPos getBlockEntityPos() {
+        return blockEntity != null ? blockEntity.getPos() : BlockPos.ORIGIN;
+    }
+    
+    // Static method to update materials from server
+    public static void updateMaterialsFromServer(BlockPos pos, Map<String, Integer> required, Map<String, Integer> available) {
+        syncedRequiredMaterials.put(pos, required);
+        syncedAvailableMaterials.put(pos, available);
+    }
+    
+    // Get synced required materials from static storage
+    public Map<String, Integer> getSyncedRequiredMaterials() {
+        return syncedRequiredMaterials.getOrDefault(getBlockEntityPos(), new HashMap<>());
+    }
+    
+    // Get synced available materials from static storage
+    public Map<String, Integer> getSyncedAvailableMaterials() {
+        return syncedAvailableMaterials.getOrDefault(getBlockEntityPos(), new HashMap<>());
     }
 } 

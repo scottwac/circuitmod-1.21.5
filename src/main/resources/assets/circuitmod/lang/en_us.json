@@ -22,6 +22,8 @@
   "item.circuitmod.zirconium_ingot": "Zirconium Ingot",
   "item.circuitmod.zirconium_tube": "Zirconium Tube",
   "item.circuitmod.lead_ingot": "Lead Ingot",
+  "item.circuitmod.blueprint": "Blueprint",
+  "item.circuitmod.blank_blueprint": "Blank Blueprint",
 
   "block.circuitmod.steel_block": "Block of Steel",
 

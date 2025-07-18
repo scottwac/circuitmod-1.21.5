@@ -13,6 +13,9 @@ import starduster.circuitmod.Circuitmod;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
 
+import java.util.Map;
+import java.util.HashMap;
+
 public class ModNetworking {
     /**
      * Initialize networking for the common module (server side)
@@ -28,11 +31,19 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(DrillMiningProgressPayload.ID, DrillMiningProgressPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillMiningEnabledPayload.ID, DrillMiningEnabledPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillDimensionsSyncPayload.ID, DrillDimensionsSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorBuildingStatusPayload.ID, ConstructorBuildingStatusPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorPowerStatusPayload.ID, ConstructorPowerStatusPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorStatusMessagePayload.ID, ConstructorStatusMessagePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(BlueprintNameSyncPayload.ID, BlueprintNameSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorMaterialsSyncPayload.ID, ConstructorMaterialsSyncPayload.CODEC);
         
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuarryDimensionsPayload.ID, QuarryDimensionsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DrillDimensionsPayload.ID, DrillDimensionsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ConstructorBuildingPayload.ID, ConstructorBuildingPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(BlueprintNamePayload.ID, BlueprintNamePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
     }
     
 
@@ -164,8 +175,86 @@ public class ModNetworking {
         }
     }
     
-
+    /**
+     * Send constructor building status update to a player
+     * 
+     * @param player The player to send the update to
+     * @param constructorPos The position of the constructor
+     * @param building Whether the constructor is building
+     * @param hasBlueprint Whether the constructor has a blueprint
+     */
+    public static void sendConstructorBuildingStatusUpdate(ServerPlayerEntity player, BlockPos constructorPos, boolean building, boolean hasBlueprint) {
+        Circuitmod.LOGGER.info("[SERVER] Sending constructor building status to player " + 
+            player.getName().getString() + ": building=" + building + ", hasBlueprint=" + hasBlueprint + " for constructor at " + constructorPos);
+            
+        ConstructorBuildingStatusPayload payload = new ConstructorBuildingStatusPayload(constructorPos, building, hasBlueprint);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
     
+    /**
+     * Send constructor power status update to a player
+     * 
+     * @param player The player to send the update to
+     * @param constructorPos The position of the constructor
+     * @param hasPower Whether the constructor is receiving power
+     */
+    public static void sendConstructorPowerStatusUpdate(ServerPlayerEntity player, BlockPos constructorPos, boolean hasPower) {
+        Circuitmod.LOGGER.info("[SERVER] Sending constructor power status to player " + 
+            player.getName().getString() + ": hasPower=" + hasPower + " for constructor at " + constructorPos);
+            
+        ConstructorPowerStatusPayload payload = new ConstructorPowerStatusPayload(constructorPos, hasPower);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send constructor status message update to a player
+     * 
+     * @param player The player to send the update to
+     * @param constructorPos The position of the constructor
+     * @param message The status message
+     */
+    public static void sendConstructorStatusMessageUpdate(ServerPlayerEntity player, BlockPos constructorPos, String message) {
+        Circuitmod.LOGGER.info("[SERVER] Sending constructor status message to player " + 
+            player.getName().getString() + ": " + message + " for constructor at " + constructorPos);
+            
+        ConstructorStatusMessagePayload payload = new ConstructorStatusMessagePayload(constructorPos, message);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send blueprint name sync to client
+     * 
+     * @param player The player to send the update to
+     * @param blueprintDeskPos The position of the blueprint desk
+     * @param name The blueprint name
+     */
+    public static void sendBlueprintNameSync(ServerPlayerEntity player, BlockPos blueprintDeskPos, String name) {
+        Circuitmod.LOGGER.info("[SERVER] Sending blueprint name sync to player " + 
+            player.getName().getString() + ": name=" + name + " for blueprint desk at " + blueprintDeskPos);
+            
+        BlueprintNameSyncPayload payload = new BlueprintNameSyncPayload(blueprintDeskPos, name);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send constructor materials sync to client
+     * 
+     * @param player The player to send the update to
+     * @param constructorPos The position of the constructor
+     * @param required The required materials
+     * @param available The available materials
+     */
+    public static void sendConstructorMaterialsSync(ServerPlayerEntity player, BlockPos constructorPos, Map<String, Integer> required, Map<String, Integer> available) {
+        Circuitmod.LOGGER.info("[SERVER] Sending constructor materials sync to player " + 
+            player.getName().getString() + ": required=" + required + ", available=" + available + " for constructor at " + constructorPos);
+            
+        // Create defensive copies to prevent ConcurrentModificationException
+        Map<String, Integer> requiredCopy = new HashMap<>(required);
+        Map<String, Integer> availableCopy = new HashMap<>(available);
+        
+        ConstructorMaterialsSyncPayload payload = new ConstructorMaterialsSyncPayload(constructorPos, requiredCopy, availableCopy);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
 
     
     /**
@@ -399,7 +488,170 @@ public class ModNetworking {
     
     public static final Identifier ENERGY_TO_MASS_SELECT_RESOURCE = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_select_resource");
     public static final Identifier ENERGY_TO_MASS_FIREWORK = Identifier.of(Circuitmod.MOD_ID, "energy_to_mass_firework");
-  
     
+    /**
+     * Payload for constructor building toggle (client -> server)
+     */
+    public record ConstructorBuildingPayload(BlockPos constructorPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ConstructorBuildingPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_building"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, ConstructorBuildingPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorBuildingPayload::constructorPos,
+            ConstructorBuildingPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for constructor building status updates (server -> client)
+     */
+    public record ConstructorBuildingStatusPayload(BlockPos constructorPos, boolean building, boolean hasBlueprint) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ConstructorBuildingStatusPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_building_status"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, ConstructorBuildingStatusPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorBuildingStatusPayload::constructorPos,
+            PacketCodecs.BOOLEAN, ConstructorBuildingStatusPayload::building,
+            PacketCodecs.BOOLEAN, ConstructorBuildingStatusPayload::hasBlueprint,
+            ConstructorBuildingStatusPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for constructor power status updates (server -> client)
+     */
+    public record ConstructorPowerStatusPayload(BlockPos constructorPos, boolean hasPower) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ConstructorPowerStatusPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_power_status"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, ConstructorPowerStatusPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorPowerStatusPayload::constructorPos,
+            PacketCodecs.BOOLEAN, ConstructorPowerStatusPayload::hasPower,
+            ConstructorPowerStatusPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for constructor status message updates (server -> client)
+     */
+    public record ConstructorStatusMessagePayload(BlockPos constructorPos, String message) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ConstructorStatusMessagePayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_status_message"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, ConstructorStatusMessagePayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorStatusMessagePayload::constructorPos,
+            PacketCodecs.STRING, ConstructorStatusMessagePayload::message,
+            ConstructorStatusMessagePayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for blueprint name update (client -> server)
+     */
+    public record BlueprintNamePayload(BlockPos blueprintDeskPos, String name) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<BlueprintNamePayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "blueprint_name"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, BlueprintNamePayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, BlueprintNamePayload::blueprintDeskPos,
+            PacketCodecs.STRING, BlueprintNamePayload::name,
+            BlueprintNamePayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for blueprint name sync (server -> client)
+     */
+    public record BlueprintNameSyncPayload(BlockPos blueprintDeskPos, String name) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<BlueprintNameSyncPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "blueprint_name_sync"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, BlueprintNameSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, BlueprintNameSyncPayload::blueprintDeskPos,
+            PacketCodecs.STRING, BlueprintNameSyncPayload::name,
+            BlueprintNameSyncPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for blueprint name request (client -> server)
+     */
+    public record BlueprintNameRequestPayload(BlockPos blueprintDeskPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<BlueprintNameRequestPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "blueprint_name_request"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, BlueprintNameRequestPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, BlueprintNameRequestPayload::blueprintDeskPos,
+            BlueprintNameRequestPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
 
+    /**
+     * Payload for constructor materials sync (server -> client)
+     */
+    public record ConstructorMaterialsSyncPayload(BlockPos constructorPos, Map<String, Integer> required, Map<String, Integer> available) implements CustomPayload {
+        public static final CustomPayload.Id<ConstructorMaterialsSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_materials_sync"));
+
+        public static final PacketCodec<PacketByteBuf, ConstructorMaterialsSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorMaterialsSyncPayload::constructorPos,
+            PacketCodecs.map(java.util.HashMap::new, PacketCodecs.STRING, PacketCodecs.INTEGER), ConstructorMaterialsSyncPayload::required,
+            PacketCodecs.map(java.util.HashMap::new, PacketCodecs.STRING, PacketCodecs.INTEGER), ConstructorMaterialsSyncPayload::available,
+            ConstructorMaterialsSyncPayload::new
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
 } 

@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.item.BlueprintItem;
 import starduster.circuitmod.item.ModItems;
 
@@ -66,7 +67,7 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
                 }
             } else {
                 // Moving from player inventory to blueprint desk
-                if (originalStack.getItem() instanceof BlueprintItem || originalStack.isOf(ModItems.BLUEPRINT)) {
+                if (originalStack.getItem() instanceof BlueprintItem || originalStack.isOf(ModItems.BLUEPRINT) || originalStack.isOf(ModItems.BLANK_BLUEPRINT)) {
                     if (!this.insertItem(originalStack, 0, this.inventory.size(), false)) {
                         return ItemStack.EMPTY;
                     }
@@ -98,6 +99,15 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
         return this.propertyDelegate.get(2);
     }
     
+    // Get the block entity position (for networking)
+    public BlockPos getBlockEntityPos() {
+        // This is a bit hacky, but we can get the position from the inventory if it's a block entity
+        if (inventory instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blockEntity) {
+            return blockEntity.getPos();
+        }
+        return null;
+    }
+    
     /**
      * Custom slot for blueprint items
      */
@@ -108,8 +118,8 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
         
         @Override
         public boolean canInsert(ItemStack stack) {
-            // Only allow blueprint items
-            return stack.getItem() instanceof BlueprintItem || stack.isOf(ModItems.BLUEPRINT);
+            // Allow blueprint items and blank blueprints
+            return stack.getItem() instanceof BlueprintItem || stack.isOf(ModItems.BLUEPRINT) || stack.isOf(ModItems.BLANK_BLUEPRINT);
         }
         
         @Override

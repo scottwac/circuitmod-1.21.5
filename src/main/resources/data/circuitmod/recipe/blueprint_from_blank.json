@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "circuitmod:blank_blueprint",
+    "P": "minecraft:paper"
+  },
+  "pattern": [
+    "B",
+    "P"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:blueprint"
+  }
+} 
