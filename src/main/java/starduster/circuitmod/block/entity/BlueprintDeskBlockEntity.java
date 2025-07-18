@@ -472,6 +472,17 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         }
         markDirty();
         
+        // Handle blank blueprint conversion
+        if (slot == 0 && !stack.isEmpty() && stack.isOf(ModItems.BLANK_BLUEPRINT)) {
+            if (world != null && !world.isClient()) {
+                // Convert blank blueprint to regular blueprint
+                ItemStack blueprintStack = new ItemStack(ModItems.BLUEPRINT);
+                inventory.set(0, blueprintStack);
+                markDirty();
+                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Converted blank blueprint to regular blueprint");
+            }
+        }
+        
         // Auto-start scanning when a blueprint item is inserted
         if (slot == 0 && !stack.isEmpty() && stack.getItem() instanceof BlueprintItem) {
             if (hasValidPartner && !isScanning && world != null && !world.isClient()) {

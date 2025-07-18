@@ -14,6 +14,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
 
 import java.util.Map;
+import java.util.HashMap;
 
 public class ModNetworking {
     /**
@@ -247,7 +248,11 @@ public class ModNetworking {
         Circuitmod.LOGGER.info("[SERVER] Sending constructor materials sync to player " + 
             player.getName().getString() + ": required=" + required + ", available=" + available + " for constructor at " + constructorPos);
             
-        ConstructorMaterialsSyncPayload payload = new ConstructorMaterialsSyncPayload(constructorPos, required, available);
+        // Create defensive copies to prevent ConcurrentModificationException
+        Map<String, Integer> requiredCopy = new HashMap<>(required);
+        Map<String, Integer> availableCopy = new HashMap<>(available);
+        
+        ConstructorMaterialsSyncPayload payload = new ConstructorMaterialsSyncPayload(constructorPos, requiredCopy, availableCopy);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
 

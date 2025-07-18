@@ -10,6 +10,7 @@ import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
@@ -31,6 +32,7 @@ import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
 import net.minecraft.item.Item;
+import net.minecraft.item.Items;
 import net.minecraft.block.Blocks;
 
 import java.util.*;
@@ -58,7 +60,7 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     private int totalBuildTicks = 0; // Total ticks needed to build current block
     private int currentBuildTicks = 0; // Current ticks spent building
     
-    // Required materials tracking
+    // Required materials tracking (using block/item identifiers instead of display names)
     private Map<String, Integer> requiredMaterials = new HashMap<>();
     private Map<String, Integer> availableMaterials = new HashMap<>();
     
@@ -809,23 +811,33 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         availableMaterials.clear();
         
         if (currentBlueprint != null) {
-            // Count required materials
+            // Count required materials using block/item identifiers
             for (BlockPos pos : currentBlueprint.getAllBlockPositions()) {
                 BlockState state = currentBlueprint.getBlockState(pos);
                 if (state != null) {
-                    String blockName = state.getBlock().getName().getString();
-                    requiredMaterials.put(blockName, requiredMaterials.getOrDefault(blockName, 0) + 1);
+                    // Use the block's item form identifier (e.g., "minecraft:stone")
+                    Block block = state.getBlock();
+                    Item blockItem = block.asItem();
+                    if (blockItem != Items.AIR) {
+                        String itemId = Registries.ITEM.getId(blockItem).toString();
+                        requiredMaterials.put(itemId, requiredMaterials.getOrDefault(itemId, 0) + 1);
+                    } else {
+                        // Fallback to block ID if no item form exists
+                        String blockId = Registries.BLOCK.getId(block).toString();
+                        requiredMaterials.put(blockId, requiredMaterials.getOrDefault(blockId, 0) + 1);
+                    }
                 }
             }
             
-            // Count available materials in inventory
+            // Count available materials in inventory using item identifiers
             Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Scanning inventory ({} slots):", inventory.size());
             for (int slot = 1; slot < inventory.size(); slot++) {
                 ItemStack stack = inventory.get(slot);
                 if (!stack.isEmpty()) {
-                    String blockName = stack.getItem().getName().getString();
-                    availableMaterials.put(blockName, availableMaterials.getOrDefault(blockName, 0) + stack.getCount());
-                    Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Slot {}: {} x{}", slot, blockName, stack.getCount());
+                    // Use the item's registry identifier (e.g., "minecraft:stone")
+                    String itemId = Registries.ITEM.getId(stack.getItem()).toString();
+                    availableMaterials.put(itemId, availableMaterials.getOrDefault(itemId, 0) + stack.getCount());
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Slot {}: {} x{}", slot, itemId, stack.getCount());
                 } else {
                     Circuitmod.LOGGER.info("[CONSTRUCTOR-MATERIALS] Slot {}: empty", slot);
                 }

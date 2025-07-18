@@ -67,7 +67,7 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
                 }
             } else {
                 // Moving from player inventory to blueprint desk
-                if (originalStack.getItem() instanceof BlueprintItem || originalStack.isOf(ModItems.BLUEPRINT)) {
+                if (originalStack.getItem() instanceof BlueprintItem || originalStack.isOf(ModItems.BLUEPRINT) || originalStack.isOf(ModItems.BLANK_BLUEPRINT)) {
                     if (!this.insertItem(originalStack, 0, this.inventory.size(), false)) {
                         return ItemStack.EMPTY;
                     }
@@ -118,8 +118,8 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
         
         @Override
         public boolean canInsert(ItemStack stack) {
-            // Only allow blueprint items
-            return stack.getItem() instanceof BlueprintItem || stack.isOf(ModItems.BLUEPRINT);
+            // Allow blueprint items and blank blueprints
+            return stack.getItem() instanceof BlueprintItem || stack.isOf(ModItems.BLUEPRINT) || stack.isOf(ModItems.BLANK_BLUEPRINT);
         }
         
         @Override

@@ -5,9 +5,15 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 import starduster.circuitmod.network.ClientNetworking;
@@ -29,12 +35,12 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     // Buttons
     private ButtonWidget startStopButton;
     
-    // Scrollable materials section
-    private static final int MAX_MATERIALS_VISIBLE = 6;
-    private static final int MATERIAL_ENTRY_HEIGHT = 12;
+    // Scrollable materials section - made smaller and more compact
+    private static final int MAX_MATERIALS_VISIBLE = 4;
+    private static final int MATERIAL_ENTRY_HEIGHT = 18; // Increased to accommodate item icons with proper spacing
     private static final int MATERIALS_AREA_HEIGHT = MAX_MATERIALS_VISIBLE * MATERIAL_ENTRY_HEIGHT;
-    private static final int SCROLLBAR_WIDTH = 6;
-    private static final int SCROLLBAR_HEIGHT = 15;
+    private static final int SCROLLBAR_WIDTH = 4;
+    private static final int SCROLLBAR_HEIGHT = 10;
     private int materialsScrollOffset = 0;
     private boolean scrolling = false;
     private List<Map.Entry<String, Integer>> materialsList = new ArrayList<>();
@@ -46,7 +52,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     
     public ConstructorScreen(ConstructorScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
-        this.backgroundHeight = 200; // Increased height to accommodate materials list
+        this.backgroundHeight = 180; // Reduced height since materials list is now smaller
         this.backgroundWidth = 175;
     }
     
@@ -54,9 +60,9 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     protected void init() {
         super.init();
         
-        // Create start/stop button - positioned below the blueprint status
+        // Create start/stop button - positioned below the materials section
         int buttonX = this.x + 8;
-        int buttonY = this.y + 55;
+        int buttonY = this.y + 120; // Moved down to make room for materials section
         
         this.startStopButton = ButtonWidget.builder(
             Text.literal("Start Building"),
@@ -140,21 +146,24 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
             context.drawText(this.textRenderer, Text.literal(statusMessage), 8, 6, INFO_COLOR, false);
         }
         
-        // ALWAYS draw materials section title for debugging
-        context.drawText(this.textRenderer, Text.literal("Required Materials:"), 8, 95, INFO_COLOR, false);
+        // Draw materials section title - positioned below blueprint slot, smaller size
+        context.getMatrices().push();
+        context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+        context.drawText(this.textRenderer, Text.literal("Materials:"), 16, 70, INFO_COLOR, false);
+        context.getMatrices().pop();
         
         // Draw materials information in scrollable section
         if (handler.hasBlueprint()) {
             Map<String, Integer> requiredMaterials = handler.getSyncedRequiredMaterials();
             Map<String, Integer> availableMaterials = handler.getSyncedAvailableMaterials();
             
-            // Debug logging for materials display
-            if (System.currentTimeMillis() % 5000 < 50) { // Log every ~5 seconds
+            // Debug logging for materials display (reduced frequency)
+            if (System.currentTimeMillis() % 10000 < 50) { // Log every ~10 seconds
                 Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Materials display - hasBlueprint: {}, requiredMaterials: {}, availableMaterials: {}", 
                     handler.hasBlueprint(), requiredMaterials.size(), availableMaterials.size());
-                if (!requiredMaterials.isEmpty()) {
-                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Required materials: {}", requiredMaterials);
-                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Available materials: {}", availableMaterials);
+                // Log the actual material IDs for debugging
+                for (Map.Entry<String, Integer> entry : requiredMaterials.entrySet()) {
+                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Required material: {} = {}", entry.getKey(), entry.getValue());
                 }
             }
             
@@ -171,36 +180,35 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
                 // Draw scrollbar
                 drawScrollbar(context);
             } else {
-                // Debug: Show when no materials are found
-                context.drawText(this.textRenderer, Text.literal("No materials found"), 8, 110, ERROR_COLOR, false);
-                if (System.currentTimeMillis() % 5000 < 50) { // Log every ~5 seconds
-                    Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] No required materials found to display");
-                }
+                // Show when no materials are found - smaller size
+                context.getMatrices().push();
+                context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+                context.drawText(this.textRenderer, Text.literal("No materials"), 16, 90, ERROR_COLOR, false);
+                context.getMatrices().pop();
             }
         } else {
-            // Debug: Show when blueprint or block entity is missing
-            context.drawText(this.textRenderer, Text.literal("No blueprint loaded"), 8, 110, ERROR_COLOR, false);
-            if (System.currentTimeMillis() % 5000 < 50) { // Log every ~5 seconds
-                Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Cannot display materials - hasBlueprint: {}, blockEntity: {}", 
-                    handler.hasBlueprint(), blockEntity != null);
-            }
+            // Show when blueprint is missing - smaller size
+            context.getMatrices().push();
+            context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+            context.drawText(this.textRenderer, Text.literal("No blueprint"), 16, 90, ERROR_COLOR, false);
+            context.getMatrices().pop();
         }
         
         // Draw power status
         String powerStatus = "Power: " + (handler.isReceivingPower() ? "ON" : "OFF");
         int powerColor = handler.isReceivingPower() ? STATUS_COLOR : ERROR_COLOR;
-        context.drawText(this.textRenderer, Text.literal(powerStatus), 8, 80, powerColor, false);
+        context.drawText(this.textRenderer, Text.literal(powerStatus), 8, 70, powerColor, false);
         
         // Draw progress if building
         if (handler.isBuilding()) {
             int progress = handler.getBuildProgress();
             int total = handler.getTotalBuildBlocks();
             String progressText = "Progress: " + progress + " / " + total;
-            context.drawText(this.textRenderer, Text.literal(progressText), 8, 185, STATUS_COLOR, false);
+            context.drawText(this.textRenderer, Text.literal(progressText), 8, 165, STATUS_COLOR, false);
             
             // Draw progress bar
             int barX = 8;
-            int barY = 195;
+            int barY = 175;
             int barWidth = 80;
             int barHeight = 6;
             
@@ -220,26 +228,90 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     
     private void drawScrollableMaterials(DrawContext context, int mouseX, int mouseY, Map<String, Integer> availableMaterials) {
         int materialsAreaX = 8;
-        int materialsAreaY = 110;
+        int materialsAreaY = 45; // Moved up to be below blueprint slot
         int materialsAreaWidth = 140;
         
         // Calculate scroll limits
         int maxScroll = Math.max(0, materialsList.size() - MAX_MATERIALS_VISIBLE);
         materialsScrollOffset = MathHelper.clamp(materialsScrollOffset, 0, maxScroll);
         
-        // Draw visible materials
+        // Draw visible materials as item icons with counts
         for (int i = 0; i < MAX_MATERIALS_VISIBLE && i + materialsScrollOffset < materialsList.size(); i++) {
             Map.Entry<String, Integer> entry = materialsList.get(i + materialsScrollOffset);
-            String materialName = entry.getKey();
+            String materialId = entry.getKey();
             int required = entry.getValue();
-            int available = availableMaterials.getOrDefault(materialName, 0);
+            int available = availableMaterials.getOrDefault(materialId, 0);
             
-            String materialText = materialName + ": " + available + "/" + required;
-            int materialColor = available >= required ? STATUS_COLOR : ERROR_COLOR;
+            // Try to create an ItemStack from the material ID
+            ItemStack itemStack = createItemStackFromId(materialId);
             
             int yPos = materialsAreaY + (i * MATERIAL_ENTRY_HEIGHT);
-            context.drawText(this.textRenderer, Text.literal(materialText), materialsAreaX, yPos, materialColor, false);
+            int iconX = materialsAreaX;
+            int iconY = yPos + 1; // Add 1 pixel offset for better positioning
+            
+            // Draw item icon
+            if (!itemStack.isEmpty()) {
+                // Draw the item with count overlay
+                String countText = available + "/" + required;
+                context.drawStackOverlay(this.textRenderer, itemStack, iconX, iconY, countText);
+                
+                // Draw availability indicator (color-coded text to the right) - smaller size
+                String availabilityText = available >= required ? "✓" : "✗";
+                int textX = iconX + 16; // Position text closer to the icon
+                int textY = iconY + 3;  // Center vertically with the icon
+                
+                // Determine color based on availability
+                int textColor = available >= required ? STATUS_COLOR : ERROR_COLOR;
+                // Draw smaller text by scaling the matrix
+                context.getMatrices().push();
+                context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+                context.drawText(this.textRenderer, Text.literal(availabilityText), textX * 2, textY * 2, textColor, false);
+                context.getMatrices().pop();
+            } else {
+                // Fallback to text if we can't create an item stack - smaller size
+                String shortName = materialId.length() > 12 ? materialId.substring(0, 9) + "..." : materialId;
+                String materialText = shortName + ": " + available + "/" + required;
+                int materialColor = available >= required ? STATUS_COLOR : ERROR_COLOR;
+                // Draw smaller text by scaling the matrix
+                context.getMatrices().push();
+                context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+                context.drawText(this.textRenderer, Text.literal(materialText), iconX * 2, (iconY + 5) * 2, materialColor, false);
+                context.getMatrices().pop();
+            }
         }
+    }
+    
+    /**
+     * Helper method to create an ItemStack from a material ID string
+     */
+    private ItemStack createItemStackFromId(String materialId) {
+        try {
+            // Parse the identifier (e.g., "minecraft:stone")
+            Identifier identifier = Identifier.tryParse(materialId);
+            if (identifier != null) {
+                // Try to get the item directly first
+                Item item = Registries.ITEM.get(identifier);
+                if (item != Items.AIR) {
+                    return new ItemStack(item);
+                }
+                
+                // If not found as item, try as block
+                Block block = Registries.BLOCK.get(identifier);
+                if (block != Blocks.AIR) {
+                    Item blockItem = block.asItem();
+                    if (blockItem != Items.AIR) {
+                        return new ItemStack(blockItem);
+                    }
+                }
+                
+                // Debug logging to see what we're trying to parse
+                Circuitmod.LOGGER.info("[CONSTRUCTOR-SCREEN] Could not create ItemStack for material ID: {}", materialId);
+            }
+        } catch (Exception e) {
+            Circuitmod.LOGGER.warn("[CONSTRUCTOR-SCREEN] Failed to create ItemStack from material ID: {}", materialId, e);
+        }
+        
+        return ItemStack.EMPTY;
     }
     
     private void drawScrollbar(DrawContext context) {
@@ -248,7 +320,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         }
         
         int scrollbarX = this.x + 150;
-        int scrollbarY = this.y + 110;
+        int scrollbarY = this.y + 45; // Moved up to match materials area
         int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
         
         // Calculate scrollbar position
@@ -283,7 +355,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (scrolling && materialsList.size() > MAX_MATERIALS_VISIBLE) {
             int scrollbarX = this.x + 150;
-            int scrollbarY = this.y + 110;
+            int scrollbarY = this.y + 60; // Moved up to match materials area
             int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
             
             float scrollProgress = ((float) mouseY - scrollbarY - SCROLLBAR_HEIGHT / 2.0f) / (scrollbarAreaHeight - SCROLLBAR_HEIGHT);
@@ -304,7 +376,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         // Check if clicking on scrollbar
         if (materialsList.size() > MAX_MATERIALS_VISIBLE) {
             int scrollbarX = this.x + 150;
-            int scrollbarY = this.y + 110;
+            int scrollbarY = this.y + 45; // Moved up to match materials area
             int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
             
             if (mouseX >= scrollbarX && mouseX <= scrollbarX + SCROLLBAR_WIDTH &&
