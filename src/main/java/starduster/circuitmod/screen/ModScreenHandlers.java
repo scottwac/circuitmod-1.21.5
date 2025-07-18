@@ -81,6 +81,14 @@ public class ModScreenHandlers {
             Identifier.of(Circuitmod.MOD_ID, "bloomery"),
             new ScreenHandlerType<>(BloomeryScreenHandler::new, FeatureSet.empty())
         );
+
+    // Register crusher screen handler
+    public static final ScreenHandlerType<CrusherScreenHandler> CRUSHER_SCREEN_HANDLER =
+            Registry.register(
+                    Registries.SCREEN_HANDLER,
+                    Identifier.of(Circuitmod.MOD_ID, "crusher"),
+                    new ScreenHandlerType<>(CrusherScreenHandler::new, FeatureSet.empty())
+            );
     
     public static final ScreenHandlerType<MassFabricatorScreenHandler> MASS_FABRICATOR_SCREEN_HANDLER = 
         Registry.register(
