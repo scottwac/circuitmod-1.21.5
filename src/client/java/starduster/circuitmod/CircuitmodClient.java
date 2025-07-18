@@ -21,6 +21,7 @@ import starduster.circuitmod.screen.MassFabricatorScreen;
 import starduster.circuitmod.screen.ReactorScreen;
 import starduster.circuitmod.screen.CrusherScreen;
 import starduster.circuitmod.screen.BatteryScreen;
+import starduster.circuitmod.screen.ElectricFurnaceScreen;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
@@ -43,6 +44,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.CONSTRUCTOR_SCREEN_HANDLER, ConstructorScreen::new);
 		HandledScreens.register(ModScreenHandlers.CRUSHER_SCREEN_HANDLER, CrusherScreen::new);
 		HandledScreens.register(ModScreenHandlers.BATTERY_SCREEN_HANDLER, BatteryScreen::new);
+		HandledScreens.register(ModScreenHandlers.ELECTRIC_FURNACE_SCREEN_HANDLER, ElectricFurnaceScreen::new);
 
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);

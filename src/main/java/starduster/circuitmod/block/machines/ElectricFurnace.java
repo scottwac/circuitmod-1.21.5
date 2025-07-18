@@ -3,6 +3,8 @@ package starduster.circuitmod.block.machines;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
@@ -18,6 +20,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ElectricFurnaceBlockEntity;
+import starduster.circuitmod.block.entity.ModBlockEntities;
 
 public class ElectricFurnace extends BlockWithEntity {
     public static final MapCodec<ElectricFurnace> CODEC = createCodec(ElectricFurnace::new);
@@ -60,8 +63,17 @@ public class ElectricFurnace extends BlockWithEntity {
 
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+        if (world.isClient()) {
+            return ActionResult.SUCCESS;
+        }
 
-        return ActionResult.SUCCESS;
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof ElectricFurnaceBlockEntity) {
+            player.openHandledScreen((ElectricFurnaceBlockEntity) blockEntity);
+            return ActionResult.SUCCESS;
+        }
+
+        return ActionResult.FAIL;
     }
 
     // Add method to connect to network when placed
@@ -73,7 +85,15 @@ public class ElectricFurnace extends BlockWithEntity {
 
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof ElectricFurnaceBlockEntity electricFurnaceEntity) {
+            electricFurnaceEntity.onRemoved();
+        }
         super.onStateReplaced(state, world, pos, moved);
+    }
+    
+    @Override
+    public @Nullable <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+        return validateTicker(type, ModBlockEntities.ELECTRIC_FURNACE_BLOCK_ENTITY, ElectricFurnaceBlockEntity::tick);
     }
 } 

@@ -146,6 +146,14 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(GeneratorScreenHandler::new, FeatureSet.empty())
         );
     
+    // Register electric furnace screen handler
+    public static final ScreenHandlerType<ElectricFurnaceScreenHandler> ELECTRIC_FURNACE_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "electric_furnace_screen_handler"),
+            new ScreenHandlerType<>(ElectricFurnaceScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }

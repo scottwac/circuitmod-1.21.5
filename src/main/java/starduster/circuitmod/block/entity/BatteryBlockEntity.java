@@ -413,11 +413,6 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, N
         if (world.getTime() % 10 == 0) {
             entity.markDirty(); // Trigger PropertyDelegate update
         }
-        
-        // Update GUI data every 10 ticks (0.5 seconds) to keep it responsive
-        if (entity.tickCounter % 10 == 0) {
-            entity.markDirty(); // Trigger PropertyDelegate update
-        }
     }
     
     // NamedScreenHandlerFactory implementation

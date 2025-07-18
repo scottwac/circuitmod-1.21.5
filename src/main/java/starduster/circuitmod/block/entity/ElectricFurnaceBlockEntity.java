@@ -9,9 +9,9 @@ import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.SmeltingRecipe;
 import net.minecraft.recipe.input.SingleStackRecipeInput;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
@@ -35,15 +35,12 @@ import starduster.circuitmod.util.ImplementedInventory;
 import java.util.Optional;
 
 public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory, SidedInventory, IEnergyConsumer {
-    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(3, ItemStack.EMPTY);
+    private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(2, ItemStack.EMPTY);
     
     private static final int INPUT_SLOT = 0;
-    private static final int FUEL_SLOT = 1;
-    private static final int OUTPUT_SLOT = 2;
+    private static final int OUTPUT_SLOT = 1;
     
     // Furnace properties
-    private int litTimeRemaining = 0;
-    private int litTotalTime = 0;
     private int cookingTimeSpent = 0;
     private int cookingTotalTime = 0;
     
@@ -59,8 +56,8 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         @Override
         public int get(int index) {
             switch (index) {
-                case 0 -> {return ElectricFurnaceBlockEntity.this.litTimeRemaining;}
-                case 1 -> {return ElectricFurnaceBlockEntity.this.litTotalTime;}
+                case 0 -> {return ElectricFurnaceBlockEntity.this.isPowered ? 1 : 0;}
+                case 1 -> {return 0;} // Not used for electric furnace
                 case 2 -> {return ElectricFurnaceBlockEntity.this.cookingTimeSpent;}
                 case 3 -> {return ElectricFurnaceBlockEntity.this.cookingTotalTime;}
                 case 4 -> {return ElectricFurnaceBlockEntity.this.isPowered ? 1 : 0;}
@@ -71,8 +68,6 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         @Override
         public void set(int index, int value) {
             switch (index) {
-                case 0 -> ElectricFurnaceBlockEntity.this.litTimeRemaining = value;
-                case 1 -> ElectricFurnaceBlockEntity.this.litTotalTime = value;
                 case 2 -> ElectricFurnaceBlockEntity.this.cookingTimeSpent = value;
                 case 3 -> ElectricFurnaceBlockEntity.this.cookingTotalTime = value;
             }
@@ -107,8 +102,6 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
         Inventories.writeNbt(nbt, inventory, registries);
-        nbt.putInt("lit_time_remaining", litTimeRemaining);
-        nbt.putInt("lit_total_time", litTotalTime);
         nbt.putInt("cooking_time_spent", cookingTimeSpent);
         nbt.putInt("cooking_total_time", cookingTotalTime);
         nbt.putBoolean("is_powered", isPowered);
@@ -124,22 +117,21 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        super.readNbt(nbt, registries);
         Inventories.readNbt(nbt, inventory, registries);
-        litTimeRemaining = nbt.getInt("lit_time_remaining");
-        litTotalTime = nbt.getInt("lit_total_time");
-        cookingTimeSpent = nbt.getInt("cooking_time_spent");
-        cookingTotalTime = nbt.getInt("cooking_total_time");
-        isPowered = nbt.getBoolean("is_powered");
-        energyReceived = nbt.getInt("energy_received");
+        cookingTimeSpent = nbt.getInt("cooking_time_spent").get();
+        cookingTotalTime = nbt.getInt("cooking_total_time").get();
+        isPowered = nbt.getBoolean("is_powered").orElse(false);
+        energyReceived = nbt.getInt("energy_received").get();
         
         // Load network data
         if (nbt.contains("energy_network")) {
             this.network = new EnergyNetwork();
-            NbtCompound networkNbt = nbt.getCompound("energy_network");
+            NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
             network.readFromNbt(networkNbt);
         }
         this.needsNetworkRefresh = true;
+        
+        super.readNbt(nbt, registries);
     }
 
     // Add network handling logic to the tick method
@@ -154,7 +146,6 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
             }
         }
         
-        boolean burningBefore = entity.isBurning();
         boolean poweredBefore = entity.isPowered;
         
         // Reset energy received for this tick
@@ -165,21 +156,13 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         boolean hasRecipe = entity.hasRecipe();
         boolean canSmelt = entity.canSmelt();
         
-        // If powered, we don't need fuel
+        // If powered and we have a recipe, we can smelt
         if (entity.isReceivingPower() && hasRecipe && canSmelt) {
             entity.isPowered = true;
-            entity.litTimeRemaining = 1; // Keep it lit while powered
-            entity.litTotalTime = 1;
-        } else if (entity.litTimeRemaining > 0) {
-            // Decrease burn time
-            entity.litTimeRemaining--;
-        } else if (hasRecipe && canSmelt && entity.hasFuel()) {
-            // Try to start burning if we have fuel and aren't currently burning
-            entity.consumeFuel();
         }
         
         // Smelting logic
-        if (entity.isBurning() && hasRecipe && canSmelt) {
+        if (entity.isPowered && hasRecipe && canSmelt) {
             entity.cookingTimeSpent++;
             if (entity.cookingTimeSpent >= entity.cookingTotalTime) {
                 entity.cookingTimeSpent = 0;
@@ -190,51 +173,35 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
             entity.cookingTimeSpent = 0;
         }
         
-        // Update block state if burning state changed
-        if (burningBefore != entity.isBurning() || poweredBefore != entity.isPowered) {
-            world.setBlockState(pos, state.with(starduster.circuitmod.block.machines.ElectricFurnace.LIT, entity.isBurning()), Block.NOTIFY_ALL);
+        // Update block state if powered state changed
+        if (poweredBefore != entity.isPowered) {
+            world.setBlockState(pos, state.with(starduster.circuitmod.block.machines.ElectricFurnace.LIT, entity.isPowered), Block.NOTIFY_ALL);
         }
         
         entity.markDirty();
     }
     
     public boolean isBurning() {
-        return this.litTimeRemaining > 0;
+        return this.isPowered;
     }
     
     public boolean isReceivingPower() {
         return this.energyReceived > 0;
     }
     
-    private void consumeFuel() {
-        ItemStack fuelStack = this.getStack(FUEL_SLOT);
-        if (!fuelStack.isEmpty() && world != null) {
-            int fuelTime = world.getFuelRegistry().getFuelTicks(fuelStack);
-            if (fuelTime > 0) {
-                this.litTimeRemaining = fuelTime;
-                this.litTotalTime = fuelTime;
-                this.removeStack(FUEL_SLOT, 1);
-            }
-        }
-    }
-    
-    private boolean hasFuel() {
-        ItemStack fuelStack = this.getStack(FUEL_SLOT);
-        return !fuelStack.isEmpty() && world != null && world.getFuelRegistry().getFuelTicks(fuelStack) > 0;
-    }
-    
     private boolean hasRecipe() {
-        Optional<RecipeEntry<AbstractCookingRecipe>> recipe = getCurrentRecipe();
+        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
         return recipe.isPresent();
     }
     
     private boolean canSmelt() {
-        Optional<RecipeEntry<AbstractCookingRecipe>> recipe = getCurrentRecipe();
+        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
         if (recipe.isEmpty()) {
             return false;
         }
         
-        ItemStack output = recipe.get().value().getResult(world.getRegistryManager());
+        SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+        ItemStack output = recipe.get().value().craft(input, world.getRegistryManager());
         ItemStack outputSlot = this.getStack(OUTPUT_SLOT);
         
         if (outputSlot.isEmpty()) {
@@ -249,9 +216,10 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     }
     
     private void craftItem() {
-        Optional<RecipeEntry<AbstractCookingRecipe>> recipe = getCurrentRecipe();
+        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
         if (recipe.isPresent()) {
-            ItemStack output = recipe.get().value().getResult(world.getRegistryManager());
+            SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+            ItemStack output = recipe.get().value().craft(input, world.getRegistryManager());
             ItemStack outputSlot = this.getStack(OUTPUT_SLOT);
             
             if (outputSlot.isEmpty()) {
@@ -264,7 +232,7 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         }
     }
     
-    private Optional<RecipeEntry<AbstractCookingRecipe>> getCurrentRecipe() {
+    private Optional<RecipeEntry<SmeltingRecipe>> getCurrentRecipe() {
         if (world == null || world.isClient()) {
             return Optional.empty();
         }
@@ -280,7 +248,7 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         }
         
         SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
-        Optional<RecipeEntry<AbstractCookingRecipe>> recipe = ((ServerWorld) world).getRecipeManager()
+        Optional<RecipeEntry<SmeltingRecipe>> recipe = ((ServerWorld) world).getRecipeManager()
                 .getFirstMatch(RecipeType.SMELTING, input, world);
         
         return recipe.map(recipeEntry -> recipeEntry.value().getCookingTime()).orElse(200);
@@ -334,11 +302,11 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     @Override
     public int[] getAvailableSlots(Direction side) {
         if (side == Direction.DOWN) {
-            return new int[]{OUTPUT_SLOT, FUEL_SLOT};
+            return new int[]{OUTPUT_SLOT};
         } else if (side == Direction.UP) {
             return new int[]{INPUT_SLOT};
         } else {
-            return new int[]{FUEL_SLOT};
+            return new int[]{INPUT_SLOT};
         }
     }
     
@@ -346,8 +314,6 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     public boolean canInsert(int slot, ItemStack stack, @Nullable Direction dir) {
         if (slot == OUTPUT_SLOT) {
             return false;
-        } else if (slot == FUEL_SLOT) {
-            return world != null && world.getFuelRegistry().isFuel(stack);
         } else {
             return true;
         }
