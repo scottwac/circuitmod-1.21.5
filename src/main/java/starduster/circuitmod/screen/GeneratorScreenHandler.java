@@ -32,7 +32,7 @@ public class GeneratorScreenHandler extends ScreenHandler {
         
         // Add generator slots
         // Fuel slot
-        this.addSlot(new GeneratorFuelSlot(inventory, 0, 80, 35));
+        this.addSlot(new GeneratorFuelSlot(inventory, 0, 80, 44));
         
         // Player inventory slots
         for (int i = 0; i < 3; ++i) {

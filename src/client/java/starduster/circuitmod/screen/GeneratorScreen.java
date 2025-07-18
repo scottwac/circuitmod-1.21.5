@@ -25,7 +25,7 @@ public class GeneratorScreen extends HandledScreen<GeneratorScreenHandler> {
         // Draw fuel burning progress
         if (handler.isBurning()) {
             int fuelProgress = handler.getScaledFuelProgress();
-            context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, this.x + 81, this.y + 37 + 12 - fuelProgress,
+            context.drawTexture(RenderLayer::getGuiTextured, TEXTURE, this.x + 81, this.y + 28 + 12 - fuelProgress,
              176, 12 - fuelProgress, 14, fuelProgress + 1, 256, 256);
         }
     }

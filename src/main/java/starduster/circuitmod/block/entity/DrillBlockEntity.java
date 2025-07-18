@@ -298,9 +298,19 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             blockEntity.soundClock = 160;
         }
 
+        // Handle network refresh with retry logic for world reload scenarios
         if (blockEntity.needsNetworkRefresh) {
-            blockEntity.findAndJoinNetwork();
-            blockEntity.needsNetworkRefresh = false;
+            boolean networkFound = blockEntity.findAndJoinNetwork();
+            if (networkFound) {
+                blockEntity.needsNetworkRefresh = false;
+                Circuitmod.LOGGER.info("[DRILL-NETWORK] Successfully joined network at " + pos);
+            } else {
+                // If we couldn't find a network, try again in a few ticks
+                // This helps with world reload scenarios where power cables might not be loaded yet
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[DRILL-NETWORK] No network found at " + pos + ", will retry. Mining enabled: " + blockEntity.miningEnabled);
+                }
+            }
         }
         if (world.isClient()) {
             return;
@@ -340,6 +350,15 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         } else {
             // No energy received or mining is disabled
             needsSync = true;
+            
+            // If mining is enabled but we're not receiving power, try to refresh network connection
+            // This helps with world reload scenarios where network connections might be lost
+            if (blockEntity.miningEnabled && blockEntity.energyReceived == 0 && blockEntity.network == null) {
+                if (world.getTime() % 40 == 0) { // Try every 2 seconds
+                    Circuitmod.LOGGER.info("[DRILL-NETWORK-RETRY] Mining enabled but no power at " + pos + ", attempting network refresh");
+                    blockEntity.needsNetworkRefresh = true;
+                }
+            }
         }
         
         // Reset energy received at the end of each tick
@@ -1045,9 +1064,9 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         return new DrillScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
     
-    public void findAndJoinNetwork() {
+    public boolean findAndJoinNetwork() {
         if (world == null || world.isClient()) {
-            return;
+            return false;
         }
         
         // Look for nearby power cables or other power connectables
@@ -1062,7 +1081,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                     neighborNetwork.addBlock(pos, this);
                     Circuitmod.LOGGER.info("[DRILL] Joined network {} at {}", 
                         neighborNetwork.getNetworkId(), pos);
-                    return;
+                    return true;
                 }
             }
         }
@@ -1073,7 +1092,10 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             network.addBlock(pos, this);
             Circuitmod.LOGGER.info("[DRILL] Created new network {} at {}", 
                 network.getNetworkId(), pos);
+            return true;
         }
+        
+        return false;
     }
     
     /**

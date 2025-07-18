@@ -89,10 +89,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         if (world.getTime() % 100 == 0) { // Only log every 5 seconds
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
             long timeOfDay = world.getTimeOfDay() % 24000;
-            float hour = (timeOfDay / 1000.0f);
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-TICK] Light: {}, Energy: {}, Network: {}, Tick: {}, Time: {} ({}:{}), Hour: {:.1f}", 
+            int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
+            int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-TICK] Light: {:.2f}, Energy: {}, Network: {}, Tick: {}, Time: {} ticks ({}:{:02d})", 
                 blockEntity.lastLightLevel, blockEntity.currentEnergyProduction, networkInfo, blockEntity.tickCounter, 
-                timeOfDay, (int)hour, (int)((hour % 1.0f) * 60), hour);
+                timeOfDay, hours, minutes);
         }
     }
     
@@ -108,7 +109,13 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         BlockPos skyPos = pos.up();
         boolean canSeeSky = world.isSkyVisible(skyPos);
         
-        if (!canSeeSky) {
+        // Also check if the block above is transparent to sky light
+        boolean hasSkyAccess = canSeeSky || world.getBlockState(skyPos).getLuminance() == 0;
+        
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-SKY] Can see sky: {}, Has sky access: {}, Block above: {}", 
+            canSeeSky, hasSkyAccess, world.getBlockState(skyPos).getBlock().toString());
+        
+        if (!hasSkyAccess) {
             // If blocked from sky, provide minimal energy
             this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
             this.lastLightLevel = 0.0f;
@@ -122,14 +129,17 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         // Get time of day (0-24000, where 0=6AM, 6000=noon, 12000=6PM, 18000=midnight)
         long timeOfDay = world.getTimeOfDay() % 24000;
         
-        // Calculate efficiency based on time of day (peak at noon)
-        float timeEfficiency = calculateTimeEfficiency(timeOfDay);
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-MAIN] Sky visible: {}, Sky light level: {}, Time of day: {}", 
+            canSeeSky, skyLightLevel, timeOfDay);
         
-        // Debug time calculation
-        float hour = (timeOfDay / 1000.0f);
-        if (hour >= 24.0f) hour -= 24.0f;
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {}, Calculated hour: {:.1f}, Time efficiency: {}", 
-            timeOfDay, hour, timeEfficiency);
+        // Calculate efficiency based on time of day (sinusoidal function)
+        float timeEfficiency = calculateSolarTimeEfficiency(timeOfDay);
+        
+        // Debug time calculation - convert to readable format
+        int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
+        int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {} ticks ({}:{:02d}), Time efficiency: {:.3f}", 
+            timeOfDay, hours, minutes, timeEfficiency);
         
         // Calculate efficiency based on weather
         float weatherEfficiency = world.isRaining() ? 0.3f : 1.0f;
@@ -144,11 +154,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         float totalEfficiency = timeEfficiency * weatherEfficiency * lightEfficiency;
         
         // Calculate final energy production
-        if (timeEfficiency == 0.0f) {
+        if (timeEfficiency <= 0.0f) {
             // Night time - no energy production
             this.currentEnergyProduction = 0;
         } else {
-            // Daytime - ensure minimum of 5 energy per tick
+            // Daytime - calculate based on efficiency
             int baseProduction = MAX_ENERGY_PER_TICK - MIN_ENERGY_PER_TICK;
             this.currentEnergyProduction = MIN_ENERGY_PER_TICK + Math.round(baseProduction * totalEfficiency);
         }
@@ -163,34 +173,61 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     }
     
     /**
-     * Calculates time-based efficiency (peak at noon, minimum at midnight)
+     * Calculates sinusoidal time-based efficiency for solar power generation
+     * Based on official Minecraft daylight cycle: 0=06:00, 6000=12:00, 12000=18:00, 18000=00:00
+     * Peak efficiency at noon (6000 ticks), zero during night
      */
-    private float calculateTimeEfficiency(long timeOfDay) {
-        // In Minecraft: 0=6AM, 6000=noon, 12000=6PM, 18000=midnight
-        // Convert to hour of day (0-24 scale where 0=6AM)
-        float hour = (timeOfDay / 1000.0f);
+    private float calculateSolarTimeEfficiency(long timeOfDay) {
+        // Official Minecraft time mapping:
+        // 0 ticks = 06:00:00 (dawn/sunrise)
+        // 6000 ticks = 12:00:00 (noon - peak sun)
+        // 12000 ticks = 18:00:00 (dusk/sunset)
+        // 18000 ticks = 00:00:00 (midnight)
         
-        // Wrap around if we go past 24 hours
-        if (hour >= 24.0f) {
-            hour -= 24.0f;
-        }
+        // Daytime is from 0 to 12000 ticks (06:00 to 18:00)
+        // Nighttime is from 13000 to 23000 ticks (19:00 to 05:00)
+        // Sunset transition: 12000-13000 ticks (18:00-19:00)
+        // Sunrise transition: 23000-24000(0) ticks (05:00-06:00)
         
-        // Night time: 18:00 (6PM) to 6:00 (6AM) - no energy production
-        if (hour >= 18.0f || hour < 6.0f) {
+        // For realistic solar generation, produce energy only during daylight hours
+        if (timeOfDay >= 13000 && timeOfDay <= 23000) {
+            // Night time - no solar energy
             return 0.0f;
-        } else if (hour >= 10.0f && hour <= 14.0f) {
-            // Peak hours (10 AM - 2 PM) - maximum efficiency
-            return 1.0f;
-        } else {
-            // Dawn/dusk - gradual efficiency change
-            if (hour < 10.0f) {
-                // Morning: gradual increase from 0% at 6 AM to 100% at 10 AM
-                return ((hour - 6.0f) / 4.0f);
-            } else {
-                // Evening: gradual decrease from 100% at 2 PM to 0% at 6 PM
-                return 1.0f - ((hour - 14.0f) / 4.0f);
-            }
         }
+        
+        // Handle transition periods and day time
+        float actualTime = timeOfDay;
+        if (timeOfDay > 23000) {
+            // Early morning transition (23000-24000 = 05:00-06:00)
+            // Scale this to the beginning of the sine curve
+            actualTime = (timeOfDay - 23000) * 12.0f; // Map 1000 ticks to 12000 for smooth transition
+        } else if (timeOfDay > 12000) {
+            // Evening transition (12000-13000 = 18:00-19:00)
+            // Scale this to the end of the sine curve
+            actualTime = 12000 - (timeOfDay - 12000) * 12.0f; // Map last 1000 ticks smoothly
+        }
+        
+        // Create sinusoidal curve with peak at noon (6000 ticks)
+        // Shift so that noon becomes 0 radians (peak of cosine)
+        double shiftedTime = actualTime - 6000;
+        
+        // Convert to radians: 6000 ticks = π/2 radians (quarter cycle from peak to zero)
+        double angleRadians = (shiftedTime * Math.PI) / 12000.0;
+        
+        // Use cosine to get peak at noon (when angle = 0)
+        double cosValue = Math.cos(angleRadians);
+        
+        // Clamp to positive values only (no negative energy production)
+        float efficiency = (float) Math.max(0.0, cosValue);
+        
+        // Convert to readable time format for logging
+        int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
+        int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
+        
+        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME-CALC] Time: {}:{:02d} ({} ticks), Shifted: {}, Angle: {:.3f}, Cos: {:.3f}, Efficiency: {:.3f}", 
+            hours, minutes, timeOfDay, shiftedTime, angleRadians, cosValue, efficiency);
+        
+        return efficiency;
     }
     
     // IEnergyProducer implementation
@@ -305,21 +342,17 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         }
     }
     
-         
-    
-          // Getters for interaction and debugging
+    // Getters for interaction and debugging
     public float getLastLightLevel() {
         return lastLightLevel;
     }
         
-        // Getters for debugging/GUI
+    // Getters for debugging/GUI
     public int getCurrentEnergyProduction() {
         return currentEnergyProduction;
     }
     
-    
-    
     public boolean isProducingEnergy() {
         return currentEnergyProduction > MIN_ENERGY_PER_TICK;
     }
-} 
+}

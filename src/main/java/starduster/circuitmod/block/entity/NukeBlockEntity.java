@@ -242,9 +242,36 @@ public class NukeBlockEntity extends BlockEntity {
                         // Handle vegetation blocks (grass, leaves, logs, etc.)
                         BlockState blockState = world.getBlockState(blockPos);
                         if (!blockState.isAir() && isVegetationBlock(blockState)) {
-                            // Special handling for grass blocks - replace with dirt
-                            if (blockState.getBlock() == Blocks.GRASS_BLOCK) {
+                            Block block = blockState.getBlock();
+                            
+                            // Special handling for different vegetation types
+                            if (block == Blocks.GRASS_BLOCK) {
+                                // Replace grass blocks with dirt
                                 world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.SNOW || block == Blocks.SNOW_BLOCK) {
+                                // Remove snow completely
+                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.MOSS_CARPET) {
+                                // Remove moss carpet completely
+                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.MOSS_BLOCK) {
+                                // Replace moss blocks with stone
+                                world.setBlockState(blockPos, Blocks.STONE.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.CRIMSON_NYLIUM || block == Blocks.WARPED_NYLIUM) {
+                                // Replace nether nylium with netherrack
+                                world.setBlockState(blockPos, Blocks.NETHERRACK.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.ROOTED_DIRT) {
+                                // Replace rooted dirt with regular dirt
+                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.MUD || block == Blocks.MUDDY_MANGROVE_ROOTS) {
+                                // Replace mud with dirt
+                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.MANGROVE_ROOTS) {
+                                // Remove mangrove roots completely
+                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (block == Blocks.HANGING_ROOTS) {
+                                // Remove hanging roots completely
+                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                             } else {
                                 // Remove all other vegetation blocks
                                 world.removeBlock(blockPos, false);
@@ -263,9 +290,10 @@ public class NukeBlockEntity extends BlockEntity {
     private boolean isVegetationBlock(BlockState blockState) {
         Block block = blockState.getBlock();
         
-        // Check for grass blocks
+        // Check for grass blocks and ground vegetation
         if (block == Blocks.GRASS_BLOCK || block == Blocks.SHORT_GRASS || block == Blocks.TALL_GRASS || 
-            block == Blocks.FERN || block == Blocks.LARGE_FERN || block == Blocks.DEAD_BUSH) {
+            block == Blocks.FERN || block == Blocks.LARGE_FERN || block == Blocks.DEAD_BUSH ||
+            block == Blocks.MOSS_CARPET || block == Blocks.SNOW) {
             return true;
         }
         
@@ -294,13 +322,63 @@ public class NukeBlockEntity extends BlockEntity {
             return true;
         }
         
-        // Check for specific vegetation blocks
+        // Check for specific vegetation blocks including bushes and leaf litter
         if (block == Blocks.VINE || block == Blocks.LILY_PAD || block == Blocks.SEAGRASS || 
             block == Blocks.TALL_SEAGRASS || block == Blocks.KELP || block == Blocks.KELP_PLANT ||
             block == Blocks.BAMBOO || block == Blocks.BAMBOO_SAPLING || block == Blocks.CACTUS ||
             block == Blocks.SUGAR_CANE || block == Blocks.CHORUS_PLANT || block == Blocks.CHORUS_FLOWER ||
             block == Blocks.NETHER_WART || block == Blocks.CRIMSON_ROOTS || block == Blocks.WARPED_ROOTS ||
-            block == Blocks.NETHER_SPROUTS || block == Blocks.TWISTING_VINES || block == Blocks.WEEPING_VINES) {
+            block == Blocks.NETHER_SPROUTS || block == Blocks.TWISTING_VINES || block == Blocks.WEEPING_VINES ||
+            // Additional bush and shrub types
+            block == Blocks.AZALEA || block == Blocks.FLOWERING_AZALEA ||
+            block == Blocks.ROSE_BUSH || block == Blocks.PEONY || block == Blocks.LILAC ||
+            block == Blocks.SUNFLOWER || block == Blocks.OXEYE_DAISY || block == Blocks.CORNFLOWER ||
+            block == Blocks.DANDELION || block == Blocks.POPPY || block == Blocks.BLUE_ORCHID ||
+            block == Blocks.ALLIUM || block == Blocks.AZURE_BLUET || block == Blocks.LILY_OF_THE_VALLEY ||
+            block == Blocks.WHITE_TULIP || block == Blocks.ORANGE_TULIP || block == Blocks.PINK_TULIP ||
+            block == Blocks.RED_TULIP ||
+            // Moss and lichen
+            block == Blocks.MOSS_BLOCK || block == Blocks.MOSS_CARPET ||
+            // Additional ground cover
+            block == Blocks.SMALL_DRIPLEAF || block == Blocks.BIG_DRIPLEAF || block == Blocks.BIG_DRIPLEAF_STEM ||
+            block == Blocks.SPORE_BLOSSOM || block == Blocks.GLOW_LICHEN ||
+            block == Blocks.HANGING_ROOTS || block == Blocks.ROOTED_DIRT || block == Blocks.MUD ||
+            block == Blocks.MANGROVE_ROOTS || block == Blocks.MUDDY_MANGROVE_ROOTS ||
+            // Nether vegetation
+            block == Blocks.CRIMSON_FUNGUS || block == Blocks.WARPED_FUNGUS ||
+            block == Blocks.CRIMSON_NYLIUM || block == Blocks.WARPED_NYLIUM ||
+            block == Blocks.SHROOMLIGHT || block == Blocks.NETHER_SPROUTS ||
+            // Additional decorative vegetation
+            block == Blocks.SWEET_BERRY_BUSH || block == Blocks.CAVE_VINES || block == Blocks.CAVE_VINES_PLANT ||
+            block == Blocks.LANTERN || block == Blocks.SOUL_LANTERN ||
+            // Additional ground cover and leaf litter
+            block == Blocks.BROWN_MUSHROOM || block == Blocks.RED_MUSHROOM || block == Blocks.MUSHROOM_STEM ||
+            block == Blocks.CRIMSON_STEM || block == Blocks.WARPED_STEM || block == Blocks.SHROOMLIGHT ||
+            block == Blocks.NETHER_WART_BLOCK || block == Blocks.WARPED_WART_BLOCK ||
+            // Additional bush and shrub types
+            block == Blocks.BUSH || block == Blocks.SEA_PICKLE ||
+            block == Blocks.BRAIN_CORAL || block == Blocks.BRAIN_CORAL_FAN || block == Blocks.BRAIN_CORAL_WALL_FAN ||
+            block == Blocks.BUBBLE_CORAL || block == Blocks.BUBBLE_CORAL_FAN || block == Blocks.BUBBLE_CORAL_WALL_FAN ||
+            block == Blocks.FIRE_CORAL || block == Blocks.FIRE_CORAL_FAN || block == Blocks.FIRE_CORAL_WALL_FAN ||
+            block == Blocks.HORN_CORAL || block == Blocks.HORN_CORAL_FAN || block == Blocks.HORN_CORAL_WALL_FAN ||
+            block == Blocks.TUBE_CORAL || block == Blocks.TUBE_CORAL_FAN || block == Blocks.TUBE_CORAL_WALL_FAN ||
+            block == Blocks.DEAD_BRAIN_CORAL || block == Blocks.DEAD_BRAIN_CORAL_FAN || block == Blocks.DEAD_BRAIN_CORAL_WALL_FAN ||
+            block == Blocks.DEAD_BUBBLE_CORAL || block == Blocks.DEAD_BUBBLE_CORAL_FAN || block == Blocks.DEAD_BUBBLE_CORAL_WALL_FAN ||
+            block == Blocks.DEAD_FIRE_CORAL || block == Blocks.DEAD_FIRE_CORAL_FAN || block == Blocks.DEAD_FIRE_CORAL_WALL_FAN ||
+            block == Blocks.DEAD_HORN_CORAL || block == Blocks.DEAD_HORN_CORAL_FAN || block == Blocks.DEAD_HORN_CORAL_WALL_FAN ||
+            block == Blocks.DEAD_TUBE_CORAL || block == Blocks.DEAD_TUBE_CORAL_FAN || block == Blocks.DEAD_TUBE_CORAL_WALL_FAN ||
+            // Additional decorative blocks that should be considered vegetation
+            block == Blocks.CRIMSON_PLANKS || block == Blocks.WARPED_PLANKS ||
+            block == Blocks.CRIMSON_SLAB || block == Blocks.WARPED_SLAB ||
+            block == Blocks.CRIMSON_STAIRS || block == Blocks.WARPED_STAIRS ||
+            block == Blocks.CRIMSON_FENCE || block == Blocks.WARPED_FENCE ||
+            block == Blocks.CRIMSON_FENCE_GATE || block == Blocks.WARPED_FENCE_GATE ||
+            block == Blocks.CRIMSON_DOOR || block == Blocks.WARPED_DOOR ||
+            block == Blocks.CRIMSON_TRAPDOOR || block == Blocks.WARPED_TRAPDOOR ||
+            block == Blocks.CRIMSON_BUTTON || block == Blocks.WARPED_BUTTON ||
+            block == Blocks.CRIMSON_PRESSURE_PLATE || block == Blocks.WARPED_PRESSURE_PLATE ||
+            block == Blocks.CRIMSON_SIGN || block == Blocks.WARPED_SIGN ||
+            block == Blocks.CRIMSON_WALL_SIGN || block == Blocks.WARPED_WALL_SIGN) {
             return true;
         }
         

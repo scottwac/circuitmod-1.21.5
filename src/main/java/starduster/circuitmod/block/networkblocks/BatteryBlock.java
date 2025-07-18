@@ -68,33 +68,8 @@ public class BatteryBlock extends BlockWithEntity {
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof BatteryBlockEntity battery) {
-                // Display battery info when right-clicked
-                player.sendMessage(Text.literal("§6Battery Status:"), false);
-                
-                // Battery specific info
-                String chargeStatus = battery.canCharge() ? "§aEnabled" : "§cDisabled";
-                String dischargeStatus = battery.canDischarge() ? "§aEnabled" : "§cDisabled";
-                int chargePercentage = (int)((float)battery.getStoredEnergy() / battery.getMaxCapacity() * 100);
-                
-                player.sendMessage(Text.literal("§7Stored energy: §e" + battery.getStoredEnergy() + "§7/§e" + battery.getMaxCapacity() 
-                    + " §7(§e" + chargePercentage + "%§7)"), false);
-                player.sendMessage(Text.literal("§7Max charge rate: §e" + battery.getMaxChargeRate() + "§7 energy/tick"), false);
-                player.sendMessage(Text.literal("§7Max discharge rate: §e" + battery.getMaxDischargeRate() + "§7 energy/tick"), false);
-                player.sendMessage(Text.literal("§7Charging: " + chargeStatus + "§7, Discharging: " + dischargeStatus), false);
-                
-                // Network information
-                if (battery.getNetwork() != null) {
-                    player.sendMessage(Text.literal("§7Network ID: §6" + battery.getNetwork().getNetworkId()), false);
-                    player.sendMessage(Text.literal("§7Connected to network with §6" + battery.getNetwork().getSize() + "§7 blocks"), false);
-                    player.sendMessage(Text.literal("§7Network energy: §6" + battery.getNetwork().getStoredEnergy() + "§7/§6" 
-                        + battery.getNetwork().getMaxStorage()), false);
-                    player.sendMessage(Text.literal("§7Last tick: §a+" + battery.getNetwork().getLastTickEnergyProduced() 
-                        + "§7 produced, §c-" + battery.getNetwork().getLastTickEnergyConsumed() + "§7 consumed"), false);
-                    player.sendMessage(Text.literal("§7Last tick battery activity: §a+" + battery.getNetwork().getLastTickEnergyStoredInBatteries() 
-                        + "§7 stored, §c-" + battery.getNetwork().getLastTickEnergyDrawnFromBatteries() + "§7 drawn"), false);
-                } else {
-                    player.sendMessage(Text.literal("§cNot connected to any network!"), false);
-                }
+                // Open the battery screen
+                player.openHandledScreen(battery);
             }
         }
         return ActionResult.SUCCESS;

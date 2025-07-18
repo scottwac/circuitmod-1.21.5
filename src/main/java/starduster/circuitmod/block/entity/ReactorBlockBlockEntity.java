@@ -213,11 +213,14 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         
         // If we're changing networks, log it
         if (this.network != null && network != null && this.network != network) {
-            Circuitmod.LOGGER.info("[REACTOR-NETWORK] Reactor at " + pos + " changing networks: " + this.network.getNetworkId() + " -> " + network.getNetworkId());
+            String oldNetworkId = this.network.getNetworkId();
+            String newNetworkId = network.getNetworkId();
+            Circuitmod.LOGGER.info("[REACTOR-NETWORK] Reactor at " + pos + " changing networks: " + oldNetworkId + " -> " + newNetworkId);
         } else if (network != null && this.network == null) {
             Circuitmod.LOGGER.info("[REACTOR-NETWORK] Reactor at " + pos + " connecting to network: " + network.getNetworkId());
         } else if (this.network != null && network == null) {
-            Circuitmod.LOGGER.info("[REACTOR-NETWORK] Reactor at " + pos + " disconnecting from network: " + this.network.getNetworkId());
+            String oldNetworkId = this.network.getNetworkId();
+            Circuitmod.LOGGER.info("[REACTOR-NETWORK] Reactor at " + pos + " disconnecting from network: " + oldNetworkId);
         }
         
         this.network = network;

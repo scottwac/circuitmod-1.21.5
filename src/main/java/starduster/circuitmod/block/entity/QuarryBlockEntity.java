@@ -299,9 +299,19 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         }
 
 
+        // Handle network refresh with retry logic for world reload scenarios
         if (blockEntity.needsNetworkRefresh) {
-            blockEntity.findAndJoinNetwork();
-            blockEntity.needsNetworkRefresh = false;
+            boolean networkFound = blockEntity.findAndJoinNetwork();
+            if (networkFound) {
+                blockEntity.needsNetworkRefresh = false;
+                Circuitmod.LOGGER.info("[QUARRY-NETWORK] Successfully joined network at " + pos);
+            } else {
+                // If we couldn't find a network, try again in a few ticks
+                // This helps with world reload scenarios where power cables might not be loaded yet
+                if (world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[QUARRY-NETWORK] No network found at " + pos + ", will retry. Mining enabled: " + blockEntity.miningEnabled);
+                }
+            }
         }
         if (world.isClient()) {
             return;
@@ -343,6 +353,15 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         } else {
             // No energy received or mining is disabled
             needsSync = true;
+            
+            // If mining is enabled but we're not receiving power, try to refresh network connection
+            // This helps with world reload scenarios where network connections might be lost
+            if (blockEntity.miningEnabled && blockEntity.energyReceived == 0 && blockEntity.network == null) {
+                if (world.getTime() % 40 == 0) { // Try every 2 seconds
+                    Circuitmod.LOGGER.info("[QUARRY-NETWORK-RETRY] Mining enabled but no power at " + pos + ", attempting network refresh");
+                    blockEntity.needsNetworkRefresh = true;
+                }
+            }
         }
         
         // Reset energy received at the end of each tick
@@ -1145,8 +1164,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         return new QuarryScreenHandler(syncId, playerInventory, this, this.propertyDelegate, this);
     }
 
-    public void findAndJoinNetwork() {
-        if (world == null || world.isClient()) return;
+    public boolean findAndJoinNetwork() {
+        if (world == null || world.isClient()) return false;
         boolean foundNetwork = false;
         for (Direction dir : Direction.values()) {
             BlockPos neighborPos = pos.offset(dir);
@@ -1177,7 +1196,10 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                     }
                 }
             }
+            // If we created a new network, consider it a success
+            foundNetwork = true;
         }
+        return foundNetwork;
     }
 
     /**

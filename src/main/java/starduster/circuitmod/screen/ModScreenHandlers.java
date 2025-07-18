@@ -58,6 +58,15 @@ public class ModScreenHandlers {
             ConstructorData::new
         );
     }
+    
+    // Data class for battery screen opening data
+    public record BatteryData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, BatteryData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            BatteryData::pos,
+            BatteryData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -119,6 +128,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "constructor_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new ConstructorScreenHandler(syncId, inventory, data), ConstructorData.PACKET_CODEC)
+        );
+    
+    // Register battery screen handler
+    public static final ExtendedScreenHandlerType<BatteryScreenHandler, BatteryData> BATTERY_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "battery_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new BatteryScreenHandler(syncId, inventory, data), BatteryData.PACKET_CODEC)
         );
     
     // Register generator screen handler

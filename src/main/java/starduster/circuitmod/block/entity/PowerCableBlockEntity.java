@@ -354,7 +354,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             
             // If block entity doesn't exist or is no longer a power connectable
             if (!(be instanceof IPowerConnectable)) {
-                Circuitmod.LOGGER.info("Found invalid block at " + blockPos + " in network " + cable.network.getNetworkId() + ", scheduling removal from network tracking");
+                String networkId = cable.network != null ? cable.network.getNetworkId() : "NULL";
+                Circuitmod.LOGGER.info("Found invalid block at " + blockPos + " in network " + networkId + ", scheduling removal from network tracking");
                 invalidPositions.add(blockPos);
             } 
             // Or if it exists but has a different network
@@ -368,13 +369,15 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         if (!invalidPositions.isEmpty()) {
             for (BlockPos invalidPos : invalidPositions) {
                 cable.network.removeBlock(invalidPos);
-                Circuitmod.LOGGER.info("Removed reference to block at " + invalidPos + " from network " + cable.network.getNetworkId() + " tracking");
+                String networkId = cable.network != null ? cable.network.getNetworkId() : "NULL";
+                Circuitmod.LOGGER.info("Removed reference to block at " + invalidPos + " from network " + networkId + " tracking");
             }
             
             // If we're still in the network after cleanup, rebuild from our position
             if (cable.network.getSize() > 0 && cable.network.getConnectedBlockPositions().contains(pos)) {
                 cable.network.rebuild(world, pos);
-                Circuitmod.LOGGER.info("Rebuilt network " + cable.network.getNetworkId() + " after updating internal tracking");
+                String networkId = cable.network != null ? cable.network.getNetworkId() : "NULL";
+                Circuitmod.LOGGER.info("Rebuilt network " + networkId + " after updating internal tracking");
             }
         }
     }

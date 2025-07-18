@@ -2,25 +2,19 @@ package starduster.circuitmod.block.entity;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
 
 public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyConsumer {
     private static final int ENERGY_DEMAND_PER_TICK = 1;
-    private static final int UPDATE_INTERVAL = 100; // 5 seconds (at 20 ticks per second)
     
     private EnergyNetwork network;
-    private int tickCounter = 0;
     private int lastReceivedEnergy = 0;
     private boolean needsNetworkRefresh = false;
     
@@ -32,8 +26,7 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
         
-        // Save tick counter and energy stats
-        nbt.putInt("tick_counter", tickCounter);
+        // Save energy stats
         nbt.putInt("last_received_energy", lastReceivedEnergy);
         
         // Save network data if we have a network
@@ -48,8 +41,7 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
         
-        // Load tick counter and energy stats
-        this.tickCounter = nbt.getInt("tick_counter").orElse(0);
+        // Load energy stats
         this.lastReceivedEnergy = nbt.getInt("last_received_energy").orElse(0);
         
         // Load network data
@@ -105,30 +97,10 @@ public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyC
             return;
         }
         
-        // Increment tick counter
-        blockEntity.tickCounter++;
-        
-        // Send status message every UPDATE_INTERVAL ticks
-        if (blockEntity.tickCounter >= UPDATE_INTERVAL) {
-            blockEntity.tickCounter = 0;
-            
-            // Get all players in a 32 block radius and send them the status message
-            for (PlayerEntity player : ((ServerWorld)world).getPlayers(p -> 
-                p.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 1024)) {
-                
-                String energyStatus = blockEntity.lastReceivedEnergy == ENERGY_DEMAND_PER_TICK 
-                    ? "§aReceived §7" + blockEntity.lastReceivedEnergy + " energy/tick" 
-                    : "§cRequested §7" + ENERGY_DEMAND_PER_TICK + " energy but only received " + blockEntity.lastReceivedEnergy;
-                
-                player.sendMessage(Text.literal("§b[Creative Consumer] " + energyStatus), false);
-                
-                if (blockEntity.network != null) {
-                    player.sendMessage(Text.literal("§7Network energy: " + blockEntity.network.getStoredEnergy() + "/" 
-                        + blockEntity.network.getMaxStorage() + " (+" 
-                        + blockEntity.network.getLastTickEnergyProduced() + ", -" 
-                        + blockEntity.network.getLastTickEnergyConsumed() + ")"), false);
-                }
-            }
+        // Handle network refresh if needed
+        if (blockEntity.needsNetworkRefresh) {
+            blockEntity.findAndJoinNetwork();
+            blockEntity.needsNetworkRefresh = false;
         }
     }
 

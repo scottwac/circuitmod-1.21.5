@@ -30,9 +30,9 @@ import org.jetbrains.annotations.Nullable;
  * similar to hoppers but forming networks.
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
-    private static final int INVENTORY_SIZE = 1; // A pipe only holds one item at a time
-    private static final int COOLDOWN_TICKS = 40; // Slowed down for observation (was 1)
-    public static final int ANIMATION_TICKS = 40; // Animation duration shorter than cooldown for better sync
+    private static final int INVENTORY_SIZE = 1; 
+    private static final int COOLDOWN_TICKS = 5; 
+    public static final int ANIMATION_TICKS = 5; 
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     private int transferCooldown = -1;
@@ -104,9 +104,10 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (aboveInventory != null) {
             Direction extractDirection = Direction.DOWN;
             
-            // Try to extract an item from each slot
-            for (int i = 0; i < aboveInventory.size(); i++) {
-                if (extract(blockEntity, aboveInventory, i, extractDirection)) {
+            // First, try to find a full stack to extract
+            int fullStackSlot = findFullStackSlot(aboveInventory, extractDirection);
+            if (fullStackSlot >= 0) {
+                if (extract(blockEntity, aboveInventory, fullStackSlot, extractDirection)) {
                     // Set input direction to UP, but allow immediate downward flow
                     blockEntity.lastInputDirection = Direction.UP;
                     blockEntity.markDirty();
@@ -118,7 +119,27 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                         blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, animationFromPos, pos);
                     }
                     
-                    Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted item from inventory above at " + pos);
+                    Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted full stack from slot " + fullStackSlot + " at " + pos);
+                    return true;
+                }
+            }
+            
+            // If no full stack found, try to find the largest available stack
+            int largestStackSlot = findLargestStackSlot(aboveInventory, extractDirection);
+            if (largestStackSlot >= 0) {
+                if (extract(blockEntity, aboveInventory, largestStackSlot, extractDirection)) {
+                    // Set input direction to UP, but allow immediate downward flow
+                    blockEntity.lastInputDirection = Direction.UP;
+                    blockEntity.markDirty();
+                    
+                    // Send animation for item entering the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        BlockPos animationFromPos = pos.up();
+                        ItemStack extractedStack = blockEntity.getStack(0);
+                        blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, animationFromPos, pos);
+                    }
+                    
+                    Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted largest stack from slot " + largestStackSlot + " at " + pos);
                     return true;
                 }
             }
@@ -220,7 +241,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     continue;
                 }
                 
-                // Transfer the item to the next pipe
+                // Transfer the entire stack to the neighbor pipe
                 ItemStack currentStack = blockEntity.getStack(0);
                 neighborPipe.setStack(0, currentStack.copy());
                 neighborPipe.lastInputDirection = direction.getOpposite();
@@ -328,17 +349,65 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     }
     
     /**
+     * Find the best slot containing a full stack that can be extracted.
+     * Prioritizes stacks with higher max stack sizes (more efficient transport).
+     * Returns the slot index if found, -1 if no full stack is available.
+     */
+    private static int findFullStackSlot(Inventory inventory, Direction side) {
+        int bestSlot = -1;
+        int bestMaxStackSize = 0;
+        
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (!stack.isEmpty() && 
+                stack.getCount() >= stack.getMaxCount() && 
+                canExtract(inventory, stack, i, side)) {
+                
+                // Prioritize items with higher max stack sizes for more efficient transport
+                int maxStackSize = stack.getMaxCount();
+                if (maxStackSize > bestMaxStackSize) {
+                    bestSlot = i;
+                    bestMaxStackSize = maxStackSize;
+                }
+            }
+        }
+        
+        return bestSlot;
+    }
+    
+    /**
+     * Find the slot containing the largest stack that can be extracted.
+     * Returns the slot index if found, -1 if no stack is available.
+     */
+    private static int findLargestStackSlot(Inventory inventory, Direction side) {
+        int largestSlot = -1;
+        int largestCount = 0;
+        
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (!stack.isEmpty() && 
+                stack.getCount() > largestCount && 
+                canExtract(inventory, stack, i, side)) {
+                largestSlot = i;
+                largestCount = stack.getCount();
+            }
+        }
+        
+        return largestSlot;
+    }
+    
+    /**
      * Extract an item from an inventory into the pipe.
      */
     private static boolean extract(ItemPipeBlockEntity pipe, Inventory inventory, int slot, Direction side) {
         ItemStack stack = inventory.getStack(slot);
         if (!stack.isEmpty() && canExtract(inventory, stack, slot, side)) {
-            ItemStack extracted = stack.copy();
-            extracted.setCount(1); // Only extract one item at a time
-            
+            // Only extract if pipe is empty (we want to move full stacks at once)
             if (pipe.isEmpty()) {
+                ItemStack extracted = stack.copy();
+                // Extract the entire stack from the inventory slot
                 pipe.setStack(0, extracted);
-                inventory.removeStack(slot, 1);
+                inventory.removeStack(slot, extracted.getCount());
                 inventory.markDirty();
                 return true;
             }
@@ -350,18 +419,12 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
      * Extract an item from an ItemEntity into the pipe.
      */
     private static boolean extract(ItemPipeBlockEntity pipe, ItemEntity itemEntity) {
+        // Only extract if pipe is empty (we want to move full stacks at once)
         if (pipe.isEmpty()) {
             ItemStack entityStack = itemEntity.getStack().copy();
-            ItemStack extractedStack = entityStack.split(1); // Take 1 item
-            
-            pipe.setStack(0, extractedStack);
-            
-            if (entityStack.isEmpty()) {
-                itemEntity.discard();
-            } else {
-                itemEntity.setStack(entityStack);
-            }
-            
+            // Take the entire stack from the item entity
+            pipe.setStack(0, entityStack);
+            itemEntity.discard();
             return true;
         }
         return false;
@@ -500,6 +563,18 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     public boolean isEmpty() {
         return this.inventory.get(0).isEmpty();
     }
+    
+    /**
+     * Check if the pipe is full (holding a full stack).
+     */
+    public boolean isFull() {
+        ItemStack stack = this.inventory.get(0);
+        if (stack.isEmpty()) {
+            return false;
+        }
+        // Check if the stack is at its maximum capacity (item's max stack size)
+        return stack.getCount() >= stack.getMaxCount();
+    }
 
     @Override
     public ItemStack getStack(int slot) {
@@ -540,6 +615,11 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                                   ", item: " + (stack.isEmpty() ? "empty" : stack.getItem().getName().getString()) +
                                   ", count: " + stack.getCount() +
                                   ", isClient: " + (world != null && world.isClient()));
+        }
+        
+        // Ensure the stack doesn't exceed the item's maximum stack size
+        if (!stack.isEmpty() && stack.getCount() > stack.getMaxCount()) {
+            stack.setCount(stack.getMaxCount());
         }
         
         this.inventory.set(0, stack);
