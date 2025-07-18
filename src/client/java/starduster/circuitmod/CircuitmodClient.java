@@ -14,10 +14,12 @@ import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.BloomeryScreen;
+import starduster.circuitmod.screen.GeneratorScreen;
 import starduster.circuitmod.screen.BlueprintDeskScreen;
 import starduster.circuitmod.screen.ConstructorScreen;
 import starduster.circuitmod.screen.MassFabricatorScreen;
 import starduster.circuitmod.screen.ReactorScreen;
+import starduster.circuitmod.screen.CrusherScreen;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
