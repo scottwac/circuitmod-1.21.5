@@ -175,9 +175,9 @@ public class ItemPipeBlock extends BlockWithEntity {
             return null;
         }
         
-        Circuitmod.LOGGER.info("[PIPE] Registering ticker for ItemPipeBlockEntity at {}", world.getTime());
+        // Circuitmod.LOGGER.info("[PIPE] Registering ticker for ItemPipeBlockEntity at {}", world.getTime());
         return validateTicker(type, ModBlockEntities.ITEM_PIPE, (tickWorld, pos, tickState, blockEntity) -> {
-            Circuitmod.LOGGER.info("[PIPE] Ticking pipe at {}", pos);
+            // Circuitmod.LOGGER.info("[PIPE] Ticking pipe at {}", pos);
             ItemPipeBlockEntity.tick(tickWorld, pos, tickState, blockEntity);
         });
     }
@@ -225,8 +225,8 @@ public class ItemPipeBlock extends BlockWithEntity {
             BooleanProperty neighborProperty = DIRECTION_PROPERTIES.get(direction.getOpposite());
             boolean neighborConnected = neighborState.get(neighborProperty);
             
-            Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Found pipe neighbor at {}. It is {} connected back to us", 
-                neighborPos, neighborConnected ? "already" : "not");
+            // Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Found pipe neighbor at {}. It is {} connected back to us", 
+            //     neighborPos, neighborConnected ? "already" : "not");
             
             // If the neighbor isn't connected back to us, we need to update it
             if (!neighborConnected && world instanceof World realWorld) {
@@ -234,14 +234,14 @@ public class ItemPipeBlock extends BlockWithEntity {
                 realWorld.setBlockState(neighborPos, 
                     neighborState.with(neighborProperty, true), 
                     Block.NOTIFY_ALL);
-                Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Updated neighbor pipe at {} to connect back", neighborPos);
+                // Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Updated neighbor pipe at {} to connect back", neighborPos);
             }
         } 
         // Case 2: Neighbor is a block entity with inventory
         else if (world instanceof WorldAccess && 
                 ((WorldAccess)world).getBlockEntity(neighborPos) instanceof net.minecraft.inventory.Inventory) {
             canConnect = true;
-            Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Found inventory neighbor at {}", neighborPos);
+            // Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Found inventory neighbor at {}", neighborPos);
         }
         
         // If this is a real world and not just a view, check for additional processing
@@ -250,13 +250,13 @@ public class ItemPipeBlock extends BlockWithEntity {
             if (be instanceof ItemPipeBlockEntity pipe) {
                 // Force the pipe to validate its connections next tick
                 ((World) world).scheduleBlockTick(pos, this, 1);
-                Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Scheduled block tick for pipe at {}", pos);
+                // Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Scheduled block tick for pipe at {}", pos);
             }
         }
         
         boolean wasConnected = state.get(DIRECTION_PROPERTIES.get(direction));
-        Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Pipe at {} connection to {}: {} -> {}", 
-            pos, direction, wasConnected ? "connected" : "disconnected", canConnect ? "connected" : "disconnected");
+        // Circuitmod.LOGGER.info("[PIPE-NEIGHBOR] Pipe at {} connection to {}: {} -> {}", 
+        //     pos, direction, wasConnected ? "connected" : "disconnected", canConnect ? "connected" : "disconnected");
         
         return state.with(DIRECTION_PROPERTIES.get(direction), canConnect);
     }
@@ -300,7 +300,7 @@ public class ItemPipeBlock extends BlockWithEntity {
     public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
         BlockEntity be = world.getBlockEntity(pos);
         if (be instanceof ItemPipeBlockEntity pipe) {
-            Circuitmod.LOGGER.debug("[PIPE-TICK] Processing scheduled tick for pipe at {}", pos);
+            // Circuitmod.LOGGER.debug("[PIPE-TICK] Processing scheduled tick for pipe at {}", pos);
             
             // Check connections and force update if needed
             for (Direction direction : Direction.values()) {
@@ -314,7 +314,7 @@ public class ItemPipeBlock extends BlockWithEntity {
                         boolean neighborConnected = neighborState.get(neighborProperty);
                         
                         if (!neighborConnected) {
-                            Circuitmod.LOGGER.debug("[PIPE-TICK] Updating neighbor pipe at {} to connect back", neighborPos);
+                            // Circuitmod.LOGGER.debug("[PIPE-TICK] Updating neighbor pipe at {} to connect back", neighborPos);
                             world.setBlockState(neighborPos, 
                                 neighborState.with(neighborProperty, true), 
                                 Block.NOTIFY_ALL);
@@ -327,4 +327,6 @@ public class ItemPipeBlock extends BlockWithEntity {
             ItemPipeBlockEntity.tick(world, pos, state, pipe);
         }
     }
+
+
 } 

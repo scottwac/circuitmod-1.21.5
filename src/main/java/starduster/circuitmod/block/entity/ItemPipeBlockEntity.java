@@ -58,9 +58,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (!blockEntity.needsCooldown()) {
             // Debug logging for tick processing (reduced frequency)
             if (world.getTime() % 20 == 0) { // Only log every second
-                Circuitmod.LOGGER.info("[PIPE-TICK] Processing tick at " + pos + 
-                                      ", hasItem: " + !blockEntity.isEmpty() + 
-                                      ", lastInputDir: " + blockEntity.lastInputDirection);
+                // Circuitmod.LOGGER.info("[PIPE-TICK] Processing tick at " + pos + 
+                //                       ", lastInputDir: " + blockEntity.lastInputDirection);
             }
             
             // Try to extract from inventory above first
@@ -76,7 +75,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             if (didWork) {
                 // Only log when work is actually done
-                Circuitmod.LOGGER.info("[PIPE-TICK-WORK] Work done at " + pos + ", calling markDirty");
+                // Circuitmod.LOGGER.info("[PIPE-TICK-WORK] Work done at " + pos + ", calling markDirty");
                 blockEntity.markDirty();
             }
         }
@@ -255,8 +254,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 blockEntity.setStack(0, ItemStack.EMPTY);
                 blockEntity.markDirty();
-                Circuitmod.LOGGER.info("[PIPE-TRANSFER] SUCCESS: Transferred {} from {} to {} (direction: {}, lastInput: {})", 
-                    currentStack.getItem().getName().getString(), pos, neighborPos, direction, blockEntity.lastInputDirection);
+                // Circuitmod.LOGGER.info("[PIPE-TRANSFER] SUCCESS: Transferred {} from {} to {} (direction: {}, lastInput: {})", 
+                //     currentStack.getItem().getName().getString(), pos, neighborPos, direction, blockEntity.lastInputDirection);
                 return true;
             }
             
@@ -406,7 +405,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             if (pipe.isEmpty()) {
                 ItemStack extracted = stack.copy();
                 // Extract the entire stack from the inventory slot
-                pipe.setStack(0, extracted);
+                pipe.setStack(slot, extracted);
                 inventory.removeStack(slot, extracted.getCount());
                 inventory.markDirty();
                 return true;
