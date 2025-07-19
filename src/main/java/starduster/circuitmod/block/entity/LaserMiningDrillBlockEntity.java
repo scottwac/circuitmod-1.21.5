@@ -28,6 +28,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import net.minecraft.entity.damage.DamageSource;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.LaserMiningDrillBlock;
@@ -236,15 +237,17 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
             }
             if(blockEntity.soundClock == 160) {
                 world.playSound(null, pos, ModSounds.MINER_MACHINE_RUN, SoundCategory.BLOCKS, 1F, 1F);
+                // Play laser beam sound alongside the machine sound
+                world.playSound(null, pos, ModSounds.LASER_BEAM, SoundCategory.BLOCKS, 0.7F, 1.2F);
             }
             blockEntity.soundClock = blockEntity.soundClock - 1;
             world.setBlockState(pos, world.getBlockState(pos).with(LaserMiningDrillBlock.RUNNING, true), Block.NOTIFY_ALL);
             
-            // Add laser beam particle effects
+            // Add laser beam particle effects and entity damage
             if (world.isClient()) {
                 // Spawn particles along the laser beam path
                 Direction beamDirection = blockEntity.getMiningDirection().getOpposite();
-                float beamLength = 50.0f;
+                float beamLength = blockEntity.getMiningDepth(); // Use actual mining depth
                 
                 // Spawn particles at random positions along the beam
                 for (int i = 0; i < 3; i++) {
@@ -286,6 +289,41 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
                     // Occasionally spawn flame particles for heat effect
                     if (Math.random() < 0.3) {
                         world.addParticleClient(ParticleTypes.FLAME, x, y, z, 0.0, 0.0, 0.0);
+                    }
+                }
+            } else {
+                // Server-side: Damage entities in the laser beam path
+                Direction beamDirection = blockEntity.getMiningDirection().getOpposite();
+                int beamLength = blockEntity.getMiningDepth();
+                
+                // Check for entities along the laser beam path
+                for (int distance = 0; distance < beamLength; distance++) {
+                    BlockPos beamPos = pos.offset(beamDirection, distance);
+                    
+                    // Get entities in a small area around the beam position
+                    List<net.minecraft.entity.Entity> entities = world.getOtherEntities(null, 
+                        new net.minecraft.util.math.Box(beamPos).expand(0.5), 
+                        entity -> entity.isAlive() && !entity.isSpectator());
+                    
+                    for (net.minecraft.entity.Entity entity : entities) {
+                        // Check if entity is actually in the laser beam path (more precise)
+                        double entityX = entity.getX();
+                        double entityY = entity.getY() + entity.getHeight() / 2; // Check center of entity
+                        double entityZ = entity.getZ();
+                        
+                        // Calculate distance from beam center
+                        double distanceX = Math.abs(entityX - (beamPos.getX() + 0.5));
+                        double distanceY = Math.abs(entityY - (beamPos.getY() + 0.5));
+                        double distanceZ = Math.abs(entityZ - (beamPos.getZ() + 0.5));
+                        
+                        // Only damage if entity is within 0.3 blocks of beam center (narrower beam)
+                        if (distanceX <= 0.3 && distanceY <= 0.3 && distanceZ <= 0.3) {
+                            // Use generic damage source (death message will be handled by the translation key)
+                            entity.damage((ServerWorld) world, world.getDamageSources().generic(), 20.0f);
+                            
+                            Circuitmod.LOGGER.info("[LASER-MINING-DRILL] Damaged entity {} at position {}", 
+                                entity.getName().getString(), beamPos);
+                        }
                     }
                 }
             }

@@ -4,5 +4,11 @@
     "sounds": [
       "circuitmod:miner_machine_run"
     ]
+  },
+  "laser_beam": {
+    "subtitle": "sounds.circuitmod.laser_beam",
+    "sounds": [
+      "circuitmod:laser_beam"
+    ]
   }
 }

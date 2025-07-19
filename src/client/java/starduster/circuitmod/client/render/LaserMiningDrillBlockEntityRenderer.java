@@ -138,8 +138,8 @@ public class LaserMiningDrillBlockEntityRenderer implements BlockEntityRenderer<
             matrices.multiply(RotationAxis.POSITIVE_X.rotation(pitch));
         }
         
-        // Get vertex consumer for the beam
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
+        // Get vertex consumer for the beam - use a render layer that's less affected by fog
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getLightning());
         
         // Color cycling animation (changes every 2 seconds)
         int colorIndex = (int)(tickProgress / 40) % 6; // 40 ticks = 2 seconds (20 ticks per second)
@@ -177,28 +177,34 @@ public class LaserMiningDrillBlockEntityRenderer implements BlockEntityRenderer<
                 float x2 = MathHelper.cos(nextAngle) * currentRadius;
                 float y2 = MathHelper.sin(nextAngle) * currentRadius;
                 
-                // Draw lines from start to end of the beam
+                // Draw lines from start to end of the beam with full brightness
                 vertexConsumer.vertex(entry, x1, y1, 0.0f)
                     .color(r, g, b, 255) // Current cycling color
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness (15,15,15,15)
                 vertexConsumer.vertex(entry, x1, y1, beamLength)
                     .color(255, 255, 255, 255) // White at the end
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness (15,15,15,15)
                 
-                // Draw connecting lines around the circle
+                // Draw connecting lines around the circle with full brightness
                 vertexConsumer.vertex(entry, x1, y1, 0.0f)
                     .color(r, g, b, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
                 vertexConsumer.vertex(entry, x2, y2, 0.0f)
                     .color(r, g, b, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
                 
                 vertexConsumer.vertex(entry, x1, y1, beamLength)
                     .color(255, 255, 255, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
                 vertexConsumer.vertex(entry, x2, y2, beamLength)
                     .color(255, 255, 255, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
             }
         }
         
@@ -212,10 +218,12 @@ public class LaserMiningDrillBlockEntityRenderer implements BlockEntityRenderer<
                 
                 vertexConsumer.vertex(entry, x, y, z)
                     .color(r, g, b, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
                 vertexConsumer.vertex(entry, -x, -y, z)
                     .color(r, g, b, 255)
-                    .normal(entry, 0.0f, 0.0f, 1.0f);
+                    .normal(entry, 0.0f, 0.0f, 1.0f)
+                    .light(15728880); // Full brightness
             }
         }
         
@@ -229,6 +237,6 @@ public class LaserMiningDrillBlockEntityRenderer implements BlockEntityRenderer<
 
     @Override
     public int getRenderDistance() {
-        return 128; // Render laser beam from far away
+        return 4096; // Increased render distance for longer laser beams
     }
 } 

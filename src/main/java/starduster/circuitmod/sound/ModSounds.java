@@ -9,6 +9,7 @@ import starduster.circuitmod.Circuitmod;
 public class ModSounds {
 
     public static final SoundEvent MINER_MACHINE_RUN = registerSoundEvent("miner_machine_run");
+    public static final SoundEvent LASER_BEAM = registerSoundEvent("laser_beam");
 
     private static SoundEvent registerSoundEvent(String name) {
         Identifier id = Identifier.of(Circuitmod.MOD_ID, name);
