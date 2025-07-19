@@ -1,6 +1,6 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "circuitmod:item/materials/fuel_rod"
+    "layer0": "circuitmod:item/fuel_rod"
   }
 } 

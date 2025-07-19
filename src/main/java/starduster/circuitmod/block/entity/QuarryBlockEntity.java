@@ -428,42 +428,39 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // INVERT: Use the opposite direction for mining
         this.facingDirection = direction.getOpposite();
         
-        this.startPos = pos;
+        // Set start position to the block in front of the quarry to exclude the quarry itself
+        this.startPos = pos.offset(this.facingDirection);
         
         // Calculate the mining area bounds
         // The quarry should be positioned at the corner of the mining area
         int minX, maxX, minZ, maxZ;
         
         // Calculate mining area bounds based on the facing direction
-        // The quarry is at the corner of the mining area, and the area extends from that corner
+        // The area starts from the front position (one block in front of quarry)
         if (this.facingDirection == Direction.NORTH) {
-            // Quarry faces NORTH, mines NORTH (negative Z direction)
-            // Mining area extends NORTH from the quarry (quarry is at the SOUTH corner)
-            minX = pos.getX();
-            maxX = pos.getX() + miningWidth - 1;
-            minZ = pos.getZ() - miningLength + 1;
-            maxZ = pos.getZ();
+            // Forward=north, right=east: extend forward(north) and right(east) from startPos
+            minX = this.startPos.getX();
+            maxX = this.startPos.getX() + miningWidth - 1;
+            minZ = this.startPos.getZ() - miningLength + 1;
+            maxZ = this.startPos.getZ();
         } else if (this.facingDirection == Direction.SOUTH) {
-            // Quarry faces SOUTH, mines SOUTH (positive Z direction)
-            // Mining area extends SOUTH from the quarry (quarry is at the NORTH corner)
-            minX = pos.getX();
-            maxX = pos.getX() + miningWidth - 1;
-            minZ = pos.getZ();
-            maxZ = pos.getZ() + miningLength - 1;
+            // Forward=south, right=west: extend forward(south) and right(west) from startPos  
+            minX = this.startPos.getX() - miningWidth + 1;
+            maxX = this.startPos.getX();
+            minZ = this.startPos.getZ();
+            maxZ = this.startPos.getZ() + miningLength - 1;
         } else if (this.facingDirection == Direction.EAST) {
-            // Quarry faces EAST, mines EAST (positive X direction)
-            // Mining area extends EAST from the quarry (quarry is at the WEST corner)
-            minX = pos.getX();
-            maxX = pos.getX() + miningWidth - 1;
-            minZ = pos.getZ();
-            maxZ = pos.getZ() + miningLength - 1;
+            // Forward=east, right=south: extend forward(east) and right(south) from startPos
+            minX = this.startPos.getX();
+            maxX = this.startPos.getX() + miningLength - 1;
+            minZ = this.startPos.getZ();
+            maxZ = this.startPos.getZ() + miningWidth - 1;
         } else { // WEST
-            // Quarry faces WEST, mines WEST (negative X direction)
-            // Mining area extends WEST from the quarry (quarry is at the EAST corner)
-            minX = pos.getX() - miningWidth + 1;
-            maxX = pos.getX();
-            minZ = pos.getZ();
-            maxZ = pos.getZ() + miningLength - 1;
+            // Forward=west, right=north: extend forward(west) and right(north) from startPos
+            minX = this.startPos.getX() - miningLength + 1;
+            maxX = this.startPos.getX();
+            minZ = this.startPos.getZ() - miningWidth + 1;
+            maxZ = this.startPos.getZ();
         }
         
         // Store the calculated bounds for reuse
@@ -473,22 +470,22 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         this.miningAreaMaxZ = maxZ;
         
         // Debug logging to see the actual mining area
-        Circuitmod.LOGGER.info("[QUARRY-AREA] Calculated mining area: {}x{} at position {} with bounds X:{} to {}, Z:{} to {} (facing: {})", 
-            miningWidth, miningLength, pos, minX, maxX, minZ, maxZ, this.facingDirection);
+        Circuitmod.LOGGER.info("[QUARRY-AREA] Calculated mining area: {}x{} starting from front position {} (quarry at {}) with bounds X:{} to {}, Z:{} to {} (facing: {})", 
+            miningWidth, miningLength, this.startPos, pos, minX, maxX, minZ, maxZ, this.facingDirection);
         
-        // Start at the corner of the mining area (furthest from quarry)
+        // Start at the corner of the mining area (furthest from front position)
         if (this.facingDirection == Direction.NORTH) {
-            this.currentPos = new BlockPos(minX, pos.getY(), minZ);
+            this.currentPos = new BlockPos(minX, this.startPos.getY(), minZ);
         } else if (this.facingDirection == Direction.SOUTH) {
-            this.currentPos = new BlockPos(minX, pos.getY(), maxZ);
+            this.currentPos = new BlockPos(minX, this.startPos.getY(), maxZ);
         } else if (this.facingDirection == Direction.EAST) {
-            this.currentPos = new BlockPos(maxX, pos.getY(), minZ);
+            this.currentPos = new BlockPos(maxX, this.startPos.getY(), minZ);
         } else { // WEST
-            this.currentPos = new BlockPos(minX, pos.getY(), minZ);
+            this.currentPos = new BlockPos(minX, this.startPos.getY(), minZ);
         }
         
-        // Start mining at the quarry's Y level
-        this.currentY = pos.getY();
+        // Start mining at the front position's Y level
+        this.currentY = this.startPos.getY();
         
         // Mark dirty to trigger client sync
         markDirty();
@@ -524,8 +521,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 currentMiningTicks = 0;
                 totalMiningTicks = 0;
             }
-            // Skip if it's the quarry itself, a safe zone block
-            if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
+            // Skip if it's the quarry itself
+            if (currentMiningPos.equals(pos)) {
                 advanceToNextBlock();
                 currentMiningPos = null;
                 attempts++;
@@ -641,15 +638,14 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         int minZ = this.miningAreaMinZ;
         int maxZ = this.miningAreaMaxZ;
         
-        // Check if the current position is somehow equal to the quarry or in safe zone
-        if (miningPos.equals(pos) || isInSafeZone(miningPos)) {
+        // Check if the current position is somehow equal to the quarry
+        if (miningPos.equals(pos)) {
             // Move to the next position 
             advanceToNextPosition(minX, maxX, minZ, maxZ);
             
             // Try again with the new position, but do it in a loop to avoid stack overflow
             int attempts = 0;
-            while ((currentPos.equals(pos) || isInSafeZone(new BlockPos(currentPos.getX(), currentY, currentPos.getZ()))) 
-                   && attempts < 10) {
+            while (currentPos.equals(pos) && attempts < 10) {
                 attempts++;
                 advanceToNextPosition(minX, maxX, minZ, maxZ);
             }
@@ -665,100 +661,29 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private void advanceToNextPosition(int minX, int maxX, int minZ, int maxZ) {
         int nextX = currentPos.getX();
         int nextZ = currentPos.getZ();
-        int nextY = currentY; // Start with the current Y level
+        int nextY = currentY;
         
-        // Use a counter to prevent infinite loops
-        int safetyCounter = 0;
-        boolean foundSafePosition = false;
+        // Move right (increment X)
+        nextX++;
         
-        // Keep trying positions until we find a safe one or hit the safety limit
-        while (!foundSafePosition && safetyCounter < 25) {
-            safetyCounter++;
+        // If we've reached the right edge, move to the left edge and down one Z row
+        if (nextX > maxX) {
+            nextX = minX;
+            nextZ++;
             
-            // Move right (increment X)
-            nextX++;
-            
-            // If we've reached the right edge, move to the left edge and down one Z row
-            if (nextX > maxX) {
-                nextX = minX;
-                nextZ++;
-                
-                // If we've completed the entire layer, move down one Y level
-                if (nextZ > maxZ) {
-                    nextZ = minZ;
-                    nextY--; // Decrement Y to move down one level
-                }
-            }
-            
-            // Check if this position is safe
-            BlockPos nextPos = new BlockPos(nextX, nextY, nextZ);
-            if (!nextPos.equals(pos) && !isInSafeZone(nextPos)) {
-                // Found a safe position
-                foundSafePosition = true;
+            // If we've completed the entire layer, move down one Y level
+            if (nextZ > maxZ) {
+                nextZ = minZ;
+                nextY--; // Decrement Y to move down one level
             }
         }
         
-        // Always update the position, whether we found a safe position or not
+        // Update the position
         currentPos = new BlockPos(nextX, currentPos.getY(), nextZ);
-        currentY = nextY; // Make sure to update the Y level separately
-        
-        if (!foundSafePosition) {
-            // Circuitmod.LOGGER.warn("[QUARRY-POSITION] Couldn't find safe mining position after " + safetyCounter + " attempts");
-        } else {
-            // Circuitmod.LOGGER.info("[QUARRY-POSITION] Advanced to position: " + currentPos + " at Y level " + currentY);
-        }
+        currentY = nextY;
     }
     
-    // Check if the position is in the safe zone around the quarry
-    private boolean isInSafeZone(BlockPos targetPos) {
-        // First, check if it's the quarry itself
-        if (targetPos.equals(pos)) {
-            return true;
-        }
-        
-        // Define a safe zone that includes the quarry itself and adjacent blocks
-        for (Direction dir : Direction.values()) {
-            BlockPos adjacentPos = pos.offset(dir);
-            if (targetPos.equals(adjacentPos)) {
-                return true; // Position is adjacent to the quarry
-            }
-            
-            // Also check diagonals by combining horizontal directions
-            if (dir.getAxis().isHorizontal()) {
-                for (Direction dir2 : Direction.values()) {
-                    if (dir2.getAxis().isHorizontal() && dir != dir2 && dir != dir2.getOpposite()) {
-                        BlockPos diagonalPos = pos.offset(dir).offset(dir2);
-                        if (targetPos.equals(diagonalPos)) {
-                            return true; // Position is diagonally adjacent
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Also consider the block the quarry is placed on and the block above
-        if (targetPos.equals(pos.up()) || targetPos.equals(pos.down())) {
-            return true;
-        }
-        
-        // Additional safety: consider blocks immediately in the mining direction (opposite to visual facing)
-        if (facingDirection != null) {
-            BlockPos inFront = pos.offset(facingDirection);
-            if (targetPos.equals(inFront)) {
-                return true;
-            }
-        }
-        
-        // Also check if it's a power cable or other network component
-        if (world != null && !world.isClient()) {
-            BlockEntity targetEntity = world.getBlockEntity(targetPos);
-            if (targetEntity instanceof IPowerConnectable) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
+
     
     // Check if the inventory is full
     private boolean isInventoryFull() {
@@ -1116,20 +1041,20 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                     minZ = startPos.getZ() - miningLength + 1;
                     maxZ = startPos.getZ();
                 } else if (facingDirection == Direction.SOUTH) {
-                    minX = startPos.getX();
-                    maxX = startPos.getX() + miningWidth - 1;
-                    minZ = startPos.getZ();
-                    maxZ = startPos.getZ() + miningLength - 1;
-                } else if (facingDirection == Direction.EAST) {
-                    minX = startPos.getX();
-                    maxX = startPos.getX() + miningWidth - 1;
-                    minZ = startPos.getZ();
-                    maxZ = startPos.getZ() + miningLength - 1;
-                } else { // WEST
                     minX = startPos.getX() - miningWidth + 1;
                     maxX = startPos.getX();
                     minZ = startPos.getZ();
                     maxZ = startPos.getZ() + miningLength - 1;
+                } else if (facingDirection == Direction.EAST) {
+                    minX = startPos.getX();
+                    maxX = startPos.getX() + miningLength - 1;
+                    minZ = startPos.getZ();
+                    maxZ = startPos.getZ() + miningWidth - 1;
+                } else { // WEST
+                    minX = startPos.getX() - miningLength + 1;
+                    maxX = startPos.getX();
+                    minZ = startPos.getZ() - miningWidth + 1;
+                    maxZ = startPos.getZ();
                 }
                 
                 this.miningAreaMinX = minX;
@@ -1138,8 +1063,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 this.miningAreaMaxZ = maxZ;
             } else {
                 // If we don't have startPos or facingDirection, try to initialize the mining area
-                if (pos != null && world != null) {
-                    initializeMiningArea(pos, world.getBlockState(pos));
+                if (this.pos != null && world != null) {
+                    initializeMiningArea(this.pos, world.getBlockState(this.pos));
                 }
             }
             
@@ -1211,8 +1136,8 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // If mining area isn't initialized, try to initialize it
         if (startPos == null || facingDirection == null) {
-            if (world != null && pos != null) {
-                initializeMiningArea(pos, world.getBlockState(pos));
+            if (world != null && this.pos != null) {
+                initializeMiningArea(this.pos, world.getBlockState(this.pos));
             } else {
                 // If we still can't initialize, return empty list
                 return perimeter;
@@ -1239,20 +1164,20 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 minZ = startPos.getZ() - miningLength + 1;
                 maxZ = startPos.getZ();
             } else if (facingDirection == Direction.SOUTH) {
-                minX = startPos.getX();
-                maxX = startPos.getX() + miningWidth - 1;
-                minZ = startPos.getZ();
-                maxZ = startPos.getZ() + miningLength - 1;
-            } else if (facingDirection == Direction.EAST) {
-                minX = startPos.getX();
-                maxX = startPos.getX() + miningWidth - 1;
-                minZ = startPos.getZ();
-                maxZ = startPos.getZ() + miningLength - 1;
-            } else { // WEST
                 minX = startPos.getX() - miningWidth + 1;
                 maxX = startPos.getX();
                 minZ = startPos.getZ();
                 maxZ = startPos.getZ() + miningLength - 1;
+            } else if (facingDirection == Direction.EAST) {
+                minX = startPos.getX();
+                maxX = startPos.getX() + miningLength - 1;
+                minZ = startPos.getZ();
+                maxZ = startPos.getZ() + miningWidth - 1;
+            } else { // WEST
+                minX = startPos.getX() - miningLength + 1;
+                maxX = startPos.getX();
+                minZ = startPos.getZ() - miningWidth + 1;
+                maxZ = startPos.getZ();
             }
             
             // Update the stored bounds

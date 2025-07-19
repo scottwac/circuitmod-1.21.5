@@ -129,8 +129,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.STEEL_HOE);
 				entries.add(ModItems.STEEL_SWORD);
 
-				// Add blueprint item
-				entries.add(ModItems.BLUEPRINT);
+				// Add blank blueprint item
+				entries.add(ModItems.BLANK_BLUEPRINT);
 
 				// Add more mod items here as they are created
 			})
