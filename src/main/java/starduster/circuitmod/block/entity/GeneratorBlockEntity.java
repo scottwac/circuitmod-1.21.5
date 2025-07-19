@@ -38,7 +38,7 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
     private int burnTime = 0;
     private int maxBurnTime = 0;
     private int powerProduction = 0;
-    private static final int BASE_POWER_PRODUCTION = 10; // Base power per tick when burning
+    private static final int BASE_POWER_PRODUCTION = 6; // Base power per tick when burning
     
     // Power network connection
     private EnergyNetwork network = null;

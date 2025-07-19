@@ -33,7 +33,7 @@ import starduster.circuitmod.item.FuelRodItem;
 
 public class ReactorBlockBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.ReactorData>, IEnergyProducer {
     // Energy production properties
-    private static final int ENERGY_PER_ROD = 100; // Energy produced per fuel rod per tick
+    private static final int BASE_ENERGY_PER_ROD = 60; // Base energy per fuel rod per tick
     private static final int MAX_RODS = 9; // Maximum number of fuel rods that can be inserted
     private static final int UPDATE_INTERVAL = 100; // 5 seconds (at 20 ticks per second)
     
@@ -293,7 +293,17 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     
     public int getCurrentEnergyProduction() {
         int rodCount = getRodCount();
-        return rodCount * ENERGY_PER_ROD;
+        if (rodCount == 0) {
+            return 0;
+        }
+        
+        // Calculate energy with scaling bonuses
+        // Base: rodCount * BASE_ENERGY_PER_ROD
+        // Bonus: (rodCount - 1) * 0.3 * BASE_ENERGY_PER_ROD (30% bonus per additional rod)
+        int baseEnergy = rodCount * BASE_ENERGY_PER_ROD;
+        int bonusEnergy = (rodCount - 1) * (BASE_ENERGY_PER_ROD * 3 / 10); // 30% bonus per additional rod
+        
+        return baseEnergy + bonusEnergy;
     }
     
     public boolean isActive() {

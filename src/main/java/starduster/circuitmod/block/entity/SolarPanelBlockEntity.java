@@ -15,8 +15,8 @@ import starduster.circuitmod.power.IPowerConnectable;
 
 public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProducer {
     // Energy production settings
-    private static final int MAX_ENERGY_PER_TICK = 50; // Peak energy production during noon
-    private static final int MIN_ENERGY_PER_TICK = 5;  // Minimum energy production during night/storms
+    private static final int MAX_ENERGY_PER_TICK = 10; // Peak energy production during noon
+    private static final int MIN_ENERGY_PER_TICK = 1;  // Minimum energy production during night/storms
     private static final int UPDATE_INTERVAL = 20; // Update every second
     
     // Network and state
