@@ -1,0 +1,13 @@
+{
+  "type": "circuitmod:electric_furnace",
+  "category": "blocks",
+  "ingredient": {
+    "item": "circuitmod:bauxite_ore"
+  },
+  "result": {
+    "item": "circuitmod:aluminum_ingot",
+    "count": 2
+  },
+  "experience": 0.7,
+  "cookingtime": 80
+} 

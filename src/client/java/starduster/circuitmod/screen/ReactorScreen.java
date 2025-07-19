@@ -67,4 +67,10 @@ public class ReactorScreen extends HandledScreen<ReactorScreenHandler> {
         // Draw title
         context.drawText(textRenderer, title, titleX, titleY, 0x404040, false);
     }
+    
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
+        this.drawMouseoverTooltip(context, mouseX, mouseY);
+    }
 } 

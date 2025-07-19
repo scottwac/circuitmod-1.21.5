@@ -3,6 +3,7 @@ package starduster.circuitmod.item;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.item.ToolMaterial;
+import starduster.circuitmod.item.FuelRodItem;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -42,6 +43,7 @@ public final class ModItems {
     public static final Item RAW_URANIUM = register("raw_uranium", Item::new, new Item.Settings());
     public static final Item CRUSHED_URANIUM = register("crushed_uranium", Item::new, new Item.Settings());
     public static final Item URANIUM_PELLET = register("uranium_pellet", Item::new, new Item.Settings());
+    public static final Item FUEL_ROD = register("fuel_rod", FuelRodItem::new, new Item.Settings().maxCount(64));
 
     public static final Item ZIRCON = register("zircon", Item::new, new Item.Settings());
     public static final Item ZIRCONIUM_INGOT = register("zirconium_ingot", Item::new, new Item.Settings());

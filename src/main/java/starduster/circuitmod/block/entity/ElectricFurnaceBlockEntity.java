@@ -13,6 +13,8 @@ import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.SmeltingRecipe;
 import net.minecraft.recipe.input.SingleStackRecipeInput;
+import starduster.circuitmod.recipe.ElectricFurnaceRecipe;
+import starduster.circuitmod.recipe.ModRecipes;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
@@ -175,6 +177,11 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         
         // Smelting logic - only smelt if powered AND we have a valid recipe
         if (entity.isPowered && hasRecipe && canSmelt) {
+            // If we just started cooking (cookingTimeSpent is 0), set the total time
+            if (entity.cookingTimeSpent == 0) {
+                entity.cookingTotalTime = entity.getCookTime();
+            }
+            
             entity.cookingTimeSpent++;
             if (entity.cookingTimeSpent >= entity.cookingTotalTime) {
                 entity.cookingTimeSpent = 0;
@@ -186,6 +193,7 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         } else {
             if (entity.cookingTimeSpent != 0) {
                 entity.cookingTimeSpent = 0;
+                entity.cookingTotalTime = 0; // Reset total time when not cooking
                 // Mark dirty to sync cooking progress reset
                 entity.markDirty();
             }
@@ -289,18 +297,32 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     }
     
     private boolean hasRecipe() {
-        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
-        return recipe.isPresent();
+        Optional<RecipeEntry<SmeltingRecipe>> smeltingRecipe = getCurrentSmeltingRecipe();
+        Optional<RecipeEntry<ElectricFurnaceRecipe>> electricRecipe = getCurrentElectricRecipe();
+        return smeltingRecipe.isPresent() || electricRecipe.isPresent();
     }
     
     private boolean canSmelt() {
-        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
-        if (recipe.isEmpty()) {
-            return false;
+        // Check smelting recipes first
+        Optional<RecipeEntry<SmeltingRecipe>> smeltingRecipe = getCurrentSmeltingRecipe();
+        if (smeltingRecipe.isPresent()) {
+            SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+            ItemStack output = smeltingRecipe.get().value().craft(input, world.getRegistryManager());
+            return canInsertOutput(output);
         }
         
-        SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
-        ItemStack output = recipe.get().value().craft(input, world.getRegistryManager());
+        // Check electric furnace recipes
+        Optional<RecipeEntry<ElectricFurnaceRecipe>> electricRecipe = getCurrentElectricRecipe();
+        if (electricRecipe.isPresent()) {
+            SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+            ItemStack output = electricRecipe.get().value().craft(input, world.getRegistryManager());
+            return canInsertOutput(output);
+        }
+        
+        return false;
+    }
+    
+    private boolean canInsertOutput(ItemStack output) {
         ItemStack outputSlot = this.getStack(OUTPUT_SLOT);
         
         if (outputSlot.isEmpty()) {
@@ -315,27 +337,43 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     }
     
     private void craftItem() {
-        Optional<RecipeEntry<SmeltingRecipe>> recipe = getCurrentRecipe();
-        if (recipe.isPresent()) {
+        // Try smelting recipes first
+        Optional<RecipeEntry<SmeltingRecipe>> smeltingRecipe = getCurrentSmeltingRecipe();
+        if (smeltingRecipe.isPresent()) {
             SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
-            ItemStack output = recipe.get().value().craft(input, world.getRegistryManager());
+            ItemStack output = smeltingRecipe.get().value().craft(input, world.getRegistryManager());
             
-            // Double the output amount
+            // Double the output amount for smelting recipes
             output.setCount(output.getCount() * 2);
-            
-            ItemStack outputSlot = this.getStack(OUTPUT_SLOT);
-            
-            if (outputSlot.isEmpty()) {
-                this.setStack(OUTPUT_SLOT, output.copy());
-            } else if (ItemStack.areItemsAndComponentsEqual(outputSlot, output)) {
-                outputSlot.increment(output.getCount());
-            }
-            
+            addToOutput(output);
             this.removeStack(INPUT_SLOT, 1);
+            return;
+        }
+        
+        // Try electric furnace recipes
+        Optional<RecipeEntry<ElectricFurnaceRecipe>> electricRecipe = getCurrentElectricRecipe();
+        if (electricRecipe.isPresent()) {
+            SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+            ItemStack output = electricRecipe.get().value().craft(input, world.getRegistryManager());
+            
+            // Electric furnace recipes have normal output (not doubled)
+            addToOutput(output);
+            this.removeStack(INPUT_SLOT, 1);
+            return;
         }
     }
     
-    private Optional<RecipeEntry<SmeltingRecipe>> getCurrentRecipe() {
+    private void addToOutput(ItemStack output) {
+        ItemStack outputSlot = this.getStack(OUTPUT_SLOT);
+        
+        if (outputSlot.isEmpty()) {
+            this.setStack(OUTPUT_SLOT, output.copy());
+        } else if (ItemStack.areItemsAndComponentsEqual(outputSlot, output)) {
+            outputSlot.increment(output.getCount());
+        }
+    }
+    
+    private Optional<RecipeEntry<SmeltingRecipe>> getCurrentSmeltingRecipe() {
         if (world == null || world.isClient()) {
             return Optional.empty();
         }
@@ -345,16 +383,35 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
                 .getFirstMatch(RecipeType.SMELTING, input, world);
     }
     
-    private int getCookTime() {
+    private Optional<RecipeEntry<ElectricFurnaceRecipe>> getCurrentElectricRecipe() {
         if (world == null || world.isClient()) {
-            return 100; // Half of vanilla furnace cook time (200 -> 100)
+            return Optional.empty();
         }
         
         SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
-        Optional<RecipeEntry<SmeltingRecipe>> recipe = ((ServerWorld) world).getRecipeManager()
+        return ((ServerWorld) world).getRecipeManager()
+                .getFirstMatch(ModRecipes.ELECTRIC_FURNACE_TYPE, input, world);
+    }
+    
+    private int getCookTime() {
+        if (world == null || world.isClient()) {
+            return 100; // Default cook time
+        }
+        
+        SingleStackRecipeInput input = new SingleStackRecipeInput(this.getStack(INPUT_SLOT));
+        
+        // Check electric furnace recipes first
+        Optional<RecipeEntry<ElectricFurnaceRecipe>> electricRecipe = ((ServerWorld) world).getRecipeManager()
+                .getFirstMatch(ModRecipes.ELECTRIC_FURNACE_TYPE, input, world);
+        if (electricRecipe.isPresent()) {
+            return electricRecipe.get().value().getCookingTime(); // Use the recipe's cooking time
+        }
+        
+        // Fall back to smelting recipes (half the cooking time)
+        Optional<RecipeEntry<SmeltingRecipe>> smeltingRecipe = ((ServerWorld) world).getRecipeManager()
                 .getFirstMatch(RecipeType.SMELTING, input, world);
         
-        return recipe.map(recipeEntry -> recipeEntry.value().getCookingTime() / 2).orElse(100); // Half the cooking time
+        return smeltingRecipe.map(recipeEntry -> recipeEntry.value().getCookingTime() / 2).orElse(100);
     }
     
     // IEnergyConsumer implementation

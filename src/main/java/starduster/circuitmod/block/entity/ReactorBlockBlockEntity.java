@@ -29,11 +29,12 @@ import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyProducer;
 import starduster.circuitmod.power.IPowerConnectable;
 import starduster.circuitmod.screen.ReactorScreenHandler;
+import starduster.circuitmod.item.FuelRodItem;
 
 public class ReactorBlockBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.ReactorData>, IEnergyProducer {
     // Energy production properties
-    private static final int ENERGY_PER_ROD = 100; // Energy produced per uranium pellet per tick
-    private static final int MAX_RODS = 9; // Maximum number of uranium pellets that can be inserted
+    private static final int ENERGY_PER_ROD = 100; // Energy produced per fuel rod per tick
+    private static final int MAX_RODS = 9; // Maximum number of fuel rods that can be inserted
     private static final int UPDATE_INTERVAL = 100; // 5 seconds (at 20 ticks per second)
     
     // Network and state
@@ -42,7 +43,7 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     private boolean needsNetworkRefresh = false;
     private boolean isActive = false; // Whether the reactor is currently producing energy
     
-    // Inventory for uranium pellets (fuel) - 9 slots for 9 rods
+    // Inventory for fuel rods - 9 slots for 9 rods
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(MAX_RODS, ItemStack.EMPTY);
     
     // Property delegate indices for GUI synchronization
@@ -168,6 +169,11 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
         // Check if reactor should be active (has fuel)
         boolean shouldBeActive = blockEntity.getRodCount() > 0;
         
+        // If reactor is active, damage fuel rods
+        if (shouldBeActive) {
+            blockEntity.damageFuelRods();
+        }
+        
         // Update active state and block state if needed
         if (blockEntity.isActive != shouldBeActive) {
             blockEntity.isActive = shouldBeActive;
@@ -269,7 +275,7 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     public int getRodCount() {
         int count = 0;
         for (ItemStack stack : inventory) {
-            if (!stack.isEmpty() && stack.getItem() == ModItems.URANIUM_PELLET) {
+            if (!stack.isEmpty() && stack.getItem() == ModItems.FUEL_ROD) {
                 count += stack.getCount();
             }
         }
@@ -296,6 +302,49 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
     
     public PropertyDelegate getPropertyDelegate() {
         return propertyDelegate;
+    }
+    
+    /**
+     * Damages fuel rods in the reactor inventory when the reactor is active.
+     * Fuel rods take 1 second of durability damage every 20 ticks when the reactor is running.
+     * When a fuel rod reaches 0 durability, it is consumed.
+     */
+    private void damageFuelRods() {
+        boolean inventoryChanged = false;
+        
+        // Only damage fuel rods every 20 ticks (once per second)
+        if (tickCounter % 20 != 0) {
+            return;
+        }
+        
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (!stack.isEmpty() && stack.getItem() == ModItems.FUEL_ROD) {
+                // Damage the fuel rod by 1 second every 20 ticks
+                boolean wasConsumed = FuelRodItem.reduceDurability(stack, 1);
+                
+                if (wasConsumed) {
+                    // Fuel rod was consumed, clear the slot
+                    inventory.set(i, ItemStack.EMPTY);
+                    inventoryChanged = true;
+                    
+                    if (world != null && !world.isClient()) {
+                        Circuitmod.LOGGER.info("[REACTOR-FUEL] Fuel rod consumed at slot " + i + " in reactor at " + pos);
+                    }
+                } else {
+                    // Fuel rod was damaged but not consumed, update the slot
+                    inventory.set(i, stack);
+                    inventoryChanged = true;
+                }
+            }
+        }
+        
+        // If inventory changed, mark dirty and update state
+        if (inventoryChanged) {
+            markDirty();
+            updateBlockState();
+            updatePropertyDelegateValues();
+        }
     }
     
     // Update stored PropertyDelegate values
@@ -410,8 +459,8 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
 
     @Override
     public void setStack(int slot, ItemStack stack) {
-        // Only allow uranium pellets to be set
-        if (stack.isEmpty() || stack.getItem() == ModItems.URANIUM_PELLET) {
+        // Only allow fuel rods to be set
+        if (stack.isEmpty() || stack.getItem() == ModItems.FUEL_ROD) {
             inventory.set(slot, stack);
             if (stack.getCount() > getMaxCountPerStack()) {
                 stack.setCount(getMaxCountPerStack());
@@ -459,8 +508,8 @@ public class ReactorBlockBlockEntity extends BlockEntity implements SidedInvento
 
     @Override
     public boolean canInsert(int slot, ItemStack stack, @Nullable Direction dir) {
-        // Only allow uranium pellets to be inserted
-        return stack.getItem() == ModItems.URANIUM_PELLET;
+        // Only allow fuel rods to be inserted
+        return stack.getItem() == ModItems.FUEL_ROD;
     }
 
     @Override

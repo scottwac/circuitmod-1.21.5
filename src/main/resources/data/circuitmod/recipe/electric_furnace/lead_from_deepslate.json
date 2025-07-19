@@ -1,0 +1,13 @@
+{
+  "type": "circuitmod:electric_furnace",
+  "category": "blocks",
+  "ingredient": {
+    "item": "circuitmod:deepslate_lead_ore"
+  },
+  "result": {
+    "item": "circuitmod:lead_ingot",
+    "count": 1
+  },
+  "experience": 0.5,
+  "cookingtime": 60
+} 

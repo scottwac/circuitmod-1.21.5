@@ -1,0 +1,13 @@
+{
+  "type": "circuitmod:electric_furnace",
+  "category": "blocks",
+  "ingredient": {
+    "item": "minecraft:iron_ingot"
+  },
+  "result": {
+    "item": "circuitmod:steel_ingot",
+    "count": 1
+  },
+  "experience": 1.0,
+  "cookingtime": 120
+} 

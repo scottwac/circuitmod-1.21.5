@@ -103,6 +103,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.LEAD_INGOT);
 				entries.add(ModItems.STEEL_INGOT);
 				entries.add(ModItems.URANIUM_PELLET);
+				entries.add(ModItems.FUEL_ROD);
 				entries.add(ModItems.ZIRCONIUM_INGOT);
 
 				entries.add(ModItems.GRAPHITE);
