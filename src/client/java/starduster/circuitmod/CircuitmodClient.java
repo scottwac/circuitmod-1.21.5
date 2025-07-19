@@ -10,7 +10,10 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
 import starduster.circuitmod.client.render.DrillBlockEntityRenderer;
+import starduster.circuitmod.client.render.LaserMiningDrillBlockEntityRenderer;
+import starduster.circuitmod.client.render.ConstructorBlockEntityRenderer;
 import starduster.circuitmod.screen.DrillScreen;
+import starduster.circuitmod.screen.LaserMiningDrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.BloomeryScreen;
@@ -35,7 +38,8 @@ public class CircuitmodClient implements ClientModInitializer {
 
 		// Register screens
 		HandledScreens.register(ModScreenHandlers.QUARRY_SCREEN_HANDLER, QuarryScreen::new);
-		HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
+		        HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
+        HandledScreens.register(ModScreenHandlers.LASER_MINING_DRILL_SCREEN_HANDLER, LaserMiningDrillScreen::new);
 		HandledScreens.register(ModScreenHandlers.BLOOMERY_SCREEN_HANDLER, BloomeryScreen::new);
 		HandledScreens.register(ModScreenHandlers.GENERATOR_SCREEN_HANDLER, GeneratorScreen::new);
 		HandledScreens.register(ModScreenHandlers.MASS_FABRICATOR_SCREEN_HANDLER, MassFabricatorScreen::new);
@@ -48,7 +52,9 @@ public class CircuitmodClient implements ClientModInitializer {
 
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
-		BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
+		        BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
+        BlockEntityRendererFactories.register(ModBlockEntities.LASER_MINING_DRILL_BLOCK_ENTITY, LaserMiningDrillBlockEntityRenderer::new);
+		BlockEntityRendererFactories.register(ModBlockEntities.CONSTRUCTOR_BLOCK_ENTITY, ConstructorBlockEntityRenderer::new);
 		
 		// Initialize client networking
 		starduster.circuitmod.network.ClientNetworking.initialize();

@@ -32,6 +32,15 @@ public final class ModBlocks {
                     .strength(3.0f, 5.0f)
     );
 
+    // Register laser mining drill block
+    public static final Block LASER_MINING_DRILL_BLOCK = register(
+            "laser_mining_drill_block",
+            LaserMiningDrillBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.0f, 5.0f)
+    );
+
     // Register constructor block
     public static final Block CONSTRUCTOR_BLOCK = register(
             "constructor_block",

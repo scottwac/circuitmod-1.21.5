@@ -7,15 +7,18 @@ import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
+import starduster.circuitmod.block.entity.LaserMiningDrillBlockEntity;
 import starduster.circuitmod.screen.QuarryScreenHandler;
 import starduster.circuitmod.screen.DrillScreenHandler;
 import starduster.circuitmod.screen.ConstructorScreenHandler;
 import starduster.circuitmod.screen.QuarryScreen;
 import starduster.circuitmod.screen.DrillScreen;
-import starduster.circuitmod.screen.BlueprintDeskScreen;
+import starduster.circuitmod.screen.LaserMiningDrillScreen;
+
 import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 import net.minecraft.item.ItemStack;
 import java.util.Map;
+import java.util.List;
 
 public class ClientNetworking {
     /**
@@ -197,6 +200,35 @@ public class ClientNetworking {
             });
         });
         
+        // Register handler for laser mining drill depth sync updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.LaserDrillDepthSyncPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            BlockPos drillPos = payload.drillPos();
+            int depth = payload.depth();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // If the player's world is loaded
+                if (context.client().world != null) {
+                    // Get the laser mining drill block entity at the exact position
+                    if (context.client().world.getBlockEntity(drillPos) instanceof LaserMiningDrillBlockEntity laserDrill) {
+                        // Update the mining depth directly
+                        laserDrill.setMiningDepthFromNetwork(depth);
+                        Circuitmod.LOGGER.info("[CLIENT] Received laser mining drill depth sync: {} for drill at {}", depth, drillPos);
+                    } else {
+                        Circuitmod.LOGGER.warn("[CLIENT] Could not find laser mining drill at position: {}", drillPos);
+                    }
+                }
+                
+                // Also update the screen if it's open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.currentScreen instanceof LaserMiningDrillScreen laserDrillScreen) {
+                    laserDrillScreen.updateDepthField(depth);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated laser mining drill screen depth field with depth: {}", depth);
+                }
+            });
+        });
+        
         // Register handler for item move animations
         ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ItemMovePayload.ID, (payload, context) -> {
             // Extract data from the payload and create a copy to ensure isolation
@@ -292,22 +324,7 @@ public class ClientNetworking {
             });
         });
         
-        // Register handler for blueprint name sync updates
-        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNameSyncPayload.ID, (payload, context) -> {
-            // Extract data from the payload
-            String name = payload.name();
-            var blueprintDeskPos = payload.blueprintDeskPos();
-            
-            // Process on the game thread
-            context.client().execute(() -> {
-                // Update the screen if it's open
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client.currentScreen instanceof BlueprintDeskScreen screen) {
-                    screen.updateBlueprintName(name);
-                    Circuitmod.LOGGER.info("[CLIENT] Updated blueprint name in screen: {}", name);
-                }
-            });
-        });
+
         
         // Register handler for constructor materials sync updates
         ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorMaterialsSyncPayload.ID, (payload, context) -> {
@@ -320,6 +337,24 @@ public class ClientNetworking {
             context.client().execute(() -> {
                 starduster.circuitmod.screen.ConstructorScreenHandler.updateMaterialsFromServer(constructorPos, required, available);
                 Circuitmod.LOGGER.info("[CLIENT] Updated ConstructorScreenHandler materials from server for {}: required={}, available={}", constructorPos, required, available);
+            });
+        });
+        
+        // Register handler for constructor build positions sync updates
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorBuildPositionsSyncPayload.ID, (payload, context) -> {
+            // Extract data from the payload
+            BlockPos constructorPos = payload.constructorPos();
+            List<BlockPos> buildPositions = payload.buildPositions();
+
+            // Process on the game thread
+            context.client().execute(() -> {
+                // Update the constructor block entity with the build positions
+                if (context.client().world != null) {
+                    if (context.client().world.getBlockEntity(constructorPos) instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity constructor) {
+                        constructor.setBuildPositionsFromNetwork(buildPositions);
+                    }
+                }
+                Circuitmod.LOGGER.info("[CLIENT] Updated constructor build positions from server for {}: {} positions", constructorPos, buildPositions.size());
             });
         });
         
@@ -399,6 +434,29 @@ public class ClientNetworking {
     }
     
     /**
+     * Send laser mining drill depth to the server
+     * 
+     * @param drillPos The position of the laser mining drill
+     * @param depth The depth of the mining line
+     */
+    public static void sendDrillDepth(BlockPos drillPos, int depth) {
+        Circuitmod.LOGGER.info("[CLIENT] sendDrillDepth called with position: {}, depth: {}", drillPos, depth);
+        
+        if (drillPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send depth for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.LaserDrillDepthPayload payload = new ModNetworking.LaserDrillDepthPayload(drillPos, depth);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent laser mining drill depth for drill at {}", drillPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send laser mining drill depth: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
      * Send constructor building toggle to the server
      * 
      * @param constructorPos The position of the constructor
@@ -420,48 +478,5 @@ public class ClientNetworking {
         }
     }
     
-    /**
-     * Send blueprint name update to the server
-     * 
-     * @param blueprintDeskPos The position of the blueprint desk
-     * @param name The new blueprint name
-     */
-    public static void sendBlueprintNameUpdate(BlockPos blueprintDeskPos, String name) {
-        Circuitmod.LOGGER.info("[CLIENT] sendBlueprintNameUpdate called with position: {}, name: {}", blueprintDeskPos, name);
-        
-        if (blueprintDeskPos.equals(BlockPos.ORIGIN)) {
-            Circuitmod.LOGGER.error("[CLIENT] Refusing to send name update for invalid position (0,0,0)!");
-            return;
-        }
-        
-        try {
-            ModNetworking.BlueprintNamePayload payload = new ModNetworking.BlueprintNamePayload(blueprintDeskPos, name);
-            ClientPlayNetworking.send(payload);
-            Circuitmod.LOGGER.info("[CLIENT] Successfully sent blueprint name update for blueprint desk at {}", blueprintDeskPos);
-        } catch (Exception e) {
-            Circuitmod.LOGGER.error("[CLIENT] Failed to send blueprint name update: {}", e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Request the current blueprint name from the server
-     * 
-     * @param blueprintDeskPos The position of the blueprint desk
-     */
-    public static void requestBlueprintName(BlockPos blueprintDeskPos) {
-        Circuitmod.LOGGER.info("[CLIENT] Requesting blueprint name for position: {}", blueprintDeskPos);
-        
-        if (blueprintDeskPos.equals(BlockPos.ORIGIN)) {
-            Circuitmod.LOGGER.error("[CLIENT] Refusing to request name for invalid position (0,0,0)!");
-            return;
-        }
-        
-        try {
-            ModNetworking.BlueprintNameRequestPayload payload = new ModNetworking.BlueprintNameRequestPayload(blueprintDeskPos);
-            ClientPlayNetworking.send(payload);
-            Circuitmod.LOGGER.info("[CLIENT] Successfully sent blueprint name request for blueprint desk at {}", blueprintDeskPos);
-        } catch (Exception e) {
-            Circuitmod.LOGGER.error("[CLIENT] Failed to send blueprint name request: {}", e.getMessage(), e);
-        }
-    }
+
 } 

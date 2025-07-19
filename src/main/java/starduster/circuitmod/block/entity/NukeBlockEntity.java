@@ -27,9 +27,13 @@ public class NukeBlockEntity extends BlockEntity {
     
     // Configuration
     private static final int DEFAULT_RADIUS = 20; // Default explosion radius
-    private static final int DEFAULT_VEGETATION_RADIUS = 200; // Additional radius for vegetation destruction
+    private static final int DEFAULT_VEGETATION_RADIUS = 100; // Halved from 200 to 100 - reduced radius for vegetation destruction
     private static final int DETONATION_TICKS = 60; // 3 seconds at 20 ticks/second
     private static final int EXPLOSION_DURATION_TICKS = 200; // 10 seconds at 20 ticks/second
+    
+    // Vegetation destruction percentages
+    private static final int VEGETATION_DESTRUCTION_CHANCE = 30; // 30% chance to destroy vegetation
+    private static final int FIRE_SETTING_CHANCE = 15; // 15% chance to set fires
     
     // State
     private boolean isPrimed = false; // Whether the nuke is ready to detonate
@@ -192,6 +196,9 @@ public class NukeBlockEntity extends BlockEntity {
                             // Special handling for water - remove it completely
                             if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
                                 world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                            } else if (blockState.getBlock() == Blocks.DIRT) {
+                                // Convert regular dirt to coarse dirt in inner destruction area
+                                world.setBlockState(blockPos, Blocks.COARSE_DIRT.getDefaultState(), Block.NOTIFY_ALL);
                             } else {
                                 world.removeBlock(blockPos, false);
                             }
@@ -224,6 +231,7 @@ public class NukeBlockEntity extends BlockEntity {
     
     private int removeVegetationRadiusLayer(ServerWorld world, int radius) {
         int vegetationRemoved = 0;
+        int firesStarted = 0;
         
         // Remove vegetation blocks at the specified radius from the center
         for (int x = -radius; x <= radius; x++) {
@@ -244,46 +252,63 @@ public class NukeBlockEntity extends BlockEntity {
                         if (!blockState.isAir() && isVegetationBlock(blockState)) {
                             Block block = blockState.getBlock();
                             
-                            // Special handling for different vegetation types
-                            if (block == Blocks.GRASS_BLOCK) {
-                                // Replace grass blocks with dirt
-                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.SNOW || block == Blocks.SNOW_BLOCK) {
-                                // Remove snow completely
-                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.MOSS_CARPET) {
-                                // Remove moss carpet completely
-                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.MOSS_BLOCK) {
-                                // Replace moss blocks with stone
-                                world.setBlockState(blockPos, Blocks.STONE.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.CRIMSON_NYLIUM || block == Blocks.WARPED_NYLIUM) {
-                                // Replace nether nylium with netherrack
-                                world.setBlockState(blockPos, Blocks.NETHERRACK.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.ROOTED_DIRT) {
-                                // Replace rooted dirt with regular dirt
-                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.MUD || block == Blocks.MUDDY_MANGROVE_ROOTS) {
-                                // Replace mud with dirt
-                                world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.MANGROVE_ROOTS) {
-                                // Remove mangrove roots completely
-                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (block == Blocks.HANGING_ROOTS) {
-                                // Remove hanging roots completely
-                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                            } else {
-                                // Remove all other vegetation blocks
-                                world.removeBlock(blockPos, false);
+                            // Only destroy vegetation based on percentage chance
+                            boolean shouldDestroy = world.getRandom().nextInt(100) < VEGETATION_DESTRUCTION_CHANCE;
+                            
+                            if (shouldDestroy) {
+                                // Special handling for different vegetation types
+                                if (block == Blocks.GRASS_BLOCK) {
+                                    // Replace grass blocks with regular dirt (outer destruction area)
+                                    world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.SNOW || block == Blocks.SNOW_BLOCK) {
+                                    // Remove snow completely
+                                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.MOSS_CARPET) {
+                                    // Remove moss carpet completely
+                                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.MOSS_BLOCK) {
+                                    // Replace moss blocks with regular dirt (outer destruction area)
+                                    world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.CRIMSON_NYLIUM || block == Blocks.WARPED_NYLIUM) {
+                                    // Replace nether nylium with netherrack
+                                    world.setBlockState(blockPos, Blocks.NETHERRACK.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.ROOTED_DIRT) {
+                                    // Replace rooted dirt with regular dirt (outer destruction area)
+                                    world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.MUD || block == Blocks.MUDDY_MANGROVE_ROOTS) {
+                                    // Replace mud with regular dirt (outer destruction area)
+                                    world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.MANGROVE_ROOTS) {
+                                    // Remove mangrove roots completely
+                                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                } else if (block == Blocks.HANGING_ROOTS) {
+                                    // Remove hanging roots completely
+                                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                } else {
+                                    // Remove all other vegetation blocks
+                                    world.removeBlock(blockPos, false);
+                                }
+                                vegetationRemoved++;
                             }
-                            vegetationRemoved++;
+                            
+                            // Separately check for fire setting on any vegetation (whether destroyed or not)
+                            if (world.getRandom().nextInt(100) < FIRE_SETTING_CHANCE) {
+                                BlockPos firePos = blockPos.up();
+                                BlockState fireState = world.getBlockState(firePos);
+                                
+                                // Only place fire if the space above is air
+                                if (fireState.isAir()) {
+                                    world.setBlockState(firePos, Blocks.FIRE.getDefaultState(), Block.NOTIFY_ALL);
+                                    firesStarted++;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
         
-        Circuitmod.LOGGER.info("[NUKE] Removed " + vegetationRemoved + " vegetation blocks at radius " + radius);
+        Circuitmod.LOGGER.info("[NUKE] Removed " + vegetationRemoved + " vegetation blocks and started " + firesStarted + " fires at radius " + radius);
         return vegetationRemoved;
     }
     

@@ -49,6 +49,7 @@
 
   "block.circuitmod.quarry_block": "Quarry",
   "block.circuitmod.drill_block": "Drill",
+  "block.circuitmod.laser_mining_drill_block": "Laser Mining Drill",
   "block.circuitmod.constructor_block": "Constructor",
   "block.circuitmod.blueprint_desk": "Blueprint Desk",
   "block.circuitmod.electric_furnace": "Electric Furnace",

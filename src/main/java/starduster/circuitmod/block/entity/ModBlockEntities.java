@@ -23,6 +23,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(DrillBlockEntity::new, ModBlocks.DRILL_BLOCK).build()
     );
 
+    // Add Laser Mining Drill block entity
+    public static final BlockEntityType<LaserMiningDrillBlockEntity> LASER_MINING_DRILL_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "laser_mining_drill_block_entity"),
+            FabricBlockEntityTypeBuilder.create(LaserMiningDrillBlockEntity::new, ModBlocks.LASER_MINING_DRILL_BLOCK).build()
+    );
+
     // Add Constructor block entity
     public static final BlockEntityType<ConstructorBlockEntity> CONSTRUCTOR_BLOCK_ENTITY = Registry.register(
             Registries.BLOCK_ENTITY_TYPE,

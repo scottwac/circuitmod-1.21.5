@@ -3,6 +3,7 @@ package starduster.circuitmod.block.entity;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -20,6 +21,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
@@ -64,8 +66,14 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     private Map<String, Integer> requiredMaterials = new HashMap<>();
     private Map<String, Integer> availableMaterials = new HashMap<>();
     
-    // Build offset - where the blueprint should be built relative to the Constructor
-    private BlockPos buildOffset = new BlockPos(0, 0, 1); // Default: 1 block in front
+    // Blueprint placement settings (relative to constructor facing direction)
+    private int forwardOffset = 1;    // Blocks forward from constructor (positive = away from constructor)
+    private int rightOffset = 0;      // Blocks to the right (positive = right when facing constructor direction)
+    private int upOffset = 0;         // Blocks up from constructor (positive = up)
+    private int blueprintRotation = 0; // Blueprint rotation in 90-degree increments (0=same as constructor, 1=90° CW, etc.)
+    
+    // Client-side blueprint positions for rendering (synced from server)
+    private List<BlockPos> clientBuildPositions = new ArrayList<>();
     
     // Energy properties
     private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
@@ -180,10 +188,11 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         }
         nbt.put("built_positions", builtNbt);
         
-        // Save build offset
-        nbt.putInt("build_offset_x", buildOffset.getX());
-        nbt.putInt("build_offset_y", buildOffset.getY());
-        nbt.putInt("build_offset_z", buildOffset.getZ());
+        // Save new positioning system
+        nbt.putInt("forward_offset", forwardOffset);
+        nbt.putInt("right_offset", rightOffset);
+        nbt.putInt("up_offset", upOffset);
+        nbt.putInt("blueprint_rotation", blueprintRotation);
         
         // Save inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
@@ -240,12 +249,33 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             }
         }
         
-        // Load build offset
-        if (nbt.contains("build_offset_x") && nbt.contains("build_offset_y") && nbt.contains("build_offset_z")) {
+        // Load positioning system (with backwards compatibility)
+        if (nbt.contains("forward_offset")) {
+            // Load new positioning system
+            forwardOffset = nbt.getInt("forward_offset").orElse(1);
+            rightOffset = nbt.getInt("right_offset").orElse(0);
+            upOffset = nbt.getInt("up_offset").orElse(0);
+            blueprintRotation = nbt.getInt("blueprint_rotation").orElse(0);
+        } else if (nbt.contains("build_offset_x") && nbt.contains("build_offset_y") && nbt.contains("build_offset_z")) {
+            // Backwards compatibility: convert old buildOffset to new system
             int offsetX = nbt.getInt("build_offset_x").orElse(0);
             int offsetY = nbt.getInt("build_offset_y").orElse(0);
-            int offsetZ = nbt.getInt("build_offset_z").orElse(1); // Default to 1 block in front
-            buildOffset = new BlockPos(offsetX, offsetY, offsetZ);
+            int offsetZ = nbt.getInt("build_offset_z").orElse(1);
+            
+            // Convert absolute offset to relative (assumes old constructor faced north)
+            this.forwardOffset = offsetZ;
+            this.rightOffset = offsetX;
+            this.upOffset = offsetY;
+            this.blueprintRotation = 0;
+            
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] Converted old buildOffset ({},{},{}) to new system (forward:{}, right:{}, up:{}, rotation:{})",
+                    offsetX, offsetY, offsetZ, forwardOffset, rightOffset, upOffset, blueprintRotation);
+        } else {
+            // Set defaults
+            forwardOffset = 1;
+            rightOffset = 0;
+            upOffset = 0;
+            blueprintRotation = 0;
         }
         
         // Load inventory
@@ -363,10 +393,12 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                 
                 // Send status update to nearby players
                 if (world != null && !world.isClient()) {
+                    List<BlockPos> buildPositions = getBlueprintBuildPositions();
                     for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
                         if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
                             starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, true);
                             starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                            starduster.circuitmod.network.ModNetworking.sendConstructorBuildPositionsSync(player, pos, buildPositions);
                         }
                     }
                 }
@@ -418,6 +450,7 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                 if (player.getWorld() == world && player.getBlockPos().getSquaredDistance(pos) <= 64 * 64) {
                     starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, false);
                     starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
+                    starduster.circuitmod.network.ModNetworking.sendConstructorBuildPositionsSync(player, pos, new ArrayList<>());
                 }
             }
         }
@@ -644,7 +677,7 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             // Check if the target position is buildable
             // Build the blueprint starting from the position that was the minimum corner of the original scan
             // The Constructor should build the blueprint exactly where it was originally scanned
-            BlockPos worldPos = pos.add(buildOffset).add(currentBuildPos);
+            BlockPos worldPos = pos.add(getBuildOffset()).add(currentBuildPos);
             BlockState currentState = world.getBlockState(worldPos);
             
             // Allow building if the position is air, replaceable, or a common replaceable block
@@ -712,7 +745,7 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
             BlockState requiredState = currentBlueprint.getBlockState(currentBuildPos);
             ItemStack requiredItem = new ItemStack(requiredState.getBlock().asItem());
             // Build the blueprint starting from the position that was the minimum corner of the original scan
-            BlockPos worldPos = pos.add(buildOffset).add(currentBuildPos);
+            BlockPos worldPos = pos.add(getBuildOffset()).add(currentBuildPos);
             
             // Find and consume the item
             boolean consumed = false;
@@ -1021,6 +1054,9 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     }
     
     public boolean hasBlueprint() {
+        if (world != null && world.isClient()) {
+            return hasBlueprintState;
+        }
         return currentBlueprint != null;
     }
     
@@ -1052,21 +1088,118 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     }
     
     /**
-     * Gets the current build offset
-     * @return the build offset relative to the Constructor
+     * Gets the constructor's facing direction from the block state
      */
-    public BlockPos getBuildOffset() {
-        return buildOffset;
+    private Direction getConstructorFacing() {
+        if (world != null && world.getBlockState(pos).getBlock() instanceof starduster.circuitmod.block.machines.ConstructorBlock) {
+            return world.getBlockState(pos).get(HorizontalFacingBlock.FACING);
+        }
+        return Direction.NORTH; // Default fallback
     }
     
     /**
-     * Sets the build offset
+     * Converts relative offset to world position based on constructor facing
+     * @param forward blocks forward from constructor (positive = away from constructor)
+     * @param right blocks to the right (positive = right when facing constructor direction)  
+     * @param up blocks up from constructor (positive = up)
+     * @return world position relative to constructor
+     */
+    private BlockPos getWorldPositionFromRelative(int forward, int right, int up) {
+        Direction facing = getConstructorFacing();
+        
+        // Calculate forward direction (where constructor is facing)
+        Vec3i forwardVec = facing.getVector();
+        
+        // Calculate right direction (90 degrees clockwise from facing)
+        Vec3i rightVec = facing.rotateYClockwise().getVector();
+        
+        // Combine all offsets
+        int totalX = forwardVec.getX() * forward + rightVec.getX() * right;
+        int totalY = up;
+        int totalZ = forwardVec.getZ() * forward + rightVec.getZ() * right;
+        
+        return new BlockPos(totalX, totalY, totalZ);
+    }
+    
+    /**
+     * Gets the base build position (constructor position + relative offsets)
+     */
+    private BlockPos getBaseBuildPosition() {
+        return pos.add(getWorldPositionFromRelative(forwardOffset, rightOffset, upOffset));
+    }
+    
+    /**
+     * Rotates a blueprint position based on the blueprint rotation setting
+     * @param blueprintPos the relative position within the blueprint
+     * @return rotated position
+     */
+    private BlockPos rotateBlueprintPosition(BlockPos blueprintPos) {
+        int rotations = blueprintRotation % 4; // Normalize to 0-3
+        if (rotations == 0) {
+            return blueprintPos;
+        }
+        
+        int x = blueprintPos.getX();
+        int y = blueprintPos.getY();
+        int z = blueprintPos.getZ();
+        
+        // Apply rotations (90 degrees clockwise each time)
+        for (int i = 0; i < rotations; i++) {
+            int newX = -z;
+            int newZ = x;
+            x = newX;
+            z = newZ;
+        }
+        
+        return new BlockPos(x, y, z);
+    }
+    
+    /**
+     * Gets the current build offset (for backwards compatibility)
+     * @return the build offset relative to the Constructor
+     */
+    public BlockPos getBuildOffset() {
+        return getWorldPositionFromRelative(forwardOffset, rightOffset, upOffset);
+    }
+    
+    /**
+     * Sets the build offset (for backwards compatibility)
      * @param offset the new build offset relative to the Constructor
      */
     public void setBuildOffset(BlockPos offset) {
-        this.buildOffset = offset;
+        // Convert absolute offset back to relative (assumes constructor facing north)
+        this.forwardOffset = offset.getZ();
+        this.rightOffset = offset.getX();
+        this.upOffset = offset.getY();
         markDirty();
-        Circuitmod.LOGGER.info("[CONSTRUCTOR] Set build offset to: {}", offset);
+        Circuitmod.LOGGER.info("[CONSTRUCTOR] Set build offset to: {} (forward:{}, right:{}, up:{})", 
+                offset, forwardOffset, rightOffset, upOffset);
+    }
+    
+    // New getter/setter methods for individual offset components
+    public int getForwardOffset() { return forwardOffset; }
+    public int getRightOffset() { return rightOffset; }
+    public int getUpOffset() { return upOffset; }
+    public int getBlueprintRotation() { return blueprintRotation; }
+    
+    public void setForwardOffset(int forward) {
+        this.forwardOffset = forward;
+        markDirty();
+    }
+    
+    public void setRightOffset(int right) {
+        this.rightOffset = right;
+        markDirty();
+    }
+    
+    public void setUpOffset(int up) {
+        this.upOffset = up;
+        markDirty();
+    }
+    
+    public void setBlueprintRotation(int rotation) {
+        this.blueprintRotation = rotation % 4;
+        markDirty();
     }
     
     /**
@@ -1097,6 +1230,48 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
         if (world != null && world.isClient()) {
             this.clientStatusMessage = message;
             Circuitmod.LOGGER.info("[CONSTRUCTOR] Updated status message from network: {}", message);
+        }
+    }
+    
+    /**
+     * Get all world positions where blueprint blocks will be built (for renderer)
+     */
+    public List<BlockPos> getBlueprintBuildPositions() {
+        // On client side, use synced positions
+        if (world != null && world.isClient()) {
+            return new ArrayList<>(clientBuildPositions);
+        }
+        
+        // On server side, calculate from blueprint
+        List<BlockPos> positions = new ArrayList<>();
+        
+        if (currentBlueprint == null) {
+            return positions;
+        }
+        
+        // Get the base build position (constructor + relative offsets)
+        BlockPos baseBuildPos = getBaseBuildPosition();
+        
+        // Convert blueprint relative positions to world positions
+        for (BlockPos blueprintPos : currentBlueprint.getAllBlockPositions()) {
+            // Apply blueprint rotation first
+            BlockPos rotatedBlueprintPos = rotateBlueprintPosition(blueprintPos);
+            
+            // Then add to base build position
+            BlockPos worldPos = baseBuildPos.add(rotatedBlueprintPos);
+            positions.add(worldPos);
+        }
+        
+        return positions;
+    }
+    
+    /**
+     * Set build positions from network (client-side only)
+     */
+    public void setBuildPositionsFromNetwork(List<BlockPos> positions) {
+        if (world != null && world.isClient()) {
+            this.clientBuildPositions = new ArrayList<>(positions);
+            Circuitmod.LOGGER.info("[CONSTRUCTOR] Updated build positions from network: {} positions", positions.size());
         }
     }
     

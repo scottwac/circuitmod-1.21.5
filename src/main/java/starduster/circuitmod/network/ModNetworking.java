@@ -15,6 +15,8 @@ import net.minecraft.network.RegistryByteBuf;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ModNetworking {
     /**
@@ -31,16 +33,19 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(DrillMiningProgressPayload.ID, DrillMiningProgressPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillMiningEnabledPayload.ID, DrillMiningEnabledPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillDimensionsSyncPayload.ID, DrillDimensionsSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(LaserDrillDepthSyncPayload.ID, LaserDrillDepthSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorBuildingStatusPayload.ID, ConstructorBuildingStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorPowerStatusPayload.ID, ConstructorPowerStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorStatusMessagePayload.ID, ConstructorStatusMessagePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(BlueprintNameSyncPayload.ID, BlueprintNameSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorMaterialsSyncPayload.ID, ConstructorMaterialsSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorBuildPositionsSyncPayload.ID, ConstructorBuildPositionsSyncPayload.CODEC);
         
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuarryDimensionsPayload.ID, QuarryDimensionsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DrillDimensionsPayload.ID, DrillDimensionsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(LaserDrillDepthPayload.ID, LaserDrillDepthPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ConstructorBuildingPayload.ID, ConstructorBuildingPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNamePayload.ID, BlueprintNamePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
@@ -176,6 +181,36 @@ public class ModNetworking {
     }
     
     /**
+     * Send laser mining drill depth sync to a player
+     * 
+     * @param player The player to send the update to
+     * @param drillPos The position of the drill
+     * @param depth The depth of the mining line
+     */
+    public static void sendLaserDrillDepthUpdate(ServerPlayerEntity player, BlockPos drillPos, int depth) {
+        Circuitmod.LOGGER.info("[SERVER] Sending laser mining drill depth sync: {} to player {} for drill at {}", depth, player.getName().getString(), drillPos);
+            
+        LaserDrillDepthSyncPayload payload = new LaserDrillDepthSyncPayload(drillPos, depth);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send laser mining drill depth sync to players
+     * 
+     * @param players The players to send the update to
+     * @param drillPos The position of the drill
+     * @param depth The depth of the mining line
+     */
+    public static void sendLaserDrillDepthUpdate(Iterable<ServerPlayerEntity> players, BlockPos drillPos, int depth) {
+        Circuitmod.LOGGER.info("[SERVER] Sending laser mining drill depth sync: {} for drill at {}", depth, drillPos);
+            
+        LaserDrillDepthSyncPayload payload = new LaserDrillDepthSyncPayload(drillPos, depth);
+        for (ServerPlayerEntity player : players) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+        }
+    }
+    
+    /**
      * Send constructor building status update to a player
      * 
      * @param player The player to send the update to
@@ -253,6 +288,21 @@ public class ModNetworking {
         Map<String, Integer> availableCopy = new HashMap<>(available);
         
         ConstructorMaterialsSyncPayload payload = new ConstructorMaterialsSyncPayload(constructorPos, requiredCopy, availableCopy);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send constructor build positions sync to client for rendering
+     * 
+     * @param player The player to send the update to
+     * @param constructorPos The position of the constructor
+     * @param buildPositions The list of build positions
+     */
+    public static void sendConstructorBuildPositionsSync(ServerPlayerEntity player, BlockPos constructorPos, List<BlockPos> buildPositions) {
+        Circuitmod.LOGGER.info("[SERVER] Sending constructor build positions sync to player " + 
+            player.getName().getString() + ": " + buildPositions.size() + " positions for constructor at " + constructorPos);
+            
+        ConstructorBuildPositionsSyncPayload payload = new ConstructorBuildPositionsSyncPayload(constructorPos, new ArrayList<>(buildPositions));
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
 
@@ -440,6 +490,48 @@ public class ModNetworking {
             PacketCodecs.INTEGER, DrillDimensionsPayload::height,
             PacketCodecs.INTEGER, DrillDimensionsPayload::width,
             DrillDimensionsPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * Payload for laser mining drill depth (client -> server)
+     */
+    public record LaserDrillDepthPayload(BlockPos drillPos, int depth) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<LaserDrillDepthPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "laser_drill_depth"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, LaserDrillDepthPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, LaserDrillDepthPayload::drillPos,
+            PacketCodecs.INTEGER, LaserDrillDepthPayload::depth,
+            LaserDrillDepthPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * Payload for laser mining drill depth sync (server -> client)
+     */
+    public record LaserDrillDepthSyncPayload(BlockPos drillPos, int depth) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<LaserDrillDepthSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "laser_drill_depth_sync"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, LaserDrillDepthSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, LaserDrillDepthSyncPayload::drillPos,
+            PacketCodecs.INTEGER, LaserDrillDepthSyncPayload::depth,
+            LaserDrillDepthSyncPayload::new
         );
         
         @Override
@@ -647,6 +739,25 @@ public class ModNetworking {
             PacketCodecs.map(java.util.HashMap::new, PacketCodecs.STRING, PacketCodecs.INTEGER), ConstructorMaterialsSyncPayload::required,
             PacketCodecs.map(java.util.HashMap::new, PacketCodecs.STRING, PacketCodecs.INTEGER), ConstructorMaterialsSyncPayload::available,
             ConstructorMaterialsSyncPayload::new
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for constructor build positions sync (server -> client)
+     */
+    public record ConstructorBuildPositionsSyncPayload(BlockPos constructorPos, List<BlockPos> buildPositions) implements CustomPayload {
+        public static final CustomPayload.Id<ConstructorBuildPositionsSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_build_positions_sync"));
+
+        public static final PacketCodec<PacketByteBuf, ConstructorBuildPositionsSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorBuildPositionsSyncPayload::constructorPos,
+            PacketCodecs.collection(ArrayList::new, BlockPos.PACKET_CODEC), ConstructorBuildPositionsSyncPayload::buildPositions,
+            ConstructorBuildPositionsSyncPayload::new
         );
 
         @Override

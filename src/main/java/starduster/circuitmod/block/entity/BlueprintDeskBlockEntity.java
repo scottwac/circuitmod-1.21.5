@@ -59,9 +59,6 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     // Scanning state
     private boolean isScanning = false;
     private int scanProgress = 0;
-    private String currentBlueprintName = "New Blueprint";
-    private int autoScanDelay = 0; // Delay before auto-starting scan to allow name updates
-    private static int blueprintCounter = 0; // Counter for generating unique blueprint names
     
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -108,8 +105,6 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         nbt.putBoolean("has_valid_partner", hasValidPartner);
         nbt.putBoolean("is_scanning", isScanning);
         nbt.putInt("scan_progress", scanProgress);
-        nbt.putString("blueprint_name", currentBlueprintName);
-        nbt.putInt("auto_scan_delay", autoScanDelay);
         
         // Save inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
@@ -130,8 +125,6 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         this.hasValidPartner = nbt.getBoolean("has_valid_partner", false);
         this.isScanning = nbt.getBoolean("is_scanning", false);
         this.scanProgress = nbt.getInt("scan_progress", 0);
-        this.currentBlueprintName = nbt.getString("blueprint_name", "New Blueprint");
-        this.autoScanDelay = nbt.getInt("auto_scan_delay", 0);
         
         // Load inventory
         Inventories.readNbt(nbt, this.inventory, registries);
@@ -158,16 +151,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         }
         
 
-        
-        // Process auto-scan delay
-        if (entity.autoScanDelay > 0) {
-            entity.autoScanDelay--;
-            if (entity.autoScanDelay == 0 && entity.hasValidPartner && !entity.isScanning) {
-                // Start scanning after delay
-                entity.startScanning();
-                Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Auto-started scanning after delay with name: {}", entity.currentBlueprintName);
-            }
-        }
+
         
         // Validate partner connection periodically
         if (world.getTime() % 20 == 0) { // Every second
@@ -306,11 +290,8 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
             return;
         }
         
-        // Ensure we have a unique name
-        if (currentBlueprintName.equals("New Blueprint")) {
-            currentBlueprintName = generateUniqueBlueprintName();
-            Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Generated unique name for scan: {}", currentBlueprintName);
-        }
+        // Generate a unique name for the blueprint
+        String blueprintName = generateUniqueBlueprintName();
         
         this.isScanning = true;
         this.scanProgress = 0;
@@ -320,10 +301,10 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         BlockPos startPos = pos;
         BlockPos endPos = partnerPos;
         
-        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Starting scan from {} to {} with name: {}", startPos, endPos, currentBlueprintName);
+        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Starting scan from {} to {} with name: {}", startPos, endPos, blueprintName);
         
         // Create the blueprint and start async scanning
-        BlueprintScanner.scanAreaAsync(startPos, endPos, (ServerWorld) world, currentBlueprintName, 
+        BlueprintScanner.scanAreaAsync(startPos, endPos, (ServerWorld) world, blueprintName, 
             this::onScanComplete, this::onScanProgress);
     }
     
@@ -366,19 +347,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Scan complete! Created blueprint: {}", blueprint.getName());
     }
     
-    /**
-     * Sets the name for the next blueprint to be created
-     */
-    public void setBlueprintName(String name) {
-        // If no name is provided or it's the default name, generate a unique one
-        if (name == null || name.isEmpty() || name.equals("New Blueprint")) {
-            this.currentBlueprintName = generateUniqueBlueprintName();
-        } else {
-            this.currentBlueprintName = name;
-        }
-        markDirty();
-        Circuitmod.LOGGER.info("[BLUEPRINT-DESK] Set blueprint name to: {}", this.currentBlueprintName);
-    }
+
     
     /**
      * Schedules a partner search for the next tick
@@ -475,9 +444,8 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         // Auto-start scanning when a blank blueprint is inserted
         if (slot == 0 && !stack.isEmpty() && stack.isOf(ModItems.BLANK_BLUEPRINT)) {
             if (hasValidPartner && !isScanning && world != null && !world.isClient()) {
-                // Set a delay to allow name updates to be processed first
-                this.autoScanDelay = 3; // 3 ticks delay
-                ;
+                // Start scanning immediately
+                startScanning();
             }
         }
     }
@@ -508,10 +476,6 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
     
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        // Send current blueprint name to client when screen opens
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            ModNetworking.sendBlueprintNameSync(serverPlayer, this.pos, this.currentBlueprintName);
-        }
         return new BlueprintDeskScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
     }
     
@@ -528,9 +492,7 @@ public class BlueprintDeskBlockEntity extends BlockEntity implements Inventory, 
         return scanProgress;
     }
     
-    public String getCurrentBlueprintName() {
-        return currentBlueprintName;
-    }
+
     
     /**
      * Generates a unique blueprint name with random numbers

@@ -24,6 +24,7 @@ import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
+import starduster.circuitmod.block.entity.LaserMiningDrillBlockEntity;
 import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
@@ -64,7 +65,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.GENERATOR);
 				entries.add(ModBlocks.SOLAR_PANEL);
 				entries.add(ModBlocks.TESLA_COIL);
-				entries.add(ModBlocks.DRILL_BLOCK);
+				            entries.add(ModBlocks.DRILL_BLOCK);
+            entries.add(ModBlocks.LASER_MINING_DRILL_BLOCK);
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
 				entries.add(ModBlocks.BLUEPRINT_DESK);
@@ -163,6 +165,9 @@ public class Circuitmod implements ModInitializer {
 				} else if (context.player().getWorld().getBlockEntity(machinePos) instanceof DrillBlockEntity drill) {
 					drill.toggleMining();
 					LOGGER.info("[SERVER] Toggled mining for drill at " + machinePos + " by player " + context.player().getName().getString());
+				} else if (context.player().getWorld().getBlockEntity(machinePos) instanceof LaserMiningDrillBlockEntity laserDrill) {
+					laserDrill.toggleMining();
+					LOGGER.info("[SERVER] Toggled mining for laser mining drill at " + machinePos + " by player " + context.player().getName().getString());
 				}
 			});
 		});
@@ -197,6 +202,26 @@ public class Circuitmod implements ModInitializer {
 					
 					// Send sync packet back to the client
 					ModNetworking.sendDrillDimensionsUpdate(context.player(), height, width);
+				} else if (context.player().getWorld().getBlockEntity(drillPos) instanceof LaserMiningDrillBlockEntity laserDrill) {
+					// For laser mining drill, use the height parameter as depth
+					laserDrill.setMiningDepth(height);
+					LOGGER.info("[SERVER] Set laser mining drill depth at " + drillPos + " to " + height + " by player " + context.player().getName().getString());
+				}
+			});
+		});
+		
+		// Register laser mining drill depth handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.LaserDrillDepthPayload.ID, (payload, context) -> {
+			var drillPos = payload.drillPos();
+			var depth = payload.depth();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(drillPos) instanceof LaserMiningDrillBlockEntity laserDrill) {
+					laserDrill.setMiningDepth(depth);
+					LOGGER.info("[SERVER] Set laser mining drill depth at " + drillPos + " to " + depth + " by player " + context.player().getName().getString());
+					
+					// Send sync packet back to the client
+					ModNetworking.sendLaserDrillDepthUpdate(context.player(), drillPos, depth);
 				}
 			});
 		});
@@ -213,32 +238,7 @@ public class Circuitmod implements ModInitializer {
 			});
 		});
 		
-		// Register blueprint name handler
-		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNamePayload.ID, (payload, context) -> {
-			var blueprintDeskPos = payload.blueprintDeskPos();
-			var name = payload.name();
-			context.server().execute(() -> {
-				// Handle on the server thread
-				if (context.player().getWorld().getBlockEntity(blueprintDeskPos) instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blueprintDesk) {
-					blueprintDesk.setBlueprintName(name);
-					LOGGER.info("[SERVER] Updated blueprint name to '{}' for blueprint desk at {} by player {}", 
-						name, blueprintDeskPos, context.player().getName().getString());
-				}
-			});
-		});
-		
-		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.BlueprintNameRequestPayload.ID, (payload, context) -> {
-			var blueprintDeskPos = payload.blueprintDeskPos();
-			context.server().execute(() -> {
-				// Handle on the server thread
-				if (context.player().getWorld().getBlockEntity(blueprintDeskPos) instanceof starduster.circuitmod.block.entity.BlueprintDeskBlockEntity blueprintDesk) {
-					String currentName = blueprintDesk.getCurrentBlueprintName();
-					ModNetworking.sendBlueprintNameSync(context.player(), blueprintDeskPos, currentName);
-					LOGGER.info("[SERVER] Sent blueprint name '{}' to player {} for blueprint desk at {}", 
-						currentName, context.player().getName().getString(), blueprintDeskPos);
-				}
-			});
-		});
+
 		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

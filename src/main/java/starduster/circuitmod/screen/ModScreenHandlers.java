@@ -41,6 +41,15 @@ public class ModScreenHandlers {
         );
     }
     
+    // Data class for laser mining drill screen opening data
+    public record LaserMiningDrillData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, LaserMiningDrillData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            LaserMiningDrillData::pos,
+            LaserMiningDrillData::new
+        );
+    }
+    
     // Data class for blueprint desk screen opening data
     public record BlueprintDeskData(BlockPos pos) {
         public static final PacketCodec<RegistryByteBuf, BlueprintDeskData> PACKET_CODEC = PacketCodec.tuple(
@@ -81,6 +90,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "drill_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new DrillScreenHandler(syncId, inventory, data), DrillData.PACKET_CODEC)
+        );
+
+    // Register the laser mining drill screen handler type
+    public static final ExtendedScreenHandlerType<LaserMiningDrillScreenHandler, LaserMiningDrillData> LASER_MINING_DRILL_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "laser_mining_drill_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new LaserMiningDrillScreenHandler(syncId, inventory, data), LaserMiningDrillData.PACKET_CODEC)
         );
     
     // Register bloomery screen handler
