@@ -25,7 +25,7 @@ public class BlueprintDeskScreenHandler extends ScreenHandler {
         this.addProperties(propertyDelegate);
         
         // Blueprint item slot (center of desk interface)
-        this.addSlot(new BlueprintSlot(inventory, 0, 80, 35));
+        this.addSlot(new BlueprintSlot(inventory, 0, 80, 54));
         
         // Player inventory (standard layout)
         // Main inventory (3x9 grid)

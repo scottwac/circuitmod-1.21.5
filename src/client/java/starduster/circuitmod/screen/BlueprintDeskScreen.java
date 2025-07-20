@@ -10,7 +10,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class BlueprintDeskScreen extends HandledScreen<BlueprintDeskScreenHandler> {
     // Use quarry GUI texture for now
-    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/quarry/quarry_gui.png");
+    private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/machines/blueprint_desk_gui.png");
     
     public BlueprintDeskScreen(BlueprintDeskScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -59,23 +59,23 @@ public class BlueprintDeskScreen extends HandledScreen<BlueprintDeskScreenHandle
             connectionText = Text.literal("No Partner");
             connectionColor = 0xFF0000; // Red
         }
-        context.drawText(textRenderer, connectionText, baseX + 8, baseY + 20, connectionColor, false);
+        context.drawText(textRenderer, connectionText, baseX + 10, baseY + 21, connectionColor, false);
         
         // Scanning status
         if (handler.hasValidPartner()) {
             if (handler.isScanning()) {
                 Text scanText = Text.literal("Scanning... " + handler.getScanProgress() + "%");
-                context.drawText(textRenderer, scanText, baseX + 8, baseY + 45, 0xFFFF00, false); // Yellow
+                context.drawText(textRenderer, scanText, baseX + 10, baseY + 33, 0xFFFF00, false); // Yellow
                 
                 // Draw progress bar
-                drawProgressBar(context, baseX + 8, baseY + 57, 100, 8, handler.getScanProgress());
+                drawProgressBar(context, baseX + 11, baseY + 57, 64, 10, handler.getScanProgress());
             } else {
                 Text readyText = Text.literal("Ready - Insert Blueprint");
-                context.drawText(textRenderer, readyText, baseX + 8, baseY + 45, 0x00FF00, false); // Green
+                context.drawText(textRenderer, readyText, baseX + 10, baseY + 33, 0x00FF00, false); // Green
             }
         } else {
             Text instructionText = Text.literal("Place partner desk to connect");
-            context.drawText(textRenderer, instructionText, baseX + 8, baseY + 45, 0xAAAAAA, false); // Gray
+            context.drawText(textRenderer, instructionText, baseX + 10, baseY + 33, 0xAAAAAA, false); // Gray
         }
     }
     
