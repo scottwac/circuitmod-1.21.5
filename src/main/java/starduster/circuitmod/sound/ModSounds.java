@@ -10,6 +10,9 @@ public class ModSounds {
 
     public static final SoundEvent MINER_MACHINE_RUN = registerSoundEvent("miner_machine_run");
     public static final SoundEvent LASER_BEAM = registerSoundEvent("laser_beam");
+    public static final SoundEvent NUKE_NEAR = registerSoundEvent("nuke_near");
+    public static final SoundEvent NUKE_MID = registerSoundEvent("nuke_mid");
+    public static final SoundEvent NUKE_FAR = registerSoundEvent("nuke_far");
 
     private static SoundEvent registerSoundEvent(String name) {
         Identifier id = Identifier.of(Circuitmod.MOD_ID, name);

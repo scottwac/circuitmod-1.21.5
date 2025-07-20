@@ -49,7 +49,7 @@ public class CrusherBlockEntity extends BlockEntity implements NamedScreenHandle
 
     protected final PropertyDelegate propertyDelegate;
     private int progress = 0;
-    private int maxProgress = 10;
+    private int maxProgress = 30;
 
     // Energy properties
     private static final int ENERGY_DEMAND_PER_TICK = 1; // Consumes 1 energy per tick when active
@@ -59,7 +59,7 @@ public class CrusherBlockEntity extends BlockEntity implements NamedScreenHandle
 
     private void resetProgress() {
         this.progress = 0;
-        this.maxProgress = 10;
+        this.maxProgress = 30;
     }
 
     public CrusherBlockEntity(BlockPos pos, BlockState state) {

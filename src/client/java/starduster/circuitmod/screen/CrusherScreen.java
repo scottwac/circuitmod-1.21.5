@@ -10,7 +10,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class CrusherScreen extends HandledScreen<CrusherScreenHandler> {
     private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/machines/crusher_gui.png");
-    private static final Identifier ARROW_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/sprites/energy_sprite.png");
+    private static final Identifier ARROW_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/sprites/crusher_arrow_sprite.png");
 
     public CrusherScreen(CrusherScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -19,7 +19,7 @@ public class CrusherScreen extends HandledScreen<CrusherScreenHandler> {
     @Override
     protected void init() {
         super.init();
-        titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
+        //titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2; DO NOT CENTER THE TITLE
     }
 
     @Override
@@ -35,8 +35,8 @@ public class CrusherScreen extends HandledScreen<CrusherScreenHandler> {
     private void renderProgressArrow(DrawContext context, int x, int y) {
         int arrowScale = handler.getScaledArrowProgress();
         if(handler.isCrushing()) {
-            context.drawTexture(RenderLayer::getGuiTextured, ARROW_TEXTURE, x + 82, y + 36, 0, 0,
-                    arrowScale, 16, 24, 16);
+            context.drawTexture(RenderLayer::getGuiTextured, ARROW_TEXTURE, x + 82, y + 37, 0, 0,
+                    12, arrowScale, 12, 16);
         }
     }
 

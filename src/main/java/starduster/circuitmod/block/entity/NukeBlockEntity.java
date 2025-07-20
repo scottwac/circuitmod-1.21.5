@@ -6,9 +6,12 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -21,6 +24,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.Box;
+import starduster.circuitmod.sound.ModSounds;
 
 
 public class NukeBlockEntity extends BlockEntity {
@@ -92,6 +96,10 @@ public class NukeBlockEntity extends BlockEntity {
             Circuitmod.LOGGER.info("[NUKE-TICK] Primed at " + pos);
             blockEntity.handlePriming((ServerWorld) world);
         }
+        double x = (double)pos.getX() + (double)0.5F;
+        double y = (double)pos.getY() + (double)0.5F;
+        double z = (double)pos.getZ() + (double)0.5F;
+
 
 
     }
@@ -723,6 +731,17 @@ public class NukeBlockEntity extends BlockEntity {
     private void startDetonation(ServerWorld world) {
         isDetonating = true;
         detonationTimer = 0;
+
+        double x = (double)pos.getX() + (double)0.5F;
+        double y = (double)pos.getY() + (double)0.5F;
+        double z = (double)pos.getZ() + (double)0.5F;
+
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_NEAR, SoundCategory.BLOCKS, 10F, 1F, true);
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_MID, SoundCategory.BLOCKS, 25F, 1F, true);
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_FAR, SoundCategory.BLOCKS, 100F, 1F, true);
+                world.playSound(null, x, y, z, ModSounds.NUKE_NEAR, SoundCategory.BLOCKS, 10f, 1f);
+                world.playSound(null, x, y, z, ModSounds.NUKE_MID, SoundCategory.BLOCKS, 20f, 1f);
+                world.playSound(null, x, y, z, ModSounds.NUKE_FAR, SoundCategory.BLOCKS, 100f, 1f);
 
         world.setBlockState(pos, world.getBlockState(pos).with(Nuke.DETONATING, true), Block.NOTIFY_ALL);
 

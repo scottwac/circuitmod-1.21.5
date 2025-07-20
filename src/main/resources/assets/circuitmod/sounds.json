@@ -10,5 +10,23 @@
     "sounds": [
       "circuitmod:laser_beam"
     ]
+  },
+  "nuke_near": {
+    "subtitle": "sounds.circuitmod.nuke_near",
+    "sounds": [
+      {"name": "circuitmod:nuke_near", "attenuation_distance": 160}
+    ]
+  },
+  "nuke_mid": {
+    "subtitle": "sounds.circuitmod.nuke_mid",
+    "sounds": [
+      {"name": "circuitmod:nuke_far", "attenuation_distance": 320}
+    ]
+  },
+  "nuke_far": {
+    "subtitle": "sounds.circuitmod.nuke_far",
+    "sounds": [
+      {"name": "circuitmod:nuke_far_far_quieter", "attenuation_distance": 1600}
+    ]
   }
 }

@@ -23,6 +23,7 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.NukeBlockEntity;
 
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.sound.ModSounds;
 
 public class Nuke extends BlockWithEntity {
     public static final MapCodec<Nuke> CODEC = createCodec(Nuke::new);
@@ -79,17 +80,20 @@ public class Nuke extends BlockWithEntity {
     }
 
 
-
+    int playOnce = 1;
     //playsound minecraft:entity.lightning_bolt.thunder master Player740 ~ ~ ~ 1000 0.1
     public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
         double x = (double)pos.getX() + (double)0.5F;
         double y = (double)pos.getY() + (double)0.5F;
         double z = (double)pos.getZ() + (double)0.5F;
+
         if (state.get(DETONATING)) {
-            if (random.nextDouble() < 0.9) {
-                world.playSoundClient(x, y, z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 3F, 0.1F, false);
-            }
-            world.addParticleClient(ParticleTypes.FLASH, x, y, z, 0.0F, 0.0F, 0.0F);
+
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_NEAR, SoundCategory.BLOCKS, 10F, 1F, true);
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_MID, SoundCategory.BLOCKS, 25F, 1F, true);
+//                    world.playSoundClient(x, y, z, ModSounds.NUKE_FAR, SoundCategory.BLOCKS, 100F, 1F, true);
+
+                world.addParticleClient(ParticleTypes.FLASH, x, y, z, 0.0F, 0.0F, 0.0F);
         }
     }
 } 
