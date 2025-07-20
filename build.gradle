@@ -17,6 +17,12 @@ repositories {
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
 	maven { url "https://maven.shedaniel.me" }
+	
+	// Modrinth Maven (for TerraBlender)
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+	}
 }
 
 loom {
@@ -45,6 +51,13 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// TerraBlender for biome generation
+	modImplementation "maven.modrinth:terrablender:5.0.0.1-fabric"
+	
+	// Night Config (required by TerraBlender)
+	modImplementation "com.electronwill.night-config:core:3.6.6"
+	modImplementation "com.electronwill.night-config:toml:3.6.6"
 
 	modCompileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:19.0.809"
 	modRuntimeOnly "me.shedaniel:RoughlyEnoughItems-fabric:19.0.809"

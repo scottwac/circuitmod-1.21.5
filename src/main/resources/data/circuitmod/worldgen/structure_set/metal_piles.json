@@ -1,0 +1,18 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 99887766,
+    "separation": 8,
+    "spacing": 16
+  },
+  "structures": [
+    {
+      "structure": "circuitmod:copper_pile_structure",
+      "weight": 3
+    },
+    {
+      "structure": "circuitmod:iron_pile_structure",
+      "weight": 2
+    }
+  ]
+} 

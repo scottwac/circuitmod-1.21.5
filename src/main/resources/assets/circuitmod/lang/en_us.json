@@ -91,5 +91,8 @@
   
   "death.attack.electrocution": "%1$s was killed by electrocution",
   "death.attack.laser_beam": "%1$s was killed by laser beam",
-  "sounds.circuitmod.laser_beam": "Laser Beam"
+  "sounds.circuitmod.laser_beam": "Laser Beam",
+  
+  "biome.circuitmod.techno_jungle": "Techno Jungle",
+  "generator.circuitmod.techno_world": "Techno World"
 }

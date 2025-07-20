@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:scattered_ore",
+  "config": {
+    "targets": [
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "minecraft:base_stone_overworld"
+        },
+        "state": {
+          "Name": "minecraft:copper_block"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "minecraft:dirt"
+        },
+        "state": {
+          "Name": "minecraft:copper_block"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "minecraft:grass_block"
+        },
+        "state": {
+          "Name": "minecraft:copper_block"
+        }
+      }
+    ],
+    "size": 4,
+    "discard_chance_on_air_exposure": 0.2
+  }
+} 

@@ -153,6 +153,12 @@ public class Circuitmod implements ModInitializer {
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
+		starduster.circuitmod.worldgen.ModBiomes.initialize();
+		
+		
+		
+		// Initialize commands
+		starduster.circuitmod.command.ModCommands.initialize();
 
 		// Register server-side networking handlers
 		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ToggleMiningPayload.ID, (payload, context) -> {

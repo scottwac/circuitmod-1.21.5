@@ -1,0 +1,27 @@
+{
+  "feature": "circuitmod:copper_pile",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 8
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "above_bottom": 60
+        },
+        "max_inclusive": {
+          "absolute": 100
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+} 
