@@ -1,9 +1,12 @@
 package starduster.circuitmod.screen;
 
+import dev.architectury.registry.fuel.fabric.FuelRegistryImpl;
+import net.fabricmc.fabric.api.registry.FuelRegistryEvents;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.FuelRegistry;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ArrayPropertyDelegate;
 import net.minecraft.screen.PropertyDelegate;
@@ -32,7 +35,7 @@ public class GeneratorScreenHandler extends ScreenHandler {
         
         // Add generator slots
         // Fuel slot
-        this.addSlot(new GeneratorFuelSlot(inventory, 0, 80, 44));
+        this.addSlot(new GeneratorFuelSlot(inventory, 0, 125, 54));
         
         // Player inventory slots
         for (int i = 0; i < 3; ++i) {
@@ -102,7 +105,7 @@ public class GeneratorScreenHandler extends ScreenHandler {
     public int getScaledFuelProgress() {
         int burnTime = this.propertyDelegate.get(0);
         int maxBurnTime = this.propertyDelegate.get(1);
-        int spriteHeight = 13;
+        int spriteHeight = 14;
 
         if (maxBurnTime != 0 && burnTime != 0) {
             return burnTime * spriteHeight / maxBurnTime;
@@ -114,10 +117,10 @@ public class GeneratorScreenHandler extends ScreenHandler {
     public int getPowerProduction() {
         return this.propertyDelegate.get(2);
     }
-    
+
     private boolean isFuel(ItemStack stack) {
         // Check if the item is a valid fuel using Minecraft's fuel registry
-        return !stack.isEmpty() && stack.isIn(ItemTags.COALS);
+        return !stack.isEmpty();// && stack.isIn(ItemTags.COALS);
     }
 
     // Custom fuel slot class for the Generator
@@ -128,7 +131,9 @@ public class GeneratorScreenHandler extends ScreenHandler {
 
         @Override
         public boolean canInsert(ItemStack stack) {
-            return !stack.isEmpty() && stack.isIn(ItemTags.COALS);
+            return !stack.isEmpty();// && stack.isIn(ItemTags.COALS);
         }
+
     }
+
 } 

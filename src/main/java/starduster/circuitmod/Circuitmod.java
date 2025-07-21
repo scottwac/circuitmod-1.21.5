@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.registry.FuelRegistryEvents;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -49,6 +50,10 @@ public class Circuitmod implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Hello Fabric world!");
+
+		FuelRegistryEvents.BUILD.register((builder, context) -> {
+			//builder.add(Items.COAL, context.baseSmeltTime() / 8);
+		});
 		
 		// Register mod creative mode tab
 		Registry.register(Registries.ITEM_GROUP, Identifier.of(MOD_ID, "main"),
