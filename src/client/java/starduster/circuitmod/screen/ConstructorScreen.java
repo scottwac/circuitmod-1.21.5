@@ -34,6 +34,15 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     
     // Buttons
     private ButtonWidget startStopButton;
+    // Offset/rotation buttons
+    private ButtonWidget xPlusButton;
+    private ButtonWidget xMinusButton;
+    private ButtonWidget yPlusButton;
+    private ButtonWidget yMinusButton;
+    private ButtonWidget zPlusButton;
+    private ButtonWidget zMinusButton;
+    private ButtonWidget rotCwButton;
+    private ButtonWidget rotCcwButton;
     
     // Scrollable materials section - made smaller and more compact
     private static final int MAX_MATERIALS_VISIBLE = 3; // Reduced to fit above player inventory
@@ -70,6 +79,33 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         ).dimensions(buttonX, buttonY, 60, 16).build(); // Made smaller
         
         this.addDrawableChild(this.startStopButton);
+
+        // --- Offset/rotation buttons ---
+        int btnSize = 12;
+        int btnSpacing = 2;
+        int baseX = this.x + 8; // near blueprint slot
+        int baseY = this.y + 40; // below blueprint slot
+
+        xPlusButton = ButtonWidget.builder(Text.literal("X+"), b -> adjustOffset(0, +1, 0)).dimensions(baseX, baseY, btnSize, btnSize).build();
+        xMinusButton = ButtonWidget.builder(Text.literal("X-"), b -> adjustOffset(0, -1, 0)).dimensions(baseX, baseY + btnSize + btnSpacing, btnSize, btnSize).build();
+
+        yPlusButton = ButtonWidget.builder(Text.literal("Y+"), b -> adjustOffset(0, 0, +1)).dimensions(baseX + btnSize + btnSpacing, baseY, btnSize, btnSize).build();
+        yMinusButton = ButtonWidget.builder(Text.literal("Y-"), b -> adjustOffset(0, 0, -1)).dimensions(baseX + btnSize + btnSpacing, baseY + btnSize + btnSpacing, btnSize, btnSize).build();
+
+        zPlusButton = ButtonWidget.builder(Text.literal("Z+"), b -> adjustOffset(+1, 0, 0)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY, btnSize, btnSize).build();
+        zMinusButton = ButtonWidget.builder(Text.literal("Z-"), b -> adjustOffset(-1, 0, 0)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY + btnSize + btnSpacing, btnSize, btnSize).build();
+
+        rotCwButton = ButtonWidget.builder(Text.literal("R>"), b -> adjustRotation(+1)).dimensions(baseX, baseY + 2 * (btnSize + btnSpacing), btnSize * 2 + btnSpacing, btnSize).build();
+        rotCcwButton = ButtonWidget.builder(Text.literal("<R"), b -> adjustRotation(-1)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY + 2 * (btnSize + btnSpacing), btnSize * 2 + btnSpacing, btnSize).build();
+
+        this.addDrawableChild(xPlusButton);
+        this.addDrawableChild(xMinusButton);
+        this.addDrawableChild(yPlusButton);
+        this.addDrawableChild(yMinusButton);
+        this.addDrawableChild(zPlusButton);
+        this.addDrawableChild(zMinusButton);
+        this.addDrawableChild(rotCwButton);
+        this.addDrawableChild(rotCcwButton);
         
         updateButtonState();
     }
@@ -79,6 +115,38 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         if (entity != null) {
             ClientNetworking.sendConstructorBuildingToggle(entity.getPos());
         }
+    }
+
+    // Helper to adjust offsets (forward/right/up). The parameters are deltaForward, deltaRight, deltaUp in relative coordinates.
+    private void adjustOffset(int deltaForward, int deltaRight, int deltaUp) {
+        ConstructorBlockEntity entity = handler.getBlockEntity();
+        if (entity == null) return;
+
+        int newForward = entity.getForwardOffset() + deltaForward;
+        int newRight = entity.getRightOffset() + deltaRight;
+        int newUp = entity.getUpOffset() + deltaUp;
+        int rotation = entity.getBlueprintRotation();
+
+        // Update client-side immediately for visual feedback
+        entity.setForwardOffset(newForward);
+        entity.setRightOffset(newRight);
+        entity.setUpOffset(newUp);
+
+        ClientNetworking.sendConstructorTransform(entity.getPos(), newForward, newRight, newUp, rotation);
+    }
+
+    private void adjustRotation(int deltaRot) {
+        ConstructorBlockEntity entity = handler.getBlockEntity();
+        if (entity == null) return;
+
+        int newRot = (entity.getBlueprintRotation() + deltaRot) & 3; // keep 0-3
+        int fwd = entity.getForwardOffset();
+        int right = entity.getRightOffset();
+        int up = entity.getUpOffset();
+
+        entity.setBlueprintRotation(newRot);
+
+        ClientNetworking.sendConstructorTransform(entity.getPos(), fwd, right, up, newRot);
     }
     
     private void updateButtonState() {

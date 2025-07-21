@@ -492,6 +492,24 @@ public class ClientNetworking {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send constructor building toggle: {}", e.getMessage(), e);
         }
     }
-    
 
+    /**
+     * Send constructor transform (offset/rotation) update to the server
+     */
+    public static void sendConstructorTransform(BlockPos constructorPos, int forwardOffset, int rightOffset, int upOffset, int rotation) {
+        Circuitmod.LOGGER.info("[CLIENT] sendConstructorTransform called with position: {} off({},{},{}) rot:{}", constructorPos, forwardOffset, rightOffset, upOffset, rotation);
+
+        if (constructorPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send transform for invalid position (0,0,0)!");
+            return;
+        }
+
+        try {
+            ModNetworking.ConstructorTransformPayload payload = new ModNetworking.ConstructorTransformPayload(constructorPos, forwardOffset, rightOffset, upOffset, rotation);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent constructor transform update for constructor at {}", constructorPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send constructor transform update: {}", e.getMessage(), e);
+        }
+    }
 } 

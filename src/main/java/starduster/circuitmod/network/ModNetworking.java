@@ -48,6 +48,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(DrillDimensionsPayload.ID, DrillDimensionsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(LaserDrillDepthPayload.ID, LaserDrillDepthPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ConstructorBuildingPayload.ID, ConstructorBuildingPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ConstructorTransformPayload.ID, ConstructorTransformPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNamePayload.ID, BlueprintNamePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
     }
@@ -801,5 +802,28 @@ public class ModNetworking {
         );
         @Override
         public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /**
+     * Payload for constructor transform updates (client -> server)
+     * Carries the absolute offset values (forward/right/up) and rotation (0-3)
+     */
+    public record ConstructorTransformPayload(BlockPos constructorPos, int forwardOffset, int rightOffset, int upOffset, int rotation) implements CustomPayload {
+        public static final CustomPayload.Id<ConstructorTransformPayload> ID =
+                new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_transform"));
+
+        public static final PacketCodec<PacketByteBuf, ConstructorTransformPayload> CODEC = PacketCodec.tuple(
+                BlockPos.PACKET_CODEC, ConstructorTransformPayload::constructorPos,
+                PacketCodecs.INTEGER, ConstructorTransformPayload::forwardOffset,
+                PacketCodecs.INTEGER, ConstructorTransformPayload::rightOffset,
+                PacketCodecs.INTEGER, ConstructorTransformPayload::upOffset,
+                PacketCodecs.INTEGER, ConstructorTransformPayload::rotation,
+                ConstructorTransformPayload::new
+        );
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
     }
 } 

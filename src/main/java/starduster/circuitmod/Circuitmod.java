@@ -248,6 +248,34 @@ public class Circuitmod implements ModInitializer {
 				}
 			});
 		});
+
+		// Register constructor transform (offset/rotation) handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorTransformPayload.ID, (payload, context) -> {
+			var constructorPos = payload.constructorPos();
+			int forward = payload.forwardOffset();
+			int right = payload.rightOffset();
+			int up = payload.upOffset();
+			int rotation = payload.rotation();
+			context.server().execute(() -> {
+				if (context.player().getWorld().getBlockEntity(constructorPos) instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity constructor) {
+					constructor.setForwardOffset(forward);
+					constructor.setRightOffset(right);
+					constructor.setUpOffset(up);
+					constructor.setBlueprintRotation(rotation);
+					constructor.markDirty();
+
+					// Recompute build positions and send to nearby players
+					java.util.List<net.minecraft.util.math.BlockPos> buildPositions = constructor.getBlueprintBuildPositions();
+					for (net.minecraft.server.network.ServerPlayerEntity player : context.player().getServer().getPlayerManager().getPlayerList()) {
+						if (player.getWorld() == constructor.getWorld() && player.getBlockPos().getSquaredDistance(constructorPos) <= 64 * 64) {
+							starduster.circuitmod.network.ModNetworking.sendConstructorBuildPositionsSync(player, constructorPos, buildPositions);
+						}
+					}
+
+					LOGGER.info("[SERVER] Updated constructor transform at {} to off({},{},{}) rot:{} by player {}", constructorPos, forward, right, up, rotation, context.player().getName().getString());
+				}
+			});
+		});
 		
 
 		
