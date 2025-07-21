@@ -181,58 +181,77 @@ public class NukeBlockEntity extends BlockEntity {
         }
     }
     
+    // Helper: Remove all contiguous bamboo blocks up and down from a given position
+    private void removeBambooStack(ServerWorld world, BlockPos startPos) {
+        // Remove upwards
+        BlockPos posUp = startPos;
+        while (true) {
+            BlockState state = world.getBlockState(posUp);
+            if (state.getBlock() == Blocks.BAMBOO) {
+                world.setBlockState(posUp, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                posUp = posUp.up();
+            } else {
+                break;
+            }
+        }
+        // Remove downwards
+        BlockPos posDown = startPos.down();
+        while (true) {
+            BlockState state = world.getBlockState(posDown);
+            if (state.getBlock() == Blocks.BAMBOO) {
+                world.setBlockState(posDown, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                posDown = posDown.down();
+            } else {
+                break;
+            }
+        }
+    }
+    
     private int removeRadiusLayer(ServerWorld world, int radius) {
         int blocksRemoved = 0;
-        
-        // Remove all blocks at the specified radius from the center
+        boolean isImmediateBlast = (radius <= explosionRadius);
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    // Check if this position is exactly at the specified radius
                     double distance = Math.sqrt(x * x + y * y + z * z);
-                    if (Math.abs(distance - radius) < 0.5) { // Within 0.5 blocks of the radius
+                    if (Math.abs(distance - radius) < 0.5) {
                         BlockPos blockPos = pos.add(x, y, z);
-                        
-                        // Don't remove the nuke block itself during the explosion
-                        if (blockPos.equals(pos)) {
+                        if (blockPos.equals(pos)) continue;
+                        BlockState blockState = world.getBlockState(blockPos);
+                        Block block = blockState.getBlock();
+                        if (blockState.isAir() || block == Blocks.BEDROCK) continue;
+                        // Bamboo stack removal
+                        if (block == Blocks.BAMBOO) {
+                            removeBambooStack(world, blockPos);
+                            blocksRemoved++;
                             continue;
                         }
-                        
-                        // Remove all blocks regardless of hardness (except bedrock), including water
-                        BlockState blockState = world.getBlockState(blockPos);
-                        if (!blockState.isAir() && blockState.getBlock() != Blocks.BEDROCK) {
-                            // Special handling for water - remove it completely
-                            if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
-                                world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                            } else if (blockState.getBlock() == Blocks.DIRT) {
-                                // Convert regular dirt to coarse dirt in inner destruction area
-                                world.setBlockState(blockPos, Blocks.COARSE_DIRT.getDefaultState(), Block.NOTIFY_ALL);
-                            } else {
-                                world.removeBlock(blockPos, false);
-                            }
+                        if (isImmediateBlast) {
+                            world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                             blocksRemoved++;
+                        } else {
+                            // Only replace surface dirt with coarse dirt
+                            if (block == Blocks.DIRT) {
+                                BlockPos above = blockPos.up();
+                                BlockState aboveState = world.getBlockState(above);
+                                if (aboveState.isAir()) {
+                                    world.setBlockState(blockPos, Blocks.COARSE_DIRT.getDefaultState(), Block.NOTIFY_ALL);
+                                    blocksRemoved++;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        
-        // Additional effects for the main explosion radius
         if (radius == explosionRadius) {
-            // Convert sand to glass in 2x blast radius
             convertSandToGlass(world);
-            // Start random fires in 1.5x blast radius
             startRandomFires(world);
-            // Apply radiation effects in 3x blast radius
             applyRadiationEffects(world);
-            // Apply shockwave effects in 2.5x blast radius
             applyShockwaveEffects(world);
-            // Apply thermal effects in 1.5x blast radius
             applyThermalEffects(world);
-            // Remove entities in 2x blast radius
             removeEntitiesInRadius(world);
         }
-        
         Circuitmod.LOGGER.info("[NUKE] Removed " + blocksRemoved + " blocks at radius " + radius);
         return blocksRemoved;
     }
@@ -240,71 +259,51 @@ public class NukeBlockEntity extends BlockEntity {
     private int removeVegetationRadiusLayer(ServerWorld world, int radius) {
         int vegetationRemoved = 0;
         int firesStarted = 0;
-        
-        // Remove vegetation blocks at the specified radius from the center
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    // Check if this position is exactly at the specified radius
                     double distance = Math.sqrt(x * x + y * y + z * z);
-                    if (Math.abs(distance - radius) < 0.5) { // Within 0.5 blocks of the radius
+                    if (Math.abs(distance - radius) < 0.5) {
                         BlockPos blockPos = pos.add(x, y, z);
-                        
-                        // Don't remove the nuke block itself during the explosion
-                        if (blockPos.equals(pos)) {
+                        if (blockPos.equals(pos)) continue;
+                        BlockState blockState = world.getBlockState(blockPos);
+                        Block block = blockState.getBlock();
+                        if (blockState.isAir()) continue;
+                        // Bamboo stack removal
+                        if (block == Blocks.BAMBOO) {
+                            removeBambooStack(world, blockPos);
+                            vegetationRemoved++;
                             continue;
                         }
-                        
-                        // Handle vegetation blocks (grass, leaves, logs, etc.)
-                        BlockState blockState = world.getBlockState(blockPos);
-                        if (!blockState.isAir() && isVegetationBlock(blockState)) {
-                            Block block = blockState.getBlock();
-                            
-                            // Only destroy vegetation based on percentage chance
+                        if (isVegetationBlock(blockState)) {
                             boolean shouldDestroy = world.getRandom().nextInt(100) < VEGETATION_DESTRUCTION_CHANCE;
-                            
                             if (shouldDestroy) {
-                                // Special handling for different vegetation types
                                 if (block == Blocks.GRASS_BLOCK) {
-                                    // Replace grass blocks with regular dirt (outer destruction area)
                                     world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.SNOW || block == Blocks.SNOW_BLOCK) {
-                                    // Remove snow completely
                                     world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.MOSS_CARPET) {
-                                    // Remove moss carpet completely
                                     world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.MOSS_BLOCK) {
-                                    // Replace moss blocks with regular dirt (outer destruction area)
                                     world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.CRIMSON_NYLIUM || block == Blocks.WARPED_NYLIUM) {
-                                    // Replace nether nylium with netherrack
                                     world.setBlockState(blockPos, Blocks.NETHERRACK.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.ROOTED_DIRT) {
-                                    // Replace rooted dirt with regular dirt (outer destruction area)
                                     world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.MUD || block == Blocks.MUDDY_MANGROVE_ROOTS) {
-                                    // Replace mud with regular dirt (outer destruction area)
                                     world.setBlockState(blockPos, Blocks.DIRT.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.MANGROVE_ROOTS) {
-                                    // Remove mangrove roots completely
                                     world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                                 } else if (block == Blocks.HANGING_ROOTS) {
-                                    // Remove hanging roots completely
                                     world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                                 } else {
-                                    // Remove all other vegetation blocks
                                     world.removeBlock(blockPos, false);
                                 }
                                 vegetationRemoved++;
                             }
-                            
-                            // Separately check for fire setting on any vegetation (whether destroyed or not)
                             if (world.getRandom().nextInt(100) < FIRE_SETTING_CHANCE) {
                                 BlockPos firePos = blockPos.up();
                                 BlockState fireState = world.getBlockState(firePos);
-                                
-                                // Only place fire if the space above is air
                                 if (fireState.isAir()) {
                                     world.setBlockState(firePos, Blocks.FIRE.getDefaultState(), Block.NOTIFY_ALL);
                                     firesStarted++;
@@ -315,7 +314,6 @@ public class NukeBlockEntity extends BlockEntity {
                 }
             }
         }
-        
         Circuitmod.LOGGER.info("[NUKE] Removed " + vegetationRemoved + " vegetation blocks and started " + firesStarted + " fires at radius " + radius);
         return vegetationRemoved;
     }
