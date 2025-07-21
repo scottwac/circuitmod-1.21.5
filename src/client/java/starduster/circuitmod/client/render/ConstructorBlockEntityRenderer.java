@@ -13,6 +13,13 @@ import net.minecraft.util.math.Vec3d;
 import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 
 import java.util.List;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.block.BlockRenderManager;
+import org.lwjgl.opengl.GL11;
+import net.minecraft.client.render.item.ItemRenderer;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
 public class ConstructorBlockEntityRenderer implements BlockEntityRenderer<ConstructorBlockEntity> {
@@ -51,19 +58,110 @@ public class ConstructorBlockEntityRenderer implements BlockEntityRenderer<Const
         int minZ = buildPositions.stream().mapToInt(BlockPos::getZ).min().orElse(0);
         int maxZ = buildPositions.stream().mapToInt(BlockPos::getZ).max().orElse(0);
 
-        // Convert to local coordinates relative to the constructor
-        float x0 = (minX - entity.getPos().getX()) + 0.5f;
-        float x1 = (maxX - entity.getPos().getX()) + 0.5f;
-        float y0 = (minY - entity.getPos().getY()) + 0.5f;
-        float y1 = (maxY - entity.getPos().getY()) + 0.5f;
-        float z0 = (minZ - entity.getPos().getZ()) + 0.5f;
-        float z1 = (maxZ - entity.getPos().getZ()) + 0.5f;
+        // Convert to local coordinates relative to the constructor (fully enclose blocks)
+        float x0 = (minX - entity.getPos().getX());
+        float x1 = (maxX - entity.getPos().getX()) + 1.0f;
+        float y0 = (minY - entity.getPos().getY());
+        float y1 = (maxY - entity.getPos().getY()) + 1.0f;
+        float z0 = (minZ - entity.getPos().getZ());
+        float z1 = (maxZ - entity.getPos().getZ()) + 1.0f;
 
         // Use cyan/blue color for constructor outline (different from quarry's green)
         float r = 0f, g = 0.8f, b = 1f, a = 0.8f;
 
         // Draw the 3D wireframe outline of the build area
         drawWireframeBox(v, matrices, x0, y0, z0, x1, y1, z1, 0.03f, r, g, b, a);
+
+        // --- GHOST BLOCK RENDERING ---
+        // Only on client side, and only if blueprint is loaded
+        if (entity.hasBlueprint() && entity.getWorld() != null && entity.getWorld().isClient()) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            var itemRenderer = client.getItemRenderer();
+            var world = entity.getWorld();
+            var builtPositions = entity instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity cbe ? cbe.getBuiltPositions() : java.util.Collections.emptySet();
+            java.util.Map<net.minecraft.util.math.BlockPos, net.minecraft.item.Item> ghostBlockItems = 
+                entity instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity cbe2 
+                    ? cbe2.getClientGhostBlockItems() 
+                    : java.util.Collections.emptyMap();
+            int ghostCount = 0;
+            System.out.println("[CONSTRUCTOR-GHOST-DEBUG] buildPositions=" + buildPositions.size() + ", builtPositions=" + builtPositions.size() + ", ghostItems=" + ghostBlockItems.size());
+            if (ghostBlockItems.isEmpty()) {
+                System.out.println("[CONSTRUCTOR-GHOST-DEBUG] No ghost items available; skipping ghost rendering.");
+            }
+            // Save OpenGL state
+            boolean wasBlendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+            boolean wasDepthTestEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+            boolean wasDepthMaskEnabled = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+            boolean wasCullFaceEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+            // Enable glowing effect
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(false);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            // For each planned build position
+            for (BlockPos worldPos : buildPositions) {
+                BlockPos baseBuildPos = entity.getPos().add(entity.getBuildOffset());
+                BlockPos relPos = worldPos.subtract(baseBuildPos);
+                int rot = entity.getBlueprintRotation() % 4;
+                int x = relPos.getX(), y = relPos.getY(), z = relPos.getZ();
+                for (int i = 0; i < (4 - rot) % 4; i++) {
+                    int tmp = x;
+                    x = z;
+                    z = -tmp;
+                }
+                BlockPos blueprintPos = new BlockPos(x, y, z);
+                if (!builtPositions.contains(blueprintPos)) {
+                    net.minecraft.item.Item item = ghostBlockItems.get(blueprintPos);
+                    if (item == null || item == net.minecraft.item.Items.AIR) {
+                        System.out.println("[CONSTRUCTOR-GHOST-DEBUG] No item for blueprintPos: " + blueprintPos);
+                        continue;
+                    }
+                    ItemStack stack = new ItemStack(item);
+                    if (stack.isEmpty()) {
+                        System.out.println("[CONSTRUCTOR-GHOST-DEBUG] ItemStack is empty for item: " + item + " at blueprintPos: " + blueprintPos);
+                        continue;
+                    }
+                    System.out.println("[CONSTRUCTOR-GHOST-DEBUG] Rendering ghost block at worldPos: " + worldPos + ", blueprintPos: " + blueprintPos + ", item: " + stack.getItem());
+                    ghostCount++;
+                    matrices.push();
+                    double dx = worldPos.getX() - entity.getPos().getX();
+                    double dy = worldPos.getY() - entity.getPos().getY();
+                    double dz = worldPos.getZ() - entity.getPos().getZ();
+                    matrices.translate(dx + 0.5, dy + 0.5, dz + 0.5);
+                    matrices.scale(0.5f, 0.5f, 0.5f);
+                    itemRenderer.renderItem(
+                        stack,
+                        net.minecraft.item.ItemDisplayContext.GROUND,
+                        15728880, // full-bright
+                        OverlayTexture.DEFAULT_UV,
+                        matrices,
+                        vertexConsumers,
+                        world,
+                        0
+                    );
+                    matrices.pop();
+                }
+            }
+            System.out.println("[CONSTRUCTOR-GHOST-DEBUG] Total ghost blocks attempted for rendering: " + ghostCount);
+            // Restore OpenGL state
+            GL11.glDepthMask(wasDepthMaskEnabled);
+            if (wasDepthTestEnabled) {
+                GL11.glEnable(GL11.GL_DEPTH_TEST);
+            } else {
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+            }
+            if (wasBlendEnabled) {
+                GL11.glEnable(GL11.GL_BLEND);
+            } else {
+                GL11.glDisable(GL11.GL_BLEND);
+            }
+            if (wasCullFaceEnabled) {
+                GL11.glEnable(GL11.GL_CULL_FACE);
+            } else {
+                GL11.glDisable(GL11.GL_CULL_FACE);
+            }
+        }
 
         matrices.pop();
     }

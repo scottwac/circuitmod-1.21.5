@@ -40,6 +40,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(BlueprintNameSyncPayload.ID, BlueprintNameSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorMaterialsSyncPayload.ID, ConstructorMaterialsSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ConstructorBuildPositionsSyncPayload.ID, ConstructorBuildPositionsSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ConstructorGhostBlocksSyncPayload.ID, ConstructorGhostBlocksSyncPayload.CODEC);
         
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
@@ -306,6 +307,18 @@ public class ModNetworking {
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
 
+    /**
+     * Send ghost block items for the constructor to a player
+     */
+    public static void sendConstructorGhostBlocksSync(ServerPlayerEntity player, BlockPos constructorPos, Map<BlockPos, net.minecraft.item.Item> blockItems) {
+        // Convert Item to Identifier for network
+        Map<BlockPos, net.minecraft.util.Identifier> idMap = new HashMap<>();
+        for (var entry : blockItems.entrySet()) {
+            idMap.put(entry.getKey(), net.minecraft.registry.Registries.ITEM.getId(entry.getValue()));
+        }
+        ConstructorGhostBlocksSyncPayload payload = new ConstructorGhostBlocksSyncPayload(constructorPos, idMap);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
     
     /**
      * Payload for quarry mining progress updates
@@ -764,5 +777,29 @@ public class ModNetworking {
         public Id<? extends CustomPayload> getId() {
             return ID;
         }
+    }
+
+    public record ConstructorGhostBlocksSyncPayload(BlockPos constructorPos, Map<BlockPos, net.minecraft.util.Identifier> blockItems) implements CustomPayload {
+        public static final CustomPayload.Id<ConstructorGhostBlocksSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "constructor_ghost_blocks_sync"));
+
+        private static final PacketCodec<PacketByteBuf, Identifier> IDENTIFIER_CODEC = new PacketCodec<>() {
+            @Override
+            public void encode(PacketByteBuf buf, Identifier value) {
+                buf.writeIdentifier(value);
+            }
+            @Override
+            public Identifier decode(PacketByteBuf buf) {
+                return buf.readIdentifier();
+            }
+        };
+
+        public static final PacketCodec<PacketByteBuf, ConstructorGhostBlocksSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ConstructorGhostBlocksSyncPayload::constructorPos,
+            PacketCodecs.map(HashMap::new, BlockPos.PACKET_CODEC, IDENTIFIER_CODEC), ConstructorGhostBlocksSyncPayload::blockItems,
+            ConstructorGhostBlocksSyncPayload::new
+        );
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
     }
 } 

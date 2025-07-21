@@ -358,8 +358,23 @@ public class ClientNetworking {
             });
         });
         
-
-        
+        // Register handler for constructor ghost block sync
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ConstructorGhostBlocksSyncPayload.ID, (payload, context) -> {
+            BlockPos constructorPos = payload.constructorPos();
+            Map<BlockPos, net.minecraft.util.Identifier> idMap = payload.blockItems();
+            context.client().execute(() -> {
+                if (context.client().world != null) {
+                    var be = context.client().world.getBlockEntity(constructorPos);
+                    if (be instanceof starduster.circuitmod.block.entity.ConstructorBlockEntity constructor) {
+                        Map<BlockPos, net.minecraft.item.Item> itemMap = new java.util.HashMap<>();
+                        for (var entry : idMap.entrySet()) {
+                            itemMap.put(entry.getKey(), net.minecraft.registry.Registries.ITEM.get(entry.getValue()));
+                        }
+                        constructor.setGhostBlockItemsFromNetwork(itemMap);
+                    }
+                }
+            });
+        });
 
     }
     

@@ -75,6 +75,17 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     // Client-side blueprint positions for rendering (synced from server)
     private List<BlockPos> clientBuildPositions = new ArrayList<>();
     
+    // Client-side: mapping of build positions to items for ghost rendering
+    private Map<BlockPos, net.minecraft.item.Item> clientGhostBlockItems = new HashMap<>();
+    public void setGhostBlockItemsFromNetwork(Map<BlockPos, net.minecraft.item.Item> map) {
+        if (world != null && world.isClient()) {
+            this.clientGhostBlockItems = new HashMap<>(map);
+        }
+    }
+    public Map<BlockPos, net.minecraft.item.Item> getClientGhostBlockItems() {
+        return clientGhostBlockItems;
+    }
+    
     // Energy properties
     private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private static final int ENERGY_PER_BLOCK = 100; // Flat energy cost per block (like quarry)
@@ -399,6 +410,15 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
                             starduster.circuitmod.network.ModNetworking.sendConstructorBuildingStatusUpdate(player, pos, building, true);
                             starduster.circuitmod.network.ModNetworking.sendConstructorStatusMessageUpdate(player, pos, this.statusMessage);
                             starduster.circuitmod.network.ModNetworking.sendConstructorBuildPositionsSync(player, pos, buildPositions);
+                            // Send ghost block items
+                            java.util.Map<BlockPos, net.minecraft.item.Item> ghostBlockItems = new java.util.HashMap<>();
+                            for (BlockPos blueprintPos : blueprint.getAllBlockPositions()) {
+                                net.minecraft.block.BlockState state = blueprint.getBlockState(blueprintPos);
+                                if (state != null) {
+                                    ghostBlockItems.put(blueprintPos, state.getBlock().asItem());
+                                }
+                            }
+                            starduster.circuitmod.network.ModNetworking.sendConstructorGhostBlocksSync(player, pos, ghostBlockItems);
                         }
                     }
                 }
@@ -1085,6 +1105,13 @@ public class ConstructorBlockEntity extends BlockEntity implements Inventory, Na
     
     public boolean isReceivingPower() {
         return isReceivingPower;
+    }
+    
+    public Blueprint getCurrentBlueprint() {
+        return currentBlueprint;
+    }
+    public Set<BlockPos> getBuiltPositions() {
+        return builtPositions;
     }
     
     /**
