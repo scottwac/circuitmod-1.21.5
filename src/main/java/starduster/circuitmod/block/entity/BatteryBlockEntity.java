@@ -275,6 +275,10 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, N
         return maxCapacity;
     }
     
+    public double getMaxCapacityKJ() {
+        return this.maxCapacity / 1000.0;
+    }
+    
     @Override
     public boolean canCharge() {
         return canCharge;
