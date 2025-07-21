@@ -28,5 +28,11 @@
     "sounds": [
       {"name": "circuitmod:nuke_far_far_quieter", "attenuation_distance": 1600}
     ]
+  },
+  "burning_fuel_generator": {
+    "subtitle": "sounds.circuitmod.burning_fuel_generator",
+    "sounds": [
+      {"name": "circuitmod:fuel_generator"}
+    ]
   }
 }
