@@ -7,16 +7,21 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
@@ -96,9 +101,34 @@ public class Generator extends BlockWithEntity {
         }
         super.onStateReplaced(state, world, pos, moved);
     }
-    
+
+    @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return validateTicker(type, ModBlockEntities.GENERATOR_BLOCK_ENTITY, GeneratorBlockEntity::tick);
+//        return world.isClient ? null :
+//            validateTicker(type, ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntity::tick);
+        if(world.isClient()) {
+            return null;
+        }
+        return validateTicker(type, ModBlockEntities.GENERATOR_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
+    }
+
+    public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+        if (state.get(RUNNING)) {
+            double d = (double)pos.getX() + (double)0.5F;
+            double e = (double)pos.getY();
+            double f = (double)pos.getZ() + (double)0.5F;
+
+            Direction direction = state.get(Properties.HORIZONTAL_FACING);
+            Direction.Axis axis = direction.getAxis();
+            double g = 0.52;
+            double h = random.nextDouble() * 0.6 - 0.3;
+            double i = axis == Direction.Axis.X ? (double)direction.getOffsetX() * g : h;
+            double j = random.nextDouble() * (double)6.0F / (double)16.0F;
+            double k = axis == Direction.Axis.Z ? (double)direction.getOffsetZ() * g : h;
+            world.addParticleClient(ParticleTypes.SMOKE, d + i, e + j, f + k, (double)0.0F, (double)0.0F, (double)0.0F);
+            world.addParticleClient(ParticleTypes.FLAME, d + i, e + j, f + k, (double)0.0F, (double)0.0F, (double)0.0F);
+        }
     }
 } 

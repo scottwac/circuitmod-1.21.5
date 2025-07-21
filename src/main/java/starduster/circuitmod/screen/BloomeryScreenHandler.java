@@ -114,7 +114,6 @@ public class BloomeryScreenHandler extends ScreenHandler {
     public boolean isBurning() {
         return propertyDelegate.get(2) > 0;
     }
-    // TODO property delegate is not working, the boolean for isSmelting and getScaledArrowProgess aren't receiving progress data. I, for the life of me, cannot figure out why. Fixing this will make the progress bar work.
 
     public int getScaledArrowProgress() {
         int progress = this.propertyDelegate.get(0);

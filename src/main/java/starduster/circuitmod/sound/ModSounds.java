@@ -13,6 +13,7 @@ public class ModSounds {
     public static final SoundEvent NUKE_NEAR = registerSoundEvent("nuke_near");
     public static final SoundEvent NUKE_MID = registerSoundEvent("nuke_mid");
     public static final SoundEvent NUKE_FAR = registerSoundEvent("nuke_far");
+    public static final SoundEvent BURNING_FUEL_GENERATOR = registerSoundEvent("burning_fuel_generator");
 
     private static SoundEvent registerSoundEvent(String name) {
         Identifier id = Identifier.of(Circuitmod.MOD_ID, name);
