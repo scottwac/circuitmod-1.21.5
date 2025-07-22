@@ -54,7 +54,7 @@ public class ConstructorScreenHandler extends ScreenHandler {
         
         // Add constructor inventory slots
         // Slot 0: Blueprint slot (special position)
-        this.addSlot(new Slot(inventory, 0, 8, 17) {
+        this.addSlot(new Slot(inventory, 0, 8, 18) {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return stack.getItem() instanceof BlueprintItem;
@@ -64,8 +64,8 @@ public class ConstructorScreenHandler extends ScreenHandler {
         // Slots 1-12: Material inventory (3x4 grid) positioned on the right
         int rows = 3;
         int columns = 4;
-        int startX = 97; // Position on the right side, starting at x=97
-        int startY = 17; // Starting at y=17
+        int startX = 98; // Position on the right side, starting at x=98
+        int startY = 18; // Starting at y=18
         
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {

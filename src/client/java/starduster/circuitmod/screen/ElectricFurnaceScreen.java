@@ -13,6 +13,8 @@ import starduster.circuitmod.Circuitmod;
 @Environment(EnvType.CLIENT)
 public class ElectricFurnaceScreen extends HandledScreen<ElectricFurnaceScreenHandler> {
     private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/machines/electric_furnace_gui.png");
+    private static final Identifier POWER_SPRITE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/sprites/energy_sprite.png");
+    private static final Identifier ARROW_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/bloomery/bloomery_progress_arrow.png");
 
     public ElectricFurnaceScreen(ElectricFurnaceScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -34,7 +36,17 @@ public class ElectricFurnaceScreen extends HandledScreen<ElectricFurnaceScreenHa
         
         // Draw power indicator if powered
         if (handler.isPowered()) {
-            context.drawText(this.textRenderer, Text.literal("⚡"), this.x + 140, this.y + 10, 0xFFFF00, true);
+            context.drawTexture(RenderLayer::getGuiTextured, POWER_SPRITE, x + 61, y + 35, 0, 0,
+                    7, 17, 7, 17);
+        }
+        renderProgressArrow(context, x, y);
+    }
+
+    private void renderProgressArrow(DrawContext context, int x, int y) {
+        int arrowScale = handler.getScaledArrowProgress();
+        if(handler.isSmelting()) {
+            context.drawTexture(RenderLayer::getGuiTextured, ARROW_TEXTURE, x + 79, y + 35, 0, 0,
+                    arrowScale, 16, 24, 16);
         }
     }
     
@@ -43,15 +55,15 @@ public class ElectricFurnaceScreen extends HandledScreen<ElectricFurnaceScreenHa
         // Draw title
         context.drawText(this.textRenderer, this.title, this.titleX, this.titleY, 0x404040, false);
         
-        // Draw power status
-        String statusText = handler.isPowered() ? "Powered" : "Not Powered";
-        int statusColor = handler.isPowered() ? 0x00FF00 : 0xFF0000;
-        context.drawText(this.textRenderer, Text.literal(statusText), 8, 60, statusColor, false);
-        
-        // Draw smelting status
-        String smeltingText = handler.isBurning() ? "Smelting" : "Not Smelting";
-        int smeltingColor = handler.isBurning() ? 0x00FF00 : 0xFF0000;
-        context.drawText(this.textRenderer, Text.literal(smeltingText), 8, 72, smeltingColor, false);
+//        // Draw power status
+//        String statusText = handler.isPowered() ? "Powered" : "Not Powered";
+//        int statusColor = handler.isPowered() ? 0x00FF00 : 0xFF0000;
+//        context.drawText(this.textRenderer, Text.literal(statusText), 8, 60, statusColor, false);
+//
+//        // Draw smelting status
+//        String smeltingText = handler.isBurning() ? "Smelting" : "Not Smelting";
+//        int smeltingColor = handler.isBurning() ? 0x00FF00 : 0xFF0000;
+//        context.drawText(this.textRenderer, Text.literal(smeltingText), 8, 72, smeltingColor, false);
     }
     
     @Override

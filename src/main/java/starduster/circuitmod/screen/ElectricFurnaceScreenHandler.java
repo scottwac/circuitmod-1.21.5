@@ -35,7 +35,7 @@ public class ElectricFurnaceScreenHandler extends ScreenHandler {
         
         // Add furnace slots
         // Input slot
-        this.addSlot(new Slot(inventory, 0, 56, 35));
+        this.addSlot(new Slot(inventory, 0, 56, 17));
         // Output slot
         this.addSlot(new FurnaceOutputSlot(playerInventory.player, inventory, 1, 116, 35));
         
@@ -119,5 +119,22 @@ public class ElectricFurnaceScreenHandler extends ScreenHandler {
     
     public boolean isPowered() {
         return this.propertyDelegate.get(4) > 0;
+    }
+
+    public int getScaledArrowProgress() {
+        int progress = this.propertyDelegate.get(2);
+        int maxProgress = this.propertyDelegate.get(3); // Max Progress
+        int arrowPixelSize = 24; // This is the width in pixels of your arrow
+
+        //return maxProgress != 0 && progress != 0 ? progress * arrowPixelSize / maxProgress : 0;
+
+        if(maxProgress != 0 && progress != 0) {
+            return progress * arrowPixelSize / maxProgress;
+        } else {
+            return 0;
+        }
+    }
+    public boolean isSmelting() {
+        return propertyDelegate.get(2) > 0;
     }
 } 

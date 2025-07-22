@@ -43,10 +43,10 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     private ButtonWidget zMinusButton;
     private ButtonWidget rotCwButton;
     private ButtonWidget rotCcwButton;
-    
+
     // Scrollable materials section - made smaller and more compact
     private static final int MAX_MATERIALS_VISIBLE = 3; // Reduced to fit above player inventory
-    private static final int MATERIAL_ENTRY_HEIGHT = 12; // Reduced since icons are smaller
+    private static final int MATERIAL_ENTRY_HEIGHT = 9; // Reduced since icons are smaller
     private static final int MATERIALS_AREA_HEIGHT = MAX_MATERIALS_VISIBLE * MATERIAL_ENTRY_HEIGHT;
     private static final int SCROLLBAR_WIDTH = 4;
     private static final int SCROLLBAR_HEIGHT = 10;
@@ -70,21 +70,22 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         super.init();
         
         // Create start/stop button - positioned just to the left of the top row of constructor block inventory
-        int buttonX = this.x + 35; // Moved right so button edge is close to block inventory at x=97
+        int buttonX = this.x + 8 + 19; // Moved right so button edge is close to block inventory at x=97
         int buttonY = this.y + 17; // Aligned with the top row of constructor block inventory
         
         this.startStopButton = ButtonWidget.builder(
             Text.literal("Build"),
             button -> onStartStopClicked()
-        ).dimensions(buttonX, buttonY, 60, 16).build(); // Made smaller
+        ).dimensions(buttonX, buttonY, 68, 12).build(); // Made smaller
         
         this.addDrawableChild(this.startStopButton);
 
         // --- Offset/rotation buttons ---
         int btnSize = 12;
+        int lrgBtnSize = 17;
         int btnSpacing = 2;
-        int baseX = this.x + 8; // near blueprint slot
-        int baseY = this.y + 40; // below blueprint slot
+        int baseX = this.x + 55; // near blueprint slot
+        int baseY = this.y + 31; // below blueprint slot
 
         xPlusButton = ButtonWidget.builder(Text.literal("X+"), b -> adjustOffset(0, +1, 0)).dimensions(baseX, baseY, btnSize, btnSize).build();
         xMinusButton = ButtonWidget.builder(Text.literal("X-"), b -> adjustOffset(0, -1, 0)).dimensions(baseX, baseY + btnSize + btnSpacing, btnSize, btnSize).build();
@@ -95,8 +96,8 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         zPlusButton = ButtonWidget.builder(Text.literal("Z+"), b -> adjustOffset(+1, 0, 0)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY, btnSize, btnSize).build();
         zMinusButton = ButtonWidget.builder(Text.literal("Z-"), b -> adjustOffset(-1, 0, 0)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY + btnSize + btnSpacing, btnSize, btnSize).build();
 
-        rotCwButton = ButtonWidget.builder(Text.literal("R>"), b -> adjustRotation(+1)).dimensions(baseX, baseY + 2 * (btnSize + btnSpacing), btnSize * 2 + btnSpacing, btnSize).build();
-        rotCcwButton = ButtonWidget.builder(Text.literal("<R"), b -> adjustRotation(-1)).dimensions(baseX + 2 * (btnSize + btnSpacing), baseY + 2 * (btnSize + btnSpacing), btnSize * 2 + btnSpacing, btnSize).build();
+        rotCwButton = ButtonWidget.builder(Text.literal("R>"), b -> adjustRotation(+1)).dimensions(baseX, baseY + 2 * (btnSize + btnSpacing), lrgBtnSize + btnSpacing, btnSize).build();
+        rotCcwButton = ButtonWidget.builder(Text.literal("<R"), b -> adjustRotation(-1)).dimensions(baseX + 2 + (lrgBtnSize + btnSpacing), baseY + 2 * (btnSize + btnSpacing), lrgBtnSize + btnSpacing, btnSize).build();
 
         this.addDrawableChild(xPlusButton);
         this.addDrawableChild(xMinusButton);
@@ -216,8 +217,8 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         
         // Draw materials section title - positioned below blueprint slot, smaller size
         context.getMatrices().push();
-        context.getMatrices().scale(0.5f, 0.5f, 1.0f);
-        context.drawText(this.textRenderer, Text.literal("Materials:"), 16, 70, INFO_COLOR, false);
+        context.getMatrices().scale(0.8f, 0.8f, 1.0f);
+        context.drawText(this.textRenderer, Text.literal("Materials:"), 9, 46, INFO_COLOR, false);
         context.getMatrices().pop();
         
         // Draw materials information in scrollable section
@@ -263,9 +264,9 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         }
         
         // Draw power status - positioned on the right between constructor and player inventory
-        String powerStatus = "Power: " + (handler.isReceivingPower() ? "ON" : "OFF");
-        int powerColor = handler.isReceivingPower() ? STATUS_COLOR : ERROR_COLOR;
-        context.drawText(this.textRenderer, Text.literal(powerStatus), 97, 70, powerColor, false);
+//        String powerStatus = "Power: " + (handler.isReceivingPower() ? "ON" : "OFF");
+//        int powerColor = handler.isReceivingPower() ? STATUS_COLOR : ERROR_COLOR;
+//        context.drawText(this.textRenderer, Text.literal(powerStatus), 97, 70, powerColor, false);
         
         // Draw progress if building
         if (handler.isBuilding()) {
@@ -295,8 +296,8 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
     }
     
     private void drawScrollableMaterials(DrawContext context, int mouseX, int mouseY, Map<String, Integer> availableMaterials) {
-        int materialsAreaX = 8;
-        int materialsAreaY = 45; // Moved up to be below blueprint slot
+        int materialsAreaX = 16;
+        int materialsAreaY = 44; // Moved up to be below blueprint slot
         int materialsAreaWidth = 70; // Further reduced to ensure no overlap with player inventory
         
         // Calculate scroll limits
@@ -329,7 +330,7 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
             
                     // Draw item icon to the right of the number (much closer)
         if (!itemStack.isEmpty()) {
-            int iconX = numberX + 12; // Position icon much closer to the number (was 25)
+            int iconX = numberX - 9; // Position icon much closer to the number (was 25)
             int iconY = yPos + 1; // Add 1 pixel offset for better positioning
             
             // Check if icon would extend beyond materials area
@@ -342,16 +343,16 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
                 
                 // Draw availability indicator (color-coded text to the right) - smaller size
                 String availabilityText = available >= required ? "✓" : "✗";
-                int textX = iconX + 8; // Position text closer to the smaller icon (was 16)
-                int textY = iconY + 1;  // Center vertically with the smaller icon
+                int textX = iconX - 5; // Position text closer to the smaller icon (was 16)
+                int textY = iconY + 2;  // Center vertically with the smaller icon
                 
                 // Determine color based on availability
                 int textColor = available >= required ? STATUS_COLOR : ERROR_COLOR;
                 // Draw smaller text by scaling the matrix
-                context.getMatrices().push();
-                context.getMatrices().scale(0.5f, 0.5f, 1.0f);
-                context.drawText(this.textRenderer, Text.literal(availabilityText), textX * 2, textY * 2, textColor, false);
-                context.getMatrices().pop();
+//                context.getMatrices().push();
+//                context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+//                context.drawText(this.textRenderer, Text.literal(availabilityText), textX * 2, textY * 2, textColor, true);
+//                context.getMatrices().pop();
             }
             } else {
                 // Fallback to text if we can't create an item stack - smaller size
@@ -406,8 +407,8 @@ public class ConstructorScreen extends HandledScreen<ConstructorScreenHandler> {
         }
         
         // Position scrollbar inside the materials area, on the right side
-        int scrollbarX = 75; // Positioned within the 70-pixel materials area width
-        int scrollbarY = 45; // Moved up to match materials area
+        int scrollbarX = 49; // Positioned within the 70-pixel materials area width
+        int scrollbarY = 44; // Moved up to match materials area
         int scrollbarAreaHeight = MATERIALS_AREA_HEIGHT;
         
         // Calculate scrollbar position
