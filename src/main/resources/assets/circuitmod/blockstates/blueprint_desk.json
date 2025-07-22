@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "circuitmod:block/blueprint_desk",
+      "y": 90
+    },
+
+    "facing=north": {
+      "model": "circuitmod:block/blueprint_desk"
+    },
+
+    "facing=south": {
+      "model": "circuitmod:block/blueprint_desk",
+      "y": 180
+    },
+
+    "facing=west": {
+      "model": "circuitmod:block/blueprint_desk",
+      "y": 270
+    }
+  }
+}

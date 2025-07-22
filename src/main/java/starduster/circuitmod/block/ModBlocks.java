@@ -39,6 +39,7 @@ public final class ModBlocks {
             Block.Settings.create()
                     .requiresTool()
                     .strength(3.0f, 5.0f)
+                    .nonOpaque()
     );
 
     // Register constructor block

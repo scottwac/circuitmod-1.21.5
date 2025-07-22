@@ -1,0 +1,12 @@
+{
+  "parent": "circuitmod:block/cube_unique_all",
+  "textures": {
+    "particle": "circuitmod:block/blueprint_desk/side_blank",
+    "north": "circuitmod:block/blueprint_desk/side_drive",
+    "east": "circuitmod:block/blueprint_desk/side_blank",
+    "south": "circuitmod:block/blueprint_desk/side_blank",
+    "west": "circuitmod:block/blueprint_desk/side_blank",
+    "up": "circuitmod:block/blueprint_desk/top",
+    "down": "circuitmod:block/solar_panel/generic"
+  }
+} 
