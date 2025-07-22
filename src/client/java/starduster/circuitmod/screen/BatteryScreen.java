@@ -34,8 +34,8 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
     protected void init() {
         super.init();
         // Position the button at top-left inside the GUI background
-        int buttonWidth = 80;
-        int buttonHeight = 20;
+        int buttonWidth = 9;
+        int buttonHeight = 11;
         int buttonX = this.x + this.backgroundWidth - buttonWidth - 8; // right side with 8px padding
         int buttonY = this.y + 6; // 6px from top
         toggleButton = net.minecraft.client.gui.widget.ButtonWidget.builder(
@@ -50,7 +50,7 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
     }
 
     private net.minecraft.text.Text getToggleButtonLabel() {
-        return net.minecraft.text.Text.literal(showBatteryInfo ? "Show Network" : "Show Battery");
+        return net.minecraft.text.Text.literal("\\");
     }
 
     @Override
@@ -69,41 +69,16 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
         } else {
             drawNetworkInfo(context);
         }
+        drawEnergyBar(context);
     }
 
-    // Draw only battery-related information
-    private void drawBatteryInfo(DrawContext context) {
+    private void drawEnergyBar(DrawContext context) {
         int storedEnergy = handler.getStoredEnergy();
         int maxCapacity = handler.getMaxCapacity();
-
-        int leftY = 40;
-        int leftYStep = 15;
-
-        // Section header
-        drawScaledText(context, "Battery Status", 16, leftY, INFO_COLOR);
-        leftY += leftYStep;
-
-        // Current energy
-        double storedKJ = storedEnergy / 1000.0;
-        drawScaledText(context, String.format("Current Energy: %.1f kJ", storedKJ), 16, leftY, ENERGY_COLOR);
-        leftY += leftYStep;
-
-        // Max capacity
-        double maxKJ = handler.getMaxCapacityKJ();
-        drawScaledText(context, String.format("Max Capacity: %.1f kJ", maxKJ), 16, leftY, ENERGY_COLOR);
-        leftY += leftYStep;
-
-        // Max charge/discharge rates
-        drawScaledText(context, "Max Charge Rate: " + handler.getMaxChargeRate() + " energy/tick", 16, leftY, INFO_COLOR);
-        leftY += leftYStep;
-
-        drawScaledText(context, "Max Discharge Rate: " + handler.getMaxDischargeRate() + " energy/tick", 16, leftY, INFO_COLOR);
-        leftY += leftYStep;
-
         // Energy bar
-        int barX = 8;
-        int barY = 65;
-        int barWidth = 160;
+        int barX = 7;
+        int barY = 82;
+        int barWidth = 162;
         int barHeight = 8;
         // Background
         context.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF333333);
@@ -112,35 +87,63 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
             context.fill(barX, barY, barX + fillWidth, barY + barHeight, 0xFF00FF00);
         }
         context.drawBorder(barX, barY, barWidth, barHeight, 0xFF666666);
+    }
 
-        // Right column for charge/discharge status
-        int rightColX = 180;
-        int rightY = 40;
-        int rightYStep = 15;
+    // Draw only battery-related information
+    private void drawBatteryInfo(DrawContext context) {
+        int storedEnergy = handler.getStoredEnergy();
+        int maxCapacity = handler.getMaxCapacity();
+
+        int leftY = 20;
+        int leftYStep = 12;
+        int colX = 9;
+
+//        // Section header
+//        drawScaledText(context, "Battery Status", 7, leftY, INFO_COLOR);
+//        leftY += leftYStep;
 
         String chargeStatus = "Charging: " + (handler.canCharge() ? "Enabled" : "Disabled");
         int chargeColor = handler.canCharge() ? STATUS_COLOR : ERROR_COLOR;
-        drawScaledText(context, chargeStatus, rightColX, rightY, chargeColor);
-        rightY += rightYStep;
+        drawScaledText(context, chargeStatus, colX, leftY, chargeColor);
+        leftY += leftYStep;
 
         String dischargeStatus = "Discharging: " + (handler.canDischarge() ? "Enabled" : "Disabled");
         int dischargeColor = handler.canDischarge() ? STATUS_COLOR : ERROR_COLOR;
-        drawScaledText(context, dischargeStatus, rightColX, rightY, dischargeColor);
+        drawScaledText(context, dischargeStatus, colX, leftY, dischargeColor);
+        leftY += leftYStep;
+
+        // Current energy
+        double storedKJ = storedEnergy / 1000.0;
+        drawScaledText(context, String.format("Current Energy: %.1f kJ", storedKJ), colX, leftY, ENERGY_COLOR);
+        leftY += leftYStep;
+
+        // Max capacity
+        double maxKJ = handler.getMaxCapacityKJ();
+        drawScaledText(context, String.format("Max Capacity: %.1f kJ", maxKJ), colX, leftY, ENERGY_COLOR);
+        leftY += leftYStep;
+
+        // Max charge/discharge rates
+        drawScaledText(context, "Max Charge Rate: " + handler.getMaxChargeRate() + " energy/tick", colX, leftY, INFO_COLOR);
+        leftY += leftYStep;
+
+        drawScaledText(context, "Max Discharge Rate: " + handler.getMaxDischargeRate() + " energy/tick", colX, leftY, INFO_COLOR);
+        leftY += leftYStep;
+
     }
 
     // Draw only network-related information
     private void drawNetworkInfo(DrawContext context) {
-        int rightColX = 16; // left margin inside GUI
-        int y = 40;
-        int yStep = 15;
+        int leftY = 20;
+        int leftYStep = 12;
+        int colX = 9;
 
-        drawScaledText(context, "Network Information", rightColX, y, NETWORK_COLOR);
-        y += yStep;
+        drawScaledText(context, "Network Information", colX, leftY, NETWORK_COLOR);
+        leftY += leftYStep;
 
         int networkSize = handler.getNetworkSize();
         if (networkSize > 0) {
-            drawScaledText(context, "Connected blocks: " + networkSize, rightColX, y, NETWORK_COLOR);
-            y += yStep;
+            drawScaledText(context, "Connected blocks: " + networkSize, colX, leftY, NETWORK_COLOR);
+            leftY += leftYStep;
 
             int networkStored = handler.getNetworkStoredEnergy();
             int networkMax = handler.getNetworkMaxStorage();
@@ -152,26 +155,27 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
                 double netMaxKJ = networkMax / 1000.0;
                 networkEnergyText = String.format("Network energy: %.1f kJ / %.1f kJ", netStoredKJ, netMaxKJ);
             }
-            drawScaledText(context, networkEnergyText, rightColX, y, NETWORK_COLOR);
-            y += yStep;
+            drawScaledText(context, networkEnergyText, colX, leftY, NETWORK_COLOR);
+            leftY += leftYStep;
 
             int lastProduced = handler.getNetworkLastProduced();
             int lastConsumed = handler.getNetworkLastConsumed();
-            drawScaledText(context, "Last tick: +" + lastProduced + " produced, -" + lastConsumed + " consumed", rightColX, y, NETWORK_COLOR);
-            y += yStep;
+            drawScaledText(context, "Last tick: +" + lastProduced + " prod, -" + lastConsumed + " cons", colX, leftY, NETWORK_COLOR);
+            leftY += leftYStep;
 
             int lastStored = handler.getNetworkLastStored();
             int lastDrawn = handler.getNetworkLastDrawn();
-            drawScaledText(context, "Battery activity: +" + lastStored + " stored, -" + lastDrawn + " drawn", rightColX, y, NETWORK_COLOR);
+            drawScaledText(context, "Batt. activity: +" + lastStored + " stored, -" + lastDrawn + " drawn", colX, leftY, NETWORK_COLOR);
+            leftY += leftYStep;
         } else {
-            drawScaledText(context, "Not connected to any network!", rightColX, y, ERROR_COLOR);
+            drawScaledText(context, "Not connected to any network!", colX, leftY, ERROR_COLOR);
         }
     }
 
     // Utility helper to draw half-scaled text (0.5f) – keeps code DRY
     private void drawScaledText(DrawContext context, String string, int x, int y, int color) {
         context.getMatrices().push();
-        context.getMatrices().scale(0.5f, 0.5f, 1.0f);
+        context.getMatrices().scale(0.88f, 0.88f, 1.0f);
         context.drawText(this.textRenderer, net.minecraft.text.Text.literal(string), x, y, color, false);
         context.getMatrices().pop();
     }
