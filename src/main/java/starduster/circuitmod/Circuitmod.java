@@ -160,6 +160,8 @@ public class Circuitmod implements ModInitializer {
 		ModSounds.initialize();
 		starduster.circuitmod.worldgen.ModBiomes.initialize();
 		
+		// Initialize world generation
+		starduster.circuitmod.worldgen.ModOreGeneration.generateOres();
 		
 		
 		// Initialize commands

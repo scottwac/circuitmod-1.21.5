@@ -59,7 +59,8 @@
       "minecraft:ore_redstone",
       "minecraft:ore_diamond",
       "minecraft:ore_copper",
-      "circuitmod:techno_jungle_ores"
+      "circuitmod:techno_jungle_ores",
+      "circuitmod:uranium_ore"
     ],
     [
       "circuitmod:copper_pile",
