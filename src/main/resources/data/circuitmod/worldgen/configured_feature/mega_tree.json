@@ -1,0 +1,47 @@
+{
+  "type": "minecraft:tree",
+  "config": {
+    "trunk_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:jungle_log"
+      }
+    },
+    "trunk_placer": {
+      "type": "circuitmod:mega_trunk_placer",
+      "base_height": 32,
+      "height_rand_a": 10,
+      "height_rand_b": 5
+    },
+    "foliage_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:jungle_leaves",
+        "Properties": {
+          "persistent": "false"
+        }
+      }
+    },
+    "foliage_placer": {
+      "type": "circuitmod:mega_foliage_placer",
+      "radius": 15,
+      "offset": 2,
+      "foliage_height": 20
+    },
+    "dirt_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:dirt"
+      }
+    },
+    "minimum_size": {
+      "type": "minecraft:two_layers_feature_size",
+      "limit": 3,
+      "lower_size": 0,
+      "upper_size": 5
+    },
+    "decorators": [],
+    "ignore_vines": false,
+    "force_dirt": false
+  }
+} 

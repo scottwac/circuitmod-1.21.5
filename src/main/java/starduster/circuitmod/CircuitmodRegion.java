@@ -26,7 +26,7 @@ public class CircuitmodRegion extends Region {
         this.addBiome(mapper, 
             MultiNoiseUtil.ParameterRange.of(0.4F, 1.0F),      // temperature (hot)
             MultiNoiseUtil.ParameterRange.of(0.3F, 1.0F),      // humidity (humid)
-            MultiNoiseUtil.ParameterRange.of(0.1F, 1.0F),      // continentalness (land only)
+            MultiNoiseUtil.ParameterRange.of(0.3F, 1.0F),      // continentalness (land only, avoids coasts and oceans)
             MultiNoiseUtil.ParameterRange.of(-0.5F, 0.5F),     // erosion (moderate)
             MultiNoiseUtil.ParameterRange.of(0.0F),            // depth (surface)
             MultiNoiseUtil.ParameterRange.of(-0.5F, 0.5F),     // weirdness (moderate)

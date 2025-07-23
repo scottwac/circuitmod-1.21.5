@@ -78,7 +78,8 @@
       "minecraft:red_mushroom_normal",
       "minecraft:patch_pumpkin",
       "minecraft:patch_sugar_cane",
-      "minecraft:vines"
+      "minecraft:vines",
+      "circuitmod:mega_tree_placed"
     ],
     [
       "minecraft:freeze_top_layer"
