@@ -1,8 +1,8 @@
 {
   "type": "minecraft:ore",
   "config": {
-    "size": 7,
-    "discard_chance_on_air_exposure": 0.7,
+    "size": 6,
+    "discard_chance_on_air_exposure": 0.1,
     "targets": [
       {
         "target": {
@@ -10,7 +10,7 @@
           "tag": "minecraft:stone_ore_replaceables"
         },
         "state": {
-          "Name": "circuitmod:uranium_ore"
+          "Name": "circuitmod:bauxite_ore"
         }
       },
       {
@@ -19,7 +19,7 @@
           "tag": "minecraft:deepslate_ore_replaceables"
         },
         "state": {
-          "Name": "circuitmod:deepslate_uranium_ore"
+          "Name": "circuitmod:deepslate_bauxite_ore"
         }
       }
     ]
