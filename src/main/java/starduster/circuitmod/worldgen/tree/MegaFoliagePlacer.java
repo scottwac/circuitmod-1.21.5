@@ -2,6 +2,9 @@ package starduster.circuitmod.worldgen.tree;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.LeavesBlock;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.intprovider.IntProvider;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.TestableWorld;
@@ -56,5 +59,11 @@ public class MegaFoliagePlacer extends FoliagePlacer {
         double distance = Math.sqrt(dx * dx + dz * dz);
         double maxDistance = radius + random.nextFloat() * 2 - 1; // Add some randomness
         return distance > maxDistance;
+    }
+
+    @Override
+    protected BlockState getFoliageState(Random random, BlockPos pos, TreeFeatureConfig config) {
+        return config.foliageProvider.get(random, pos)
+            .with(LeavesBlock.PERSISTENT, true);
     }
 } 

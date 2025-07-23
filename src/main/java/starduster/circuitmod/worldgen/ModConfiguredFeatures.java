@@ -26,8 +26,8 @@ public class ModConfiguredFeatures {
             // Custom mega trunk placer: 50 blocks tall base height, +0-10 random, +0-5 second random
             new MegaTrunkPlacer(50, 10, 5),
             
-            // Use jungle leaves for foliage
-            BlockStateProvider.of(Blocks.JUNGLE_LEAVES),
+            // Use jungle leaves for foliage, set persistent to true
+            BlockStateProvider.of(Blocks.JUNGLE_LEAVES.getDefaultState().with(net.minecraft.state.property.Properties.PERSISTENT, true)),
             // Custom mega foliage placer with large radius and height
             new MegaFoliagePlacer(ConstantIntProvider.create(15), ConstantIntProvider.create(2), ConstantIntProvider.create(20)),
             
