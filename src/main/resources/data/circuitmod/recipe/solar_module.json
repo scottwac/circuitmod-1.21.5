@@ -2,15 +2,15 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": "circuitmod:blank_blueprint",
-    "P": "minecraft:paper"
+    "C": "circuitmod:solar_cell"
   },
   "pattern": [
-    "B",
-    "P"
+    "CCC",
+    "CCC",
+    "CCC"
   ],
   "result": {
     "count": 1,
-    "id": "circuitmod:blueprint"
+    "id": "circuitmod:solar_module"
   }
 } 

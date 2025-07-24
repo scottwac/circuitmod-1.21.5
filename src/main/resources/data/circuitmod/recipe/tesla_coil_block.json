@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "minecraft:copper_block",
+    "A": "circuitmod:aluminum_ingot",
+    "R": "minecraft:redstone_torch",
+    "S": "circuitmod:steel_ingot"
+  },
+  "pattern": [
+    "AAA",
+    "ACA",
+    "SRS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:tesla_coil"
+  }
+} 

@@ -2,9 +2,11 @@
   "type": "circuitmod:crusher",
   "ingredient": "circuitmod:lead_ore",
   "result_1": {
+    "count": 2,
     "id": "circuitmod:lead_powder"
   },
   "result_2": {
+    "count": 1,
     "id": "circuitmod:stone_dust"
   }
 } 

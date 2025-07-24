@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "M": "minecraft:packed_mud",
+    "F": "minecraft:furnace"
+  },
+  "pattern": [
+    "M M",
+    "MFM",
+    "MMM"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:bloomery"
+  }
+} 

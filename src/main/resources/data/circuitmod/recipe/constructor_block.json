@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:diamond",
+    "A": "circuitmod:aluminum_ingot",
+    "R": "minecraft:redstone_block",
+    "T": "minecraft:crafting_table"
+  },
+  "pattern": [
+    "ARA",
+    "GTG",
+    "AAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:constructor_block"
+  }
+} 

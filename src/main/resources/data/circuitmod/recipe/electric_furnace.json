@@ -4,17 +4,16 @@
   "key": {
     "C": "minecraft:copper_ingot",
     "A": "circuitmod:aluminum_ingot",
-    "T": "minecraft:crafting_table",
-    "B": "circuitmod:blank_blueprint",
-    "R": "minecraft:redstone"
+    "F": "minecraft:furnace",
+    "S": "circuitmod:steel_ingot"
   },
   "pattern": [
-    "ABA",
-    "RTA",
-    "ACA"
+    "AAA",
+    "AFA",
+    "SSS"
   ],
   "result": {
-    "count": 2,
-    "id": "circuitmod:blueprint_desk"
+    "count": 1,
+    "id": "circuitmod:electric_furnace"
   }
 } 

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "circuitmod:steel_ingot",
+    "I": "minecraft:iron_ingot",
+    "C": "minecraft:copper_ingot",
+    "H": "minecraft:hopper"
+  },
+  "pattern": [
+    "S S",
+    "IHI",
+    "ICI"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:crusher"
+  }
+} 

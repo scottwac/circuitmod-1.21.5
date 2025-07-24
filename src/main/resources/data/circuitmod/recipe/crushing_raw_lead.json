@@ -1,5 +1,8 @@
 {
   "type": "circuitmod:crusher",
-  "ingredient": { "item": "circuitmod:raw_lead" },
-  "result_1": { "id": "circuitmod:lead_powder" }
+  "ingredient": "circuitmod:raw_lead",
+  "result_1": {
+    "count": 2,
+    "id": "circuitmod:lead_powder"
+  }
 } 

@@ -50,6 +50,9 @@ public final class ModItems {
     public static final Item ZIRCONIUM_POWDER = register("zirconium_powder", Item::new, new Item.Settings());
     public static final Item ZIRCONIUM_TUBE = register("zirconium_tube", Item::new, new Item.Settings());
 
+    public static final Item SOLAR_CELL = register("solar_cell", Item::new, new Item.Settings());
+    public static final Item SOLAR_MODULE = register("solar_module", Item::new, new Item.Settings());
+
     public static final Item STEEL_SWORD = register("steel_sword", Item::new, (new Item.Settings()).sword(ModToolMaterials.STEEL_TOOL_MATERIAL, 3.0F, -2.4F));
     public static final Item STEEL_SHOVEL = register("steel_shovel", Item::new, (new Item.Settings()).shovel(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.5F, -3.0F));
     public static final Item STEEL_PICKAXE = register("steel_pickaxe", Item::new, (new Item.Settings()).pickaxe(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.0F, -2.8F));

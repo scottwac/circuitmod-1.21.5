@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 1,
+  "ingredient": "circuitmod:crushed_uranium",
+  "result": {
+    "id": "circuitmod:uranium_pellet"
+  }
+}
