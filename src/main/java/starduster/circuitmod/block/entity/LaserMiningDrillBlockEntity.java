@@ -544,7 +544,7 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
 
         // --- ONLY NOW START MINING PROGRESS ---
         float hardness = world.getBlockState(currentMiningPos).getHardness(world, currentMiningPos);
-        int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
+        int energyCost = Math.max(1, (int)(hardness * 10.0f) + 1); // 5x more energy than quarry/drill
         this.currentBlockEnergyCost = energyCost;
 
         if (totalMiningTicks == 0) {

@@ -12,7 +12,7 @@ import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.power.IPowerConnectable;
 
 public class CreativeConsumerBlockEntity extends BlockEntity implements IEnergyConsumer {
-    private static final int ENERGY_DEMAND_PER_TICK = 1;
+    private static final int ENERGY_DEMAND_PER_TICK = 100;
     
     private EnergyNetwork network;
     private int lastReceivedEnergy = 0;

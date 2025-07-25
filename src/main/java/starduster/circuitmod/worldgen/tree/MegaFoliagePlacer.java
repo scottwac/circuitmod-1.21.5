@@ -61,9 +61,5 @@ public class MegaFoliagePlacer extends FoliagePlacer {
         return distance > maxDistance;
     }
 
-    @Override
-    protected BlockState getFoliageState(Random random, BlockPos pos, TreeFeatureConfig config) {
-        return config.foliageProvider.get(random, pos)
-            .with(LeavesBlock.PERSISTENT, true);
-    }
+    
 } 

@@ -12,7 +12,7 @@ import starduster.circuitmod.power.IEnergyProducer;
 import starduster.circuitmod.power.IPowerConnectable;
 
 public class MegaCreativeGeneratorBlockEntity extends BlockEntity implements IEnergyProducer {
-    private static final int ENERGY_PER_TICK = 1000;
+    private static final int ENERGY_PER_TICK = 100000;
     
     private EnergyNetwork network;
     private boolean needsNetworkRefresh = false;

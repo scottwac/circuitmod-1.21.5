@@ -28,8 +28,8 @@ import starduster.circuitmod.screen.ModScreenHandlers;
 public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.BatteryData> {
     // Default values - can be modified for different battery tiers
     private static final int DEFAULT_CAPACITY = 100000;
-    private static final int DEFAULT_MAX_CHARGE_RATE = 10;
-    private static final int DEFAULT_MAX_DISCHARGE_RATE = 10;
+    private static final int DEFAULT_MAX_CHARGE_RATE = 1000;
+    private static final int DEFAULT_MAX_DISCHARGE_RATE = 1000;
     
     private EnergyNetwork network;
     private int storedEnergy = 0;
