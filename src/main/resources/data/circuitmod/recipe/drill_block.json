@@ -2,19 +2,19 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "C": "minecraft:copper_ingot",
     "A": "circuitmod:aluminum_ingot",
-    "T": "minecraft:crafting_table",
-    "B": "circuitmod:blank_blueprint",
+    "P": "minecraft:diamond_pickaxe",
+    "I": "minecraft:iron_ingot",
+    "C": "minecraft:copper_ingot",
     "R": "minecraft:redstone"
   },
   "pattern": [
-    "ABA",
-    "RTA",
+    "AIA",
+    "PRI",
     "ACA"
   ],
   "result": {
-    "count": 2,
-    "id": "circuitmod:blueprint_desk"
+    "count": 1,
+    "id": "circuitmod:drill_block"
   }
 } 

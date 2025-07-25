@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "minecraft:black_wool",
+    "C": "minecraft:copper_ingot"
+  },
+  "pattern": [
+    "BBB",
+    "CCC",
+    "BBB"
+  ],
+  "result": {
+    "count": 12,
+    "id": "circuitmod:power_cable"
+  }
+} 

@@ -2,9 +2,11 @@
   "type": "circuitmod:crusher",
   "ingredient": "circuitmod:bauxite_ore",
   "result_1": {
+    "count": 2,
     "id": "circuitmod:crushed_bauxite"
   },
   "result_2": {
+    "count": 1,
     "id": "circuitmod:stone_dust"
   }
 } 

@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:glass_pane",
+    "R": "minecraft:redstone",
+    "L": "minecraft:lapis_lazuli",
+    "C": "minecraft:copper_ingot",
+    "A": "circuitmod:aluminum_ingot"
+  },
+  "pattern": [
+    "GGG",
+    "LRL",
+    "ACA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:solar_cell"
+  }
+} 

@@ -2,13 +2,16 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "P": "minecraft:paper"
+    "P": "minecraft:paper",
+    "D": "minecraft:blue_dye"
   },
   "pattern": [
-    "P"
+    "DDD",
+    "DPD",
+    "DDD"
   ],
   "result": {
-    "count": 1,
+    "count": 4,
     "id": "circuitmod:blank_blueprint"
   }
 } 

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "U": "circuitmod:uranium_pellet",
+    "T": "minecraft:tnt",
+    "S": "circuitmod:steel_ingot",
+    "B": "circuitmod:steel_block"
+  },
+  "pattern": [
+    "SUS",
+    "UTU",
+    "UBU"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:nuke"
+  }
+} 

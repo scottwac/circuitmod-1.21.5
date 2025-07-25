@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "minecraft:glass_pane"
+  },
+  "pattern": [
+    "BBB",
+    "   ",
+    "BBB"
+  ],
+  "result": {
+    "count": 8,
+    "id": "circuitmod:item_pipe"
+  }
+} 

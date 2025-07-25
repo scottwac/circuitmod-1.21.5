@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "Z": "circuitmod:zirconium_tube",
+    "U": "circuitmod:uranium_pellet"
+  },
+  "pattern": [
+    "UUU",
+    "UZU",
+    "UUU"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:fuel_rod"
+  }
+} 

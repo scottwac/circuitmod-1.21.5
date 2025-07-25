@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "Z": "circuitmod:zirconium_ingot"
+  },
+  "pattern": [
+    "Z",
+    "Z",
+    "Z"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:zirconium_tube"
+  }
+} 

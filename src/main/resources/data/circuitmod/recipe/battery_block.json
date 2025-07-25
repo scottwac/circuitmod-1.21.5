@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "minecraft:redstone_block",
+    "B": "minecraft:black_wool",
+    "C": "minecraft:copper_ingot",
+    "A": "circuitmod:aluminum_ingot"
+  },
+  "pattern": [
+    "CAC",
+    "BRB",
+    "BRB"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:battery"
+  }
+} 

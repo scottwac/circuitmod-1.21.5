@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "circuitmod:aluminum_ingot",
+    "P": "minecraft:diamond_pickaxe",
+    "I": "minecraft:end_crystal",
+    "C": "minecraft:copper_ingot",
+    "D": "minecraft:diamond_block"
+  },
+  "pattern": [
+    "APA",
+    "IDI",
+    "ACA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:laser_mining_drill_block"
+  }
+} 
