@@ -51,6 +51,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(ConstructorTransformPayload.ID, ConstructorTransformPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNamePayload.ID, BlueprintNamePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CollectXpPayload.ID, CollectXpPayload.CODEC);
     }
     
 
@@ -376,6 +377,26 @@ public class ModNetworking {
             PacketCodecs.BOOLEAN, MiningEnabledStatusPayload::enabled,
             BlockPos.PACKET_CODEC, MiningEnabledStatusPayload::machinePos,
             MiningEnabledStatusPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for XP collection requests (client -> server)
+     */
+    public record CollectXpPayload(BlockPos xpGeneratorPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<CollectXpPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "collect_xp"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, CollectXpPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, CollectXpPayload::xpGeneratorPos,
+            CollectXpPayload::new
         );
         
         @Override

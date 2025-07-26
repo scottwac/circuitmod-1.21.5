@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "circuitmod:aluminum_ingot",
+    "R": "minecraft:redstone",
+    "E": "minecraft:enchanting_table",
+    "B": "minecraft:experience_bottle",
+    "S": "circuitmod:steel_ingot",
+    "C": "minecraft:copper_ingot"
+  },
+  "pattern": [
+    "ARA",
+    "CEC",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:xp_generator"
+  }
+} 

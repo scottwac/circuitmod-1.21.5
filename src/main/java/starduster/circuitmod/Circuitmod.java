@@ -67,6 +67,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.BLOOMERY);
 				entries.add(ModBlocks.CRUSHER);
 				entries.add(ModBlocks.ELECTRIC_FURNACE);
+				entries.add(ModBlocks.XP_GENERATOR);
 				entries.add(ModBlocks.GENERATOR);
 				entries.add(ModBlocks.SOLAR_PANEL);
 				entries.add(ModBlocks.TESLA_COIL);
@@ -187,6 +188,18 @@ public class Circuitmod implements ModInitializer {
 				} else if (context.player().getWorld().getBlockEntity(machinePos) instanceof LaserMiningDrillBlockEntity laserDrill) {
 					laserDrill.toggleMining();
 					LOGGER.info("[SERVER] Toggled mining for laser mining drill at " + machinePos + " by player " + context.player().getName().getString());
+				}
+			});
+		});
+		
+		// Register XP collection handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.CollectXpPayload.ID, (payload, context) -> {
+			var xpGeneratorPos = payload.xpGeneratorPos();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(xpGeneratorPos) instanceof starduster.circuitmod.block.entity.XpGeneratorBlockEntity xpGenerator) {
+					xpGenerator.collectXp(context.player());
+					LOGGER.info("[SERVER] Collected XP from generator at " + xpGeneratorPos + " for player " + context.player().getName().getString());
 				}
 			});
 		});

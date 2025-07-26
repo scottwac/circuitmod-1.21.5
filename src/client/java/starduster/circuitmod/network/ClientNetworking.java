@@ -401,6 +401,28 @@ public class ClientNetworking {
     }
     
     /**
+     * Send a collect XP request to the server
+     * 
+     * @param xpGeneratorPos The position of the XP Generator
+     */
+    public static void sendCollectXpRequest(BlockPos xpGeneratorPos) {
+        Circuitmod.LOGGER.info("[CLIENT] sendCollectXpRequest called with position: {}", xpGeneratorPos);
+        
+        if (xpGeneratorPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send collect XP request for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.CollectXpPayload payload = new ModNetworking.CollectXpPayload(xpGeneratorPos);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent collect XP request for XP Generator at {}", xpGeneratorPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send collect XP request: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
      * Send quarry dimensions to the server
      * 
      * @param quarryPos The position of the quarry

@@ -6,10 +6,8 @@ import net.minecraft.screen.ScreenHandlerType;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
 import net.minecraft.util.Identifier;
 import net.minecraft.resource.featuretoggle.FeatureSet;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.Circuitmod;
 
@@ -169,6 +167,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "electric_furnace_screen_handler"),
             new ScreenHandlerType<>(ElectricFurnaceScreenHandler::new, FeatureSet.empty())
+        );
+
+    // Register XP generator screen handler
+        public static final ScreenHandlerType<XpGeneratorScreenHandler> XP_GENERATOR_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "xp_generator_screen_handler"),
+            new ScreenHandlerType<>(XpGeneratorScreenHandler::new, FeatureSet.empty())
         );
     
     public static void initialize() {

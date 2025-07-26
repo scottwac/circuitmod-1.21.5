@@ -96,7 +96,8 @@ CircuitMod is an industrial Minecraft mod that adds electricity-based automation
 #### Low Consumption Machines
 - **Crusher**: 1 energy/tick when active
 - **Electric Furnace**: 10 energy/tick when smelting
-- **Mass Fabricator**: 100,000 energy total per item
+- **XP Generator**: 6 energy/tick when generating XP
+- **Mass Fabricator**: 4,320,000 energy total per item (1 hour with single reactor rod)
 
 ## Power Infrastructure
 
@@ -234,9 +235,23 @@ CircuitMod is an industrial Minecraft mod that adds electricity-based automation
   SRS  S = Steel Ingot, R = Redstone Torch
   ```
 
+### XP Generator
+- **Function**: Generates XP over time using electricity
+- **Energy**: 6 energy/tick when generating XP (matches combustion generator output)
+- **XP Generation**: 1 XP every 51 ticks (~2.55 seconds)
+- **Storage**: Can store up to 1395 XP (30 levels worth)
+- **Production Time**: 1 hour to fill completely with combustion generator power
+- **Usage**: Right-click to collect all stored XP
+- **Crafting**:
+  ```
+  ARA  A = Aluminum Ingot, R = Redstone
+  CEC  C = Copper Ingot, E = Enchanting Table
+  SBS  S = Steel Ingot, B = Experience Bottle
+  ```
+
 ### Mass Fabricator
 - **Function**: Creates valuable materials from energy
-- **Energy**: 100,000 energy per item
+- **Energy**: 4,320,000 energy per item (1 hour with single reactor rod)
 - **Outputs**: Diamond, Emerald, Netherite Ingot, Gold Ingot
 - **Crafting**:
   ```

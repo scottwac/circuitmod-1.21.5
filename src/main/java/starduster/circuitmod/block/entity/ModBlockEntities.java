@@ -121,6 +121,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(ElectricFurnaceBlockEntity::new, ModBlocks.ELECTRIC_FURNACE).build()
     );
 
+    // Add XP generator block entity
+    public static final BlockEntityType<XpGeneratorBlockEntity> XP_GENERATOR_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "xp_generator"),
+            FabricBlockEntityTypeBuilder.create(XpGeneratorBlockEntity::new, ModBlocks.XP_GENERATOR).build()
+    );
+
     // Add item pipe block entity
     public static final BlockEntityType<ItemPipeBlockEntity> ITEM_PIPE = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,

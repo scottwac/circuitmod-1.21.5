@@ -13,6 +13,7 @@ import net.minecraft.util.math.intprovider.ConstantIntProvider;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
+import starduster.circuitmod.block.machines.XpGenerator;
 import starduster.circuitmod.block.networkblocks.BatteryBlock;
 import starduster.circuitmod.block.networkblocks.PowerCableBlock;
 
@@ -74,6 +75,16 @@ public final class ModBlocks {
     public static final Block ELECTRIC_FURNACE = register(
             "electric_furnace",
             ElectricFurnace::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.0f, 5.0f)
+                    .luminance(state -> 13) // Light when active, would need a blockstate for this
+    );
+
+    // Register XP generator block
+    public static final Block XP_GENERATOR = register(
+            "xp_generator",
+            XpGenerator::new,
             Block.Settings.create()
                     .requiresTool()
                     .strength(3.0f, 5.0f)

@@ -27,7 +27,7 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
     public static final int INPUT_SLOT = 0;
     public static final int OUTPUT_SLOT = 1;
     public static final int SLOT_COUNT = 2;
-    public static final int ENERGY_REQUIRED = 100000;
+    public static final int ENERGY_REQUIRED = 4320000; // 1 hour with 1 reactor rod (60 energy/tick × 72,000 ticks)
     public static final int MAX_PROGRESS = 100;
 
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(SLOT_COUNT, ItemStack.EMPTY);
