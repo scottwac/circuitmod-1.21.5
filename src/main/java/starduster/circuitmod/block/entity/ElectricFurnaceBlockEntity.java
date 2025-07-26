@@ -164,9 +164,7 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         boolean canSmelt = entity.canSmelt();
         
         // Set powered state based on energy received (not recipe availability)
-        if (entity.isReceivingPower()) {
-            entity.isPowered = true;
-        }
+        entity.isPowered = entity.isReceivingPower();
         
         // Debug logging every 40 ticks (2 seconds)
         if (world.getTime() % 40 == 0) {

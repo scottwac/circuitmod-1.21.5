@@ -95,7 +95,7 @@ CircuitMod is an industrial Minecraft mod that adds electricity-based automation
 
 #### Low Consumption Machines
 - **Crusher**: 1 energy/tick when active
-- **Electric Furnace**: Variable energy consumption while smelting
+- **Electric Furnace**: 10 energy/tick when smelting
 - **Mass Fabricator**: 100,000 energy total per item
 
 ## Power Infrastructure
