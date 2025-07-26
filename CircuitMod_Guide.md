@@ -24,7 +24,7 @@ CircuitMod is an industrial Minecraft mod that adds electricity-based automation
 - **Fuel**: Uses any vanilla fuel (coal, lava buckets, etc.)
 - **Crafting**: 
   ```
-  AIA  A = Aluminum Ingot, I = Redstone
+  SIS  S = Steel Ingot, I = Redstone
   CFC  C = Copper Ingot, F = Furnace
   SSS  S = Steel Ingot
   ```

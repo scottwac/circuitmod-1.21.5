@@ -3,13 +3,12 @@
   "category": "misc",
   "key": {
     "C": "minecraft:copper_ingot",
-    "A": "circuitmod:aluminum_ingot",
     "F": "minecraft:furnace",
     "S": "circuitmod:steel_ingot",
     "I": "minecraft:redstone"
   },
   "pattern": [
-    "AIA",
+    "SIS",
     "CFC",
     "SSS"
   ],
