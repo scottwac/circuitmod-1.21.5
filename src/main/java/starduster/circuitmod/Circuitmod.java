@@ -158,7 +158,7 @@ public class Circuitmod implements ModInitializer {
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
-		starduster.circuitmod.worldgen.ModBiomes.initialize();
+		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		
 		// Initialize world generation
 		starduster.circuitmod.worldgen.ModOreGeneration.generateOres();
@@ -166,7 +166,8 @@ public class Circuitmod implements ModInitializer {
 		// Initialize tree components
 		starduster.circuitmod.worldgen.tree.ModTrunkPlacerTypes.initialize();
 		starduster.circuitmod.worldgen.tree.ModFoliagePlacerTypes.initialize();
-		starduster.circuitmod.worldgen.ModTreeGeneration.generateTrees();
+		
+		// starduster.circuitmod.worldgen.ModTreeGeneration.generateTrees();
 		
 		
 		// Initialize commands

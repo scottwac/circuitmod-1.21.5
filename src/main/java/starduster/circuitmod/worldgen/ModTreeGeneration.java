@@ -10,9 +10,9 @@ public class ModTreeGeneration {
     
     public static void generateTrees() {
         // Add mega trees to the techno jungle biome
-        BiomeModifications.addFeature(BiomeSelectors.includeByKey(ModBiomes.TECHNO_JUNGLE), 
-            GenerationStep.Feature.VEGETAL_DECORATION, ModPlacedFeatures.MEGA_TREE_PLACED_KEY);
+        // BiomeModifications.addFeature(BiomeSelectors.includeByKey(ModBiomes.TECHNO_JUNGLE), 
+        //     GenerationStep.Feature.VEGETAL_DECORATION, ModPlacedFeatures.MEGA_TREE_PLACED_KEY);
         
-        Circuitmod.LOGGER.info("Mega tree generation registered for techno jungle biome");
+        // Circuitmod.LOGGER.info("Mega tree generation registered for techno jungle biome");
     }
 } 

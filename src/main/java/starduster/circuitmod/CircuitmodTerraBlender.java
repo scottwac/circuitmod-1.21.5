@@ -11,9 +11,9 @@ public class CircuitmodTerraBlender implements TerraBlenderApi {
     @Override
     public void onTerraBlenderInitialized() {
         // Initialize biomes first
-        ModBiomes.initialize();
+        // ModBiomes.initialize();
         
         // Register the techno jungle region
-        Regions.register(new CircuitmodRegion(Identifier.of(Circuitmod.MOD_ID, "techno_region"), 2));
+        // Regions.register(new CircuitmodRegion(Identifier.of(Circuitmod.MOD_ID, "techno_region"), 2));
     }
 } 
