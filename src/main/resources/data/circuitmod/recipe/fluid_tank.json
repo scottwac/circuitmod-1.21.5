@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "G": "minecraft:glass",
+    "B": "minecraft:bucket"
+  },
+  "pattern": [
+    "IGI",
+    "G G",
+    "IBG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:fluid_tank"
+  }
+} 

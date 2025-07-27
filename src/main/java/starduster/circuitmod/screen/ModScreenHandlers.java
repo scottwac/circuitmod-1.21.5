@@ -74,6 +74,15 @@ public class ModScreenHandlers {
             BatteryData::new
         );
     }
+    
+    // Data class for fluid tank screen opening data
+    public record FluidTankData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, FluidTankData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            FluidTankData::pos,
+            FluidTankData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -151,6 +160,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "battery_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new BatteryScreenHandler(syncId, inventory, data), BatteryData.PACKET_CODEC)
+        );
+    
+    // Register fluid tank screen handler
+    public static final ExtendedScreenHandlerType<FluidTankScreenHandler, FluidTankData> FLUID_TANK_SCREEN_HANDLER = 
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "fluid_tank_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new FluidTankScreenHandler(syncId, inventory, data), FluidTankData.PACKET_CODEC)
         );
     
     // Register generator screen handler

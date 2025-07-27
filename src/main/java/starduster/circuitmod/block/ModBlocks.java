@@ -52,6 +52,15 @@ public final class ModBlocks {
                     .strength(3.0f, 5.0f)
     );
 
+    // Register fluid tank block
+    public static final Block FLUID_TANK = register(
+            "fluid_tank",
+            FluidTankBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.0f, 5.0f)
+    );
+
     // Register blueprint desk block
     public static final Block BLUEPRINT_DESK = register(
             "blueprint_desk",

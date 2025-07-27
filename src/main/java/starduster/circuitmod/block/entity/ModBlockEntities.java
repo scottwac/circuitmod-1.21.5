@@ -37,6 +37,13 @@ public class ModBlockEntities {
             FabricBlockEntityTypeBuilder.create(ConstructorBlockEntity::new, ModBlocks.CONSTRUCTOR_BLOCK).build()
     );
 
+    // Add fluid tank block entity
+    public static final BlockEntityType<FluidTankBlockEntity> FLUID_TANK_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "fluid_tank_block_entity"),
+            FabricBlockEntityTypeBuilder.create(FluidTankBlockEntity::new, ModBlocks.FLUID_TANK).build()
+    );
+
     // Add crusher block entity
     public static final BlockEntityType<CrusherBlockEntity> CRUSHER_BLOCK_ENTITY = Registry.register(
             Registries.BLOCK_ENTITY_TYPE,

@@ -76,6 +76,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
 				entries.add(ModBlocks.BLUEPRINT_DESK);
+				entries.add(ModBlocks.FLUID_TANK);
 
 				entries.add(ModBlocks.ELECTRIC_CARPET);
 				entries.add(ModBlocks.ITEM_PIPE);
