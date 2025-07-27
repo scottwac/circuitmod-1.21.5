@@ -62,6 +62,12 @@ public final class ModItems {
     // Blueprint items
     public static final Item BLUEPRINT = register("blueprint", BlueprintItem::new, new Item.Settings().maxCount(1));
     public static final Item BLANK_BLUEPRINT = register("blank_blueprint", BlankBlueprintItem::new, new Item.Settings().maxCount(16));
+    
+    // Food items
+    public static final Item STIMULANTS = register("stimulants", StimulantsItem::new, new Item.Settings().maxCount(16));
+    
+    // Projectile items
+    public static final Item MINING_EXPLOSIVE = register("mining_explosive", MiningExplosiveItem::new, new Item.Settings().maxCount(16));
 
 
 

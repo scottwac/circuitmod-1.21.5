@@ -3,9 +3,11 @@ package starduster.circuitmod;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
+import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
@@ -28,6 +30,7 @@ import starduster.circuitmod.screen.ElectricFurnaceScreen;
 import starduster.circuitmod.screen.XpGeneratorScreen;
 import starduster.circuitmod.screen.FluidTankScreen;
 import starduster.circuitmod.screen.SortingPipeScreen;
+import starduster.circuitmod.entity.ModEntityTypes;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
@@ -64,6 +67,9 @@ public class CircuitmodClient implements ClientModInitializer {
 		        BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
         BlockEntityRendererFactories.register(ModBlockEntities.LASER_MINING_DRILL_BLOCK_ENTITY, LaserMiningDrillBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.CONSTRUCTOR_BLOCK_ENTITY, ConstructorBlockEntityRenderer::new);
+		
+		// Register entity renderers
+		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		
 		// Initialize client networking
 		starduster.circuitmod.network.ClientNetworking.initialize();

@@ -1,0 +1,8 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "minecraft:redstone_block",
+  "result_1": {
+    "count": 4,
+    "id": "minecraft:gunpowder"
+  }
+} 

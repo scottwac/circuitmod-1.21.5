@@ -143,6 +143,10 @@ public class Circuitmod implements ModInitializer {
 				// Add blank blueprint item
 				entries.add(ModItems.BLANK_BLUEPRINT);
 
+				// Add consumable items
+				entries.add(ModItems.STIMULANTS);
+				entries.add(ModItems.MINING_EXPLOSIVE);
+
 				// Add more mod items here as they are created
 			})
 			.build()
@@ -156,6 +160,7 @@ public class Circuitmod implements ModInitializer {
 		ModItems.initialize();
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
+		starduster.circuitmod.entity.ModEntityTypes.initialize();
 		ModScreenHandlers.initialize();
 		ModNetworking.initialize();
 		ModItemTags.initialize();
