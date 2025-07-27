@@ -1,0 +1,10 @@
+{
+  "type": "circuitmod:electric_furnace",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.5,
+  "ingredient": "circuitmod:bloom",
+  "result": {
+    "id": "circuitmod:steel_ingot"
+  }
+} 
