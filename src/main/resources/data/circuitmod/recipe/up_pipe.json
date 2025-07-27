@@ -3,7 +3,7 @@
   "category": "misc",
   "key": {
     "P": "circuitmod:item_pipe",
-    "R": "minecraft:redstone",
+    "R": "minecraft:powered_rail",
     "I": "minecraft:iron_ingot"
   },
   "pattern": [
