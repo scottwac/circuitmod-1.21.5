@@ -80,6 +80,8 @@ public class Circuitmod implements ModInitializer {
 
 				entries.add(ModBlocks.ELECTRIC_CARPET);
 				entries.add(ModBlocks.ITEM_PIPE);
+				entries.add(ModBlocks.OUTPUT_PIPE);
+				entries.add(ModBlocks.SORTING_PIPE);
 				entries.add(ModBlocks.REACTOR_BLOCK);
 				entries.add(ModBlocks.NUKE);
 

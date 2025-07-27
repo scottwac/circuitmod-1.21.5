@@ -35,9 +35,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     public static final int ANIMATION_TICKS = 5; 
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
-    private int transferCooldown = -1;
+    int transferCooldown = -1; // Package-private for access from other pipe classes
     private long lastTickTime;
-    private @Nullable Direction lastInputDirection = null; // Track where the item came from
+    @Nullable Direction lastInputDirection = null; // Package-private for access from other pipe classes
     private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
@@ -62,12 +62,12 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 //                       ", lastInputDir: " + blockEntity.lastInputDirection);
             }
             
-            // Try to extract from inventory above first
-            boolean didWork = extractFromAbove(world, pos, blockEntity);
+            // Only transport items, don't extract from inventories
+            boolean didWork = false;
             
             // If we have an item, try to push it in valid directions
             if (!blockEntity.isEmpty()) {
-                didWork = transferItem(world, pos, state, blockEntity) || didWork;
+                didWork = transferItem(world, pos, state, blockEntity);
             }
             
             // Always set cooldown to prevent constant ticking
@@ -286,12 +286,21 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     /**
      * Get priority directions for item transfer to prevent loops.
      * Prioritizes downward flow and avoids going back to source.
+     * Shuffles horizontal directions to enable branching.
      */
     private static Direction[] getPriorityDirections(@Nullable Direction lastInputDirection) {
         // Always prioritize DOWN first (gravity-like behavior)
         if (lastInputDirection == null) {
-            // No input direction, try all directions with DOWN first
-            return new Direction[]{Direction.DOWN, Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP};
+            // No input direction, shuffle horizontals to enable branching
+            java.util.List<Direction> horizontals = new java.util.ArrayList<>(java.util.Arrays.asList(
+                Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
+            java.util.Collections.shuffle(horizontals);
+            
+            java.util.List<Direction> all = new java.util.ArrayList<>();
+            all.add(Direction.DOWN);
+            all.addAll(horizontals);
+            all.add(Direction.UP);
+            return all.toArray(new Direction[0]);
         }
         
         // Create priority list avoiding the input direction
@@ -302,12 +311,15 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             priorities.add(Direction.DOWN);
         }
         
-        // Add horizontal directions
+        // Add horizontal directions in random order to enable branching
+        java.util.List<Direction> horizontalDirs = new java.util.ArrayList<>();
         for (Direction dir : new Direction[]{Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}) {
             if (dir != lastInputDirection) {
-                priorities.add(dir);
+                horizontalDirs.add(dir);
             }
         }
+        java.util.Collections.shuffle(horizontalDirs);
+        priorities.addAll(horizontalDirs);
         
         // Add UP last (unless that's where we came from)
         if (lastInputDirection != Direction.UP) {

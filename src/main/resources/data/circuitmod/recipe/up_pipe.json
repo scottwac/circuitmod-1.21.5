@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "circuitmod:item_pipe",
+    "R": "minecraft:redstone",
+    "I": "minecraft:iron_ingot"
+  },
+  "pattern": [
+    " P ",
+    "PIP",
+    " R "
+  ],
+  "result": {
+    "count": 4,
+    "id": "circuitmod:up_pipe"
+  }
+} 

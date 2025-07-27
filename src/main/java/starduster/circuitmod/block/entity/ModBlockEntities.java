@@ -142,6 +142,27 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(ItemPipeBlockEntity::new, ModBlocks.ITEM_PIPE).build()
     );
 
+    // Add output pipe block entity
+    public static final BlockEntityType<OutputPipeBlockEntity> OUTPUT_PIPE = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "output_pipe"),
+        FabricBlockEntityTypeBuilder.create(OutputPipeBlockEntity::new, ModBlocks.OUTPUT_PIPE).build()
+    );
+
+    // Add sorting pipe block entity
+    public static final BlockEntityType<SortingPipeBlockEntity> SORTING_PIPE = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "sorting_pipe"),
+        FabricBlockEntityTypeBuilder.create(SortingPipeBlockEntity::new, ModBlocks.SORTING_PIPE).build()
+    );
+
+    // Add up pipe block entity
+    public static final BlockEntityType<UpPipeBlockEntity> UP_PIPE = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "up_pipe"),
+        FabricBlockEntityTypeBuilder.create(UpPipeBlockEntity::new, ModBlocks.UP_PIPE).build()
+    );
+
     // Add nuke block entity
     public static final BlockEntityType<NukeBlockEntity> NUKE_BLOCK_ENTITY = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "circuitmod:item_pipe",
+    "R": "minecraft:redstone",
+    "D": "minecraft:diamond",
+    "C": "minecraft:comparator"
+  },
+  "pattern": [
+    "PPP",
+    "RDR",
+    "PCP"
+  ],
+  "result": {
+    "count": 8,
+    "id": "circuitmod:sorting_pipe"
+  }
+} 

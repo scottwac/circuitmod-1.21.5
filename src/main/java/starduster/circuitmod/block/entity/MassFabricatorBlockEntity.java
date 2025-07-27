@@ -34,6 +34,7 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
     private int progress = 0;
     private int energyStored = 0;
     private int selectedResource = 0; // 0: Diamond, 1: Emerald, 2: Netherite, 3: Gold
+    private boolean shouldShowFireworks = false;
     private EnergyNetwork network;
 
     public MassFabricatorBlockEntity(BlockPos pos, BlockState state) {
@@ -95,6 +96,7 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
         nbt.putInt("progress", progress);
         nbt.putInt("energyStored", energyStored);
         nbt.putInt("selectedResource", selectedResource);
+        nbt.putBoolean("shouldShowFireworks", shouldShowFireworks);
         if (network != null) {
             NbtCompound networkNbt = new NbtCompound();
             network.writeToNbt(networkNbt);
@@ -109,6 +111,7 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
         if (nbt.contains("progress")) progress = nbt.getInt("progress").orElse(0);
         if (nbt.contains("energyStored")) energyStored = nbt.getInt("energyStored").orElse(0);
         if (nbt.contains("selectedResource")) selectedResource = nbt.getInt("selectedResource").orElse(0);
+        if (nbt.contains("shouldShowFireworks")) shouldShowFireworks = nbt.getBoolean("shouldShowFireworks").orElse(false);
         if (nbt.contains("energy_network")) {
             this.network = new EnergyNetwork();
             NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
@@ -139,7 +142,8 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
                 // Reset
                 entity.progress = 0;
                 entity.energyStored = 0;
-                // TODO: Trigger firework effect (set a flag or call a method)
+                // Trigger firework effect
+                entity.shouldShowFireworks = true;
             }
             entity.markDirty();
         } else {
@@ -189,5 +193,14 @@ public class MassFabricatorBlockEntity extends BlockEntity implements SidedInven
     @Override
     public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
         return new MassFabricatorScreenHandler(syncId, playerInventory, this, this.getPropertyDelegate());
+    }
+    
+    public boolean shouldShowFireworks() {
+        return shouldShowFireworks;
+    }
+    
+    public void setFireworksShown() {
+        this.shouldShowFireworks = false;
+        markDirty();
     }
 } 

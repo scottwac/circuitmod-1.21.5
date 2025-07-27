@@ -193,6 +193,13 @@ public class ModScreenHandlers {
             Identifier.of(Circuitmod.MOD_ID, "xp_generator_screen_handler"),
             new ScreenHandlerType<>(XpGeneratorScreenHandler::new, FeatureSet.empty())
         );
+
+    public static final ScreenHandlerType<SortingPipeScreenHandler> SORTING_PIPE_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "sorting_pipe_screen_handler"),
+            new ScreenHandlerType<>(SortingPipeScreenHandler::new, FeatureSet.empty())
+        );
     
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");

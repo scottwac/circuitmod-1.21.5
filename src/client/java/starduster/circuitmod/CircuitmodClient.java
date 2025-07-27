@@ -27,6 +27,7 @@ import starduster.circuitmod.screen.BatteryScreen;
 import starduster.circuitmod.screen.ElectricFurnaceScreen;
 import starduster.circuitmod.screen.XpGeneratorScreen;
 import starduster.circuitmod.screen.FluidTankScreen;
+import starduster.circuitmod.screen.SortingPipeScreen;
 
 public class CircuitmodClient implements ClientModInitializer {
 	@Override
@@ -37,12 +38,15 @@ public class CircuitmodClient implements ClientModInitializer {
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.TESLA_COIL, RenderLayer.getCutout());
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.ELECTRIC_CARPET, RenderLayer.getTranslucent());
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.ITEM_PIPE, RenderLayer.getTranslucent());
+		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.OUTPUT_PIPE, RenderLayer.getTranslucent());
+		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SORTING_PIPE, RenderLayer.getTranslucent());
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.LASER_MINING_DRILL_BLOCK, RenderLayer.getTranslucent());
 
 		// Register screens
 		HandledScreens.register(ModScreenHandlers.QUARRY_SCREEN_HANDLER, QuarryScreen::new);
-		        HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
-        HandledScreens.register(ModScreenHandlers.LASER_MINING_DRILL_SCREEN_HANDLER, LaserMiningDrillScreen::new);
+		HandledScreens.register(ModScreenHandlers.DRILL_SCREEN_HANDLER, DrillScreen::new);
+		HandledScreens.register(ModScreenHandlers.LASER_MINING_DRILL_SCREEN_HANDLER, LaserMiningDrillScreen::new);
+		HandledScreens.register(ModScreenHandlers.SORTING_PIPE_SCREEN_HANDLER, SortingPipeScreen::new);
 		HandledScreens.register(ModScreenHandlers.BLOOMERY_SCREEN_HANDLER, BloomeryScreen::new);
 		HandledScreens.register(ModScreenHandlers.GENERATOR_SCREEN_HANDLER, GeneratorScreen::new);
 		HandledScreens.register(ModScreenHandlers.MASS_FABRICATOR_SCREEN_HANDLER, MassFabricatorScreen::new);

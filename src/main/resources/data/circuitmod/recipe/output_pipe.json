@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "minecraft:glass_pane",
+    "R": "minecraft:redstone"
+  },
+  "pattern": [
+    "BBB",
+    " R ",
+    "BBB"
+  ],
+  "result": {
+    "count": 6,
+    "id": "circuitmod:output_pipe"
+  }
+} 

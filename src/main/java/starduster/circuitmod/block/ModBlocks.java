@@ -189,6 +189,33 @@ public final class ModBlocks {
             .sounds(BlockSoundGroup.GLASS)
     );
 
+    public static final Block OUTPUT_PIPE = register(
+        "output_pipe",
+        OutputPipeBlock::new,
+        Block.Settings.create()
+            .strength(0.3f, 0.3f)
+            .nonOpaque()
+            .sounds(BlockSoundGroup.GLASS)
+    );
+
+    public static final Block SORTING_PIPE = register(
+        "sorting_pipe",
+        SortingPipeBlock::new,
+        Block.Settings.create()
+            .strength(0.3f, 0.3f)
+            .nonOpaque()
+            .sounds(BlockSoundGroup.GLASS)
+    );
+
+    public static final Block UP_PIPE = register(
+        "up_pipe",
+        UpPipeBlock::new,
+        Block.Settings.create()
+            .strength(0.3f, 0.3f)
+            .nonOpaque()
+            .sounds(BlockSoundGroup.GLASS)
+    );
+
     // Register power cable block
     public static final Block POWER_CABLE = register(
             "power_cable",
