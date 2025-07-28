@@ -3,7 +3,8 @@
 	"package": "starduster.circuitmod.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"ExampleMixin",
+		"PlayerFallDamageMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

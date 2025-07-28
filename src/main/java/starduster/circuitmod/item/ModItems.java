@@ -68,6 +68,9 @@ public final class ModItems {
     
     // Projectile items
     public static final Item MINING_EXPLOSIVE = register("mining_explosive", MiningExplosiveItem::new, new Item.Settings().maxCount(16));
+    
+    // Movement items
+    public static final Item PULSE_STICK = register("pulse_stick", PulseStickItem::new, new Item.Settings().maxCount(1).maxDamage(64));
 
 
 

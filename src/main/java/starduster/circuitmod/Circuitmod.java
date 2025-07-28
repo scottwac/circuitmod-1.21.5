@@ -146,6 +146,9 @@ public class Circuitmod implements ModInitializer {
 				// Add consumable items
 				entries.add(ModItems.STIMULANTS);
 				entries.add(ModItems.MINING_EXPLOSIVE);
+				
+				// Add movement items  
+				entries.add(ModItems.PULSE_STICK);
 
 				// Add more mod items here as they are created
 			})
@@ -167,6 +170,7 @@ public class Circuitmod implements ModInitializer {
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
+		starduster.circuitmod.item.PulseStickHandler.initialize();
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		
 		// Initialize world generation
