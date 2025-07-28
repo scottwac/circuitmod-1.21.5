@@ -170,6 +170,7 @@ public class Circuitmod implements ModInitializer {
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
+		starduster.circuitmod.effect.ModStatusEffects.initialize();
 		starduster.circuitmod.item.PulseStickHandler.initialize();
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		
