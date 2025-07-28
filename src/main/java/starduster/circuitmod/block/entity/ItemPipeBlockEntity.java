@@ -139,53 +139,87 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
                 if (network != null) {
                     Circuitmod.LOGGER.info("[PIPE-ROUTING] Pipe at {} routing item with sourceExclusion: {}", pos, blockEntity.sourceExclusion);
-                    // Find a route for this item with fallback support, excluding the source
+                    
+                    // First, try to find a route to a destination with space
                     ItemRoute route = network.findRouteWithFallback(item, pos, blockEntity.sourceExclusion);
                     if (route != null) {
-                        // Get the next step in the route
-                        BlockPos nextStep = route.getNextPosition(pos);
-                        if (nextStep != null) {
-                            Circuitmod.LOGGER.info("[PIPE-TRANSFER] Reached destination {}, transferring to inventory", nextStep);
-                                                    if (nextStep.equals(route.getDestination())) {
-                            // If next step is the destination, transfer directly to inventory
-                            if (transferToInventoryAt(world, nextStep, blockEntity)) {
-                                didWork = true;
-                            } else {
-                                // Transfer failed - try to find alternative destination
-                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Transfer to {} failed, looking for alternatives", nextStep);
-                                ItemRoute alternativeRoute = network.findRouteExcludingFailed(item, pos, blockEntity.sourceExclusion, nextStep);
-                                if (alternativeRoute != null) {
-                                    Circuitmod.LOGGER.info("[PIPE-FALLBACK] Found alternative route: {} -> {}", 
-                                        pos, alternativeRoute.getDestination());
-                                    
-                                    // Try the alternative destination
-                                    BlockPos altNextStep = alternativeRoute.getNextPosition(pos);
-                                    if (altNextStep != null) {
-                                        if (altNextStep.equals(alternativeRoute.getDestination())) {
-                                            // Try alternative inventory
-                                            if (transferToInventoryAt(world, altNextStep, blockEntity)) {
-                                                didWork = true;
-                                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Successfully transferred to alternative destination {}", altNextStep);
+                        // Check if the destination has space before attempting transfer
+                        if (network.destinationHasSpace(route.getDestination(), item)) {
+                            Circuitmod.LOGGER.info("[PIPE-ROUTING] Destination {} has space, proceeding with transfer", route.getDestination());
+                            
+                            // Get the next step in the route
+                            BlockPos nextStep = route.getNextPosition(pos);
+                            if (nextStep != null) {
+                                Circuitmod.LOGGER.info("[PIPE-TRANSFER] Reached destination {}, transferring to inventory", nextStep);
+                                if (nextStep.equals(route.getDestination())) {
+                                    // If next step is the destination, transfer directly to inventory
+                                    if (transferToInventoryAt(world, nextStep, blockEntity)) {
+                                        didWork = true;
+                                    } else {
+                                        // Transfer failed - try to find alternative destination
+                                        Circuitmod.LOGGER.info("[PIPE-FALLBACK] Transfer to {} failed, looking for alternatives", nextStep);
+                                        ItemRoute alternativeRoute = network.findRouteExcludingFailed(item, pos, blockEntity.sourceExclusion, nextStep);
+                                        if (alternativeRoute != null) {
+                                            Circuitmod.LOGGER.info("[PIPE-FALLBACK] Found alternative route: {} -> {}", 
+                                                pos, alternativeRoute.getDestination());
+                                            
+                                            // Try the alternative destination
+                                            BlockPos altNextStep = alternativeRoute.getNextPosition(pos);
+                                            if (altNextStep != null) {
+                                                if (altNextStep.equals(alternativeRoute.getDestination())) {
+                                                    // Try alternative inventory
+                                                    if (transferToInventoryAt(world, altNextStep, blockEntity)) {
+                                                        didWork = true;
+                                                        Circuitmod.LOGGER.info("[PIPE-FALLBACK] Successfully transferred to alternative destination {}", altNextStep);
+                                                    }
+                                                } else {
+                                                    // Move towards alternative destination
+                                                    if (transferToPipeAt(world, altNextStep, blockEntity)) {
+                                                        didWork = true;
+                                                        Circuitmod.LOGGER.info("[PIPE-FALLBACK] Moving towards alternative destination via {}", altNextStep);
+                                                    }
+                                                }
                                             }
                                         } else {
-                                            // Move towards alternative destination
-                                            if (transferToPipeAt(world, altNextStep, blockEntity)) {
-                                                didWork = true;
-                                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Moving towards alternative destination via {}", altNextStep);
-                                            }
+                                            Circuitmod.LOGGER.info("[PIPE-FALLBACK] No alternative destinations available for {}", item.getItem().getName().getString());
                                         }
                                     }
                                 } else {
-                                    Circuitmod.LOGGER.info("[PIPE-FALLBACK] No alternative destinations available for {}", item.getItem().getName().getString());
+                                    // Otherwise, transfer to the next pipe in the route
+                                    Circuitmod.LOGGER.info("[PIPE-TRANSFER] Moving to next pipe at {}", nextStep);
+                                    if (transferToPipeAt(world, nextStep, blockEntity)) {
+                                        didWork = true;
+                                    }
                                 }
                             }
                         } else {
-                            // Otherwise, transfer to the next pipe in the route
-                            Circuitmod.LOGGER.info("[PIPE-TRANSFER] Moving to next pipe at {}", nextStep);
-                            if (transferToPipeAt(world, nextStep, blockEntity)) {
-                                didWork = true;
+                            // Destination is full, try to find alternative destinations
+                            Circuitmod.LOGGER.info("[PIPE-ROUTING] Destination {} is full, looking for alternatives", route.getDestination());
+                            ItemRoute alternativeRoute = network.findRouteExcludingFailed(item, pos, blockEntity.sourceExclusion, route.getDestination());
+                            if (alternativeRoute != null) {
+                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Found alternative route: {} -> {}", 
+                                    pos, alternativeRoute.getDestination());
+                                
+                                // Try the alternative destination
+                                BlockPos altNextStep = alternativeRoute.getNextPosition(pos);
+                                if (altNextStep != null) {
+                                    if (altNextStep.equals(alternativeRoute.getDestination())) {
+                                        // Try alternative inventory
+                                        if (transferToInventoryAt(world, altNextStep, blockEntity)) {
+                                            didWork = true;
+                                            Circuitmod.LOGGER.info("[PIPE-FALLBACK] Successfully transferred to alternative destination {}", altNextStep);
+                                        }
+                                    } else {
+                                        // Move towards alternative destination
+                                        if (transferToPipeAt(world, altNextStep, blockEntity)) {
+                                            didWork = true;
+                                            Circuitmod.LOGGER.info("[PIPE-FALLBACK] Moving towards alternative destination via {}", altNextStep);
+                                        }
+                                    }
+                                }
+                            } else {
+                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] No alternative destinations available for {}", item.getItem().getName().getString());
                             }
-                        }
                         }
                     } else {
                         Circuitmod.LOGGER.info("[PIPE-TRANSFER] No route found - item stuck at {} with sourceExclusion {}", pos, blockEntity.sourceExclusion);
@@ -252,8 +286,15 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             return false;
         }
         
-        // Find a route for this item
-        ItemRoute route = network.findRoute(currentItem);
+        // Find a route for this item, excluding the source if we have one
+        ItemRoute route;
+        if (blockEntity.sourceExclusion != null) {
+            Circuitmod.LOGGER.info("[PIPE-ROUTING] Pipe at {} routing item with sourceExclusion: {}", pipePos, blockEntity.sourceExclusion);
+            route = network.findRoute(currentItem, pipePos, blockEntity.sourceExclusion);
+        } else {
+            route = network.findRoute(currentItem, pipePos, null);
+        }
+        
         if (route == null) {
             // No route found, try direct adjacent transfer as fallback
             return transferToAdjacentInventory(world, pipePos, blockEntity);

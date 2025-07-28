@@ -4,7 +4,7 @@
   "pattern": [
     " R ",
     " S ",
-    " I "
+    " G "
   ],
   "key": {
     "R": {
@@ -13,12 +13,12 @@
     "S": {
       "item": "circuitmod:steel_ingot"
     },
-    "I": {
+    "G": {
       "item": "minecraft:gold_ingot"
     }
   },
   "result": {
     "count": 1,
-    "id": "circuitmod:pulse_stick"
+    "item": "circuitmod:pulse_stick"
   }
 } 

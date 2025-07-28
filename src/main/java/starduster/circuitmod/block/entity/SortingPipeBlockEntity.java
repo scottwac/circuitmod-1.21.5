@@ -373,6 +373,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         // Get the network for this pipe
         ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
         if (network == null) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] No network found for pipe at {}", pos);
             return false;
         }
         
@@ -382,59 +383,121 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Item {} at {} - allowed directions: {}", 
             currentStack.getItem().getName().getString(), pos, allowedDirections);
         
-        // Use network routing to find destinations, but filter by allowed directions
+        // Find ALL destinations for this item type
         List<BlockPos> allDestinations = network.findDestinationsForItem(currentStack, null);
-        List<BlockPos> filteredDestinations = new ArrayList<>();
         
         Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Network found {} total destinations", allDestinations.size());
         
-        // For each destination, check if it's reachable via any of our allowed directions
-        for (BlockPos destination : allDestinations) {
-            // Check if this destination is reachable via any of our allowed directions
-            boolean isReachable = isDestinationReachableViaAllowedDirections(world, pos, destination, allowedDirections, network);
-            
-            if (isReachable) {
-                filteredDestinations.add(destination);
-                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Added filtered destination: {} (reachable via allowed directions)", destination);
-            } else {
-                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Destination {} not reachable via allowed directions", destination);
-            }
-        }
-        
-        if (filteredDestinations.isEmpty()) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] No destinations reachable via allowed directions");
-            return false;
-        }
-        
-        // Find the best route to a filtered destination
+        // For each allowed direction, check if we can reach any destination
         ItemRoute bestRoute = null;
         int shortestDistance = Integer.MAX_VALUE;
         
-        for (BlockPos destination : filteredDestinations) {
-            List<BlockPos> path = network.findPath(pos, destination);
-            if (path != null && path.size() < shortestDistance) {
-                shortestDistance = path.size();
-                bestRoute = new ItemRoute(pos, destination, path);
-                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Found route to {} via allowed directions, distance: {}", 
-                    destination, path.size());
+        // First, try to find routes that go through allowed directions AND have space
+        for (Direction allowedDir : allowedDirections) {
+            BlockPos firstStep = pos.offset(allowedDir);
+            
+            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Checking allowed direction {} -> first step {}", allowedDir, firstStep);
+            
+            // Check if there's a pipe in this direction
+            if (world.getBlockState(firstStep).getBlock() instanceof BasePipeBlock) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Found pipe at first step {}", firstStep);
+                
+                // For each destination, see if we can reach it through this direction
+                for (BlockPos destination : allDestinations) {
+                    List<BlockPos> path = network.findPath(pos, destination);
+                    
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Path to {}: {}", destination, path);
+                    
+                    if (path != null && path.size() >= 2) {
+                        // Check if this path goes through our allowed direction
+                        BlockPos pathFirstStep = path.get(1);
+                        Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Path first step: {}, expected: {}", pathFirstStep, firstStep);
+                        
+                        if (pathFirstStep.equals(firstStep)) {
+                            // This path uses an allowed direction
+                            // Check if the destination actually has space
+                            if (network.destinationHasSpace(destination, currentStack)) {
+                                if (path.size() < shortestDistance) {
+                                    shortestDistance = path.size();
+                                    bestRoute = new ItemRoute(pos, destination, path);
+                                    Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Found valid route through {} to {} with space, distance: {}", 
+                                        allowedDir, destination, path.size());
+                                }
+                            } else {
+                                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Destination {} has no space for item", destination);
+                            }
+                        } else {
+                            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Path does not go through allowed direction");
+                        }
+                    } else {
+                        Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] No valid path found to destination {}", destination);
+                    }
+                }
+            } else {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] No pipe found at first step {}", firstStep);
+            }
+        }
+        
+        // If no route with space was found, try to find ANY route through allowed directions
+        // This allows items to move towards destinations even if the immediate destination is full
+        if (bestRoute == null) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-FALLBACK] No destinations with space found, looking for ANY route through allowed directions");
+            
+            for (Direction allowedDir : allowedDirections) {
+                BlockPos firstStep = pos.offset(allowedDir);
+                
+                if (world.getBlockState(firstStep).getBlock() instanceof BasePipeBlock) {
+                    // Just try to move in the allowed direction if there's a pipe there
+                    List<BlockPos> simplePath = new ArrayList<>();
+                    simplePath.add(pos);
+                    simplePath.add(firstStep);
+                    
+                    // Find the closest destination in this direction (even if full)
+                    BlockPos closestDest = null;
+                    int closestDistance = Integer.MAX_VALUE;
+                    
+                    for (BlockPos destination : allDestinations) {
+                        List<BlockPos> path = network.findPath(pos, destination);
+                        if (path != null && path.size() >= 2 && path.get(1).equals(firstStep)) {
+                            if (path.size() < closestDistance) {
+                                closestDistance = path.size();
+                                closestDest = destination;
+                            }
+                        }
+                    }
+                    
+                    if (closestDest != null) {
+                        List<BlockPos> path = network.findPath(pos, closestDest);
+                        bestRoute = new ItemRoute(pos, closestDest, path);
+                        Circuitmod.LOGGER.info("[SORTING-PIPE-FALLBACK] Found route through {} towards {} (may be full)", 
+                            allowedDir, closestDest);
+                        break;
+                    }
+                }
             }
         }
         
         if (bestRoute != null) {
             // Get the next step in the route
             BlockPos nextStep = bestRoute.getNextPosition(pos);
+            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Best route found, next step: {}", nextStep);
+            
             if (nextStep != null) {
-                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Routing to {} via next step {}", 
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Routing to {} via next step {}", 
                     bestRoute.getDestination(), nextStep);
                 
                 // Transfer to the next step
                 if (nextStep.equals(bestRoute.getDestination())) {
                     // Next step is the destination, transfer directly to inventory
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Next step is destination, transferring to inventory");
                     return transferToInventoryAt(world, nextStep, blockEntity);
                 } else {
                     // Next step is a pipe, transfer to pipe
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Next step is pipe, transferring to pipe");
                     return transferToPipeAt(world, nextStep, blockEntity);
                 }
+            } else {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Could not get next step from route");
             }
         }
         
@@ -443,47 +506,23 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     }
     
     /**
-     * Checks if a destination is reachable via any of the allowed directions.
-     * This uses network pathfinding to verify the path actually goes through allowed directions.
-     */
-    private static boolean isDestinationReachableViaAllowedDirections(World world, BlockPos sortingPipePos, BlockPos destination, 
-                                                                   List<Direction> allowedDirections, ItemNetwork network) {
-        // Get the path from sorting pipe to destination
-        List<BlockPos> path = network.findPath(sortingPipePos, destination);
-        if (path == null || path.size() < 2) {
-            return false; // No path or path is too short
-        }
-        
-        // Check if the first step in the path goes in an allowed direction
-        BlockPos firstStep = path.get(1); // First step after the sorting pipe
-        Direction pathDirection = getDirectionTowards(sortingPipePos, firstStep);
-        
-        Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Path to {} starts with direction: {}", destination, pathDirection);
-        Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Allowed directions: {}", allowedDirections);
-        
-        // Check if the path direction is in our allowed directions
-        boolean isAllowed = allowedDirections.contains(pathDirection);
-        
-        if (isAllowed) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Destination {} is reachable via allowed direction {}", destination, pathDirection);
-        } else {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Destination {} is NOT reachable - path direction {} not in allowed directions {}", 
-                destination, pathDirection, allowedDirections);
-        }
-        
-        return isAllowed;
-    }
-    
-    /**
      * Transfers item to a specific inventory location.
      */
     private static boolean transferToInventoryAt(World world, BlockPos inventoryPos, SortingPipeBlockEntity blockEntity) {
+        Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Attempting to transfer to inventory at {}", inventoryPos);
+        
         if (world.getBlockEntity(inventoryPos) instanceof Inventory inventory) {
             ItemStack currentStack = blockEntity.getStack(0);
             Direction transferDirection = getDirectionTowards(blockEntity.getPos(), inventoryPos);
             
+            Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Transfer direction: {}, inventory type: {}", 
+                transferDirection, inventory.getClass().getSimpleName());
+            
             if (transferDirection != null) {
                 ItemStack remaining = transferToInventory(blockEntity, inventory, currentStack.copy(), transferDirection.getOpposite());
+                
+                Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Transfer result: {} remaining from {} original", 
+                    remaining.getCount(), currentStack.getCount());
                 
                 if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
                     // Successfully transferred at least part of the item
@@ -495,9 +534,17 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                         blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), inventoryPos);
                     }
                     
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Successfully transferred {} items to {}", 
+                        currentStack.getCount() - remaining.getCount(), inventoryPos);
                     return true;
+                } else {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Failed to transfer any items to {} - inventory appears to be full", inventoryPos);
                 }
+            } else {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] Could not determine transfer direction");
             }
+        } else {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-INVENTORY-TRANSFER] No inventory found at {}", inventoryPos);
         }
         return false;
     }
@@ -506,33 +553,36 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
      * Transfers item to a pipe at the specified position.
      */
     private static boolean transferToPipeAt(World world, BlockPos targetPipePos, SortingPipeBlockEntity blockEntity) {
-        if (world.getBlockEntity(targetPipePos) instanceof Inventory targetPipe) {
+        Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Attempting to transfer to pipe at {}", targetPipePos);
+        
+        BlockEntity targetEntity = world.getBlockEntity(targetPipePos);
+        
+        if (targetEntity instanceof ItemPipeBlockEntity targetPipe) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Target is ItemPipeBlockEntity, isEmpty: {}", targetPipe.isEmpty());
+            
             if (!targetPipe.isEmpty()) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Target pipe is full, cannot transfer");
                 return false; // Target pipe is full
             }
             
             ItemStack currentStack = blockEntity.getStack(0);
             Direction transferDirection = getDirectionTowards(blockEntity.getPos(), targetPipePos);
             
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Transfer direction: {}", transferDirection);
+            
             // Transfer the item
             ItemStack transferredItem = blockEntity.removeStack(0);
             targetPipe.setStack(0, transferredItem);
             
-            // Set animation and direction info based on target pipe type
-            if (targetPipe instanceof ItemPipeBlockEntity itemPipe) {
-                itemPipe.lastInputDirection = transferDirection;
-                itemPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
-                // sourceExclusion removed - network routing handles loop prevention properly
-            } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
-                sortingPipe.setLastInputDirection(transferDirection);
-                sortingPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
-                // sourceExclusion removed - network routing handles loop prevention properly
-            }
+            // Set the source exclusion to prevent backflow
+            targetPipe.sourceExclusion = blockEntity.getPos();
             
+            // Set animation and direction info
+            targetPipe.lastInputDirection = transferDirection;
+            targetPipe.setTransferCooldown(3);
             targetPipe.markDirty();
             
             // Clear source pipe
-            blockEntity.setStack(0, ItemStack.EMPTY);
             blockEntity.markDirty();
             
             // Send animation
@@ -540,8 +590,49 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                 blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), targetPipePos);
             }
             
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Successfully transferred {} to pipe at {}", 
+                transferredItem.getItem().getName().getString(), targetPipePos);
+            
             return true;
         }
+        else if (targetEntity instanceof SortingPipeBlockEntity targetSortingPipe) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Target is SortingPipeBlockEntity, isEmpty: {}", targetSortingPipe.isEmpty());
+            
+            if (!targetSortingPipe.isEmpty()) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Target sorting pipe is full, cannot transfer");
+                return false; // Target pipe is full
+            }
+            
+            ItemStack currentStack = blockEntity.getStack(0);
+            Direction transferDirection = getDirectionTowards(blockEntity.getPos(), targetPipePos);
+            
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Transfer direction: {}", transferDirection);
+            
+            // Transfer the item
+            ItemStack transferredItem = blockEntity.removeStack(0);
+            targetSortingPipe.setStack(0, transferredItem);
+            
+            // Set animation and direction info
+            targetSortingPipe.setLastInputDirection(transferDirection);
+            targetSortingPipe.setTransferCooldown(3);
+            targetSortingPipe.markDirty();
+            
+            // Clear source pipe
+            blockEntity.markDirty();
+            
+            // Send animation
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), targetPipePos);
+            }
+            
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Successfully transferred {} to sorting pipe at {}", 
+                transferredItem.getItem().getName().getString(), targetPipePos);
+            
+            return true;
+        }
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-PIPE-TRANSFER] Target at {} is not a pipe: {}", targetPipePos, 
+            targetEntity != null ? targetEntity.getClass().getSimpleName() : "null");
         return false;
     }
     
@@ -729,14 +820,14 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     private static Direction getDirectionTowards(BlockPos from, BlockPos to) {
         BlockPos diff = to.subtract(from);
         
-        if (diff.getX() == 1) return Direction.EAST;
-        if (diff.getX() == -1) return Direction.WEST;
-        if (diff.getY() == 1) return Direction.UP;
-        if (diff.getY() == -1) return Direction.DOWN;
-        if (diff.getZ() == 1) return Direction.SOUTH;
-        if (diff.getZ() == -1) return Direction.NORTH;
+        if (diff.getX() > 0) return Direction.EAST;
+        if (diff.getX() < 0) return Direction.WEST;
+        if (diff.getY() > 0) return Direction.UP;
+        if (diff.getY() < 0) return Direction.DOWN;
+        if (diff.getZ() > 0) return Direction.SOUTH;
+        if (diff.getZ() < 0) return Direction.NORTH;
         
-        return null;
+        return Direction.UP; // Default fallback
     }
     
     /**
