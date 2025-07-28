@@ -23,8 +23,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.block.BasePipeBlock;
+import starduster.circuitmod.block.ItemPipeBlock;
+import starduster.circuitmod.item.network.ItemNetwork;
+import starduster.circuitmod.item.network.ItemNetworkManager;
+import starduster.circuitmod.item.network.ItemRoute;
+import starduster.circuitmod.network.PipeNetworkAnimator;
 import starduster.circuitmod.screen.SortingPipeScreenHandler;
 import starduster.circuitmod.util.ImplementedInventory;
+
+import java.util.List;
 
 public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory {
     // Main item storage (1 slot for current item being processed)
@@ -35,6 +43,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     
     private int transferCooldown = 0;
     private Direction lastInputDirection = null;
+    private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
 
     // Direction to slot mapping for filters
     public static final Direction[] DIRECTION_ORDER = {
@@ -48,6 +57,24 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
 
     public SortingPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SORTING_PIPE, pos, state);
+    }
+    
+    /**
+     * Called when the pipe is placed to connect to the item network.
+     */
+    public void onPlaced() {
+        if (world != null && !world.isClient) {
+            ItemNetworkManager.connectPipe(world, pos);
+        }
+    }
+    
+    /**
+     * Called when the pipe is removed to disconnect from the item network.
+     */
+    public void onRemoved() {
+        if (world != null && !world.isClient) {
+            ItemNetworkManager.disconnectPipe(world, pos);
+        }
     }
 
     public static void tick(World world, BlockPos pos, BlockState state, SortingPipeBlockEntity blockEntity) {
@@ -68,7 +95,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         
         // Process items in the pipe
         if (!blockEntity.isEmpty()) {
-            if (sortAndTransferItem(world, pos, state, blockEntity)) {
+            if (routeItemThroughNetwork(world, pos, blockEntity)) {
                 blockEntity.transferCooldown = 8; // Set cooldown after successful transfer
             }
         }
@@ -215,89 +242,159 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         }
     }
     
-    private static boolean sortAndTransferItem(World world, BlockPos pos, BlockState state, SortingPipeBlockEntity blockEntity) {
-        ItemStack currentItem = blockEntity.getStack(0);
-        if (currentItem.isEmpty()) {
+    /**
+     * Route an item through the network while respecting sorting filters.
+     */
+    private static boolean routeItemThroughNetwork(World world, BlockPos pos, SortingPipeBlockEntity blockEntity) {
+        ItemStack currentStack = blockEntity.getStack(0);
+        if (currentStack.isEmpty()) {
             return false;
         }
         
-        // Find which direction this item should go based on filters
-        Direction targetDirection = getTargetDirection(blockEntity, currentItem);
-        
-        if (targetDirection == null) {
-            // No filter matches, try to output to any available direction (except input and filtered directions)
-            targetDirection = findAvailableOutputDirection(world, pos, blockEntity);
+        // Get the network for this pipe
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+        if (network == null) {
+            return false;
         }
         
-        if (targetDirection != null) {
-            BlockPos targetPos = pos.offset(targetDirection);
-            BlockState targetState = world.getBlockState(targetPos);
-            Block targetBlock = targetState.getBlock();
-            
-            // Try to transfer to another pipe first (like item pipes do)
-            if (targetBlock instanceof starduster.circuitmod.block.ItemPipeBlock && 
-                world.getBlockEntity(targetPos) instanceof starduster.circuitmod.block.entity.ItemPipeBlockEntity targetPipe) {
-                
-                if (!targetPipe.isEmpty()) {
-                    return false; // Skip if the target pipe already has an item
-                }
-                
-                // Transfer the entire stack to the neighbor pipe
-                targetPipe.setStack(0, currentItem.copy());
-                targetPipe.lastInputDirection = targetDirection.getOpposite();
-                targetPipe.transferCooldown = 8; // Set cooldown like other pipes
-                targetPipe.markDirty();
-                
-                blockEntity.setStack(0, ItemStack.EMPTY);
-                blockEntity.markDirty();
-                return true;
+        // Find a route for this item
+        ItemRoute route = network.findRoute(currentStack);
+        if (route == null) {
+            return false; // No available destination
+        }
+        
+        // Get the next step in the route
+        BlockPos nextStep = getNextStepInRoute(route, pos);
+        if (nextStep == null) {
+            return false;
+        }
+        
+        // Check if this direction is allowed by our filters
+        Direction nextDirection = getDirectionTowards(pos, nextStep);
+        if (nextDirection != null && !isDirectionAllowedByFilter(blockEntity, currentStack, nextDirection)) {
+            return false; // Filter blocks this direction
+        }
+        
+        // If next step is the destination, transfer directly to inventory
+        if (nextStep.equals(route.getDestination())) {
+            return transferToAdjacentBlock(world, pos, nextStep, blockEntity, currentStack);
+        }
+        
+        // Transfer to the next pipe in the route
+        if (transferToAdjacentBlock(world, pos, nextStep, blockEntity, currentStack)) {
+            blockEntity.setStack(0, ItemStack.EMPTY);
+            blockEntity.markDirty();
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if an item is allowed to go in a specific direction based on filters.
+     */
+    private static boolean isDirectionAllowedByFilter(SortingPipeBlockEntity blockEntity, ItemStack item, Direction direction) {
+        // Find the filter slot for this direction
+        int slotIndex = -1;
+        for (int i = 0; i < 6; i++) {
+            if (DIRECTION_ORDER[i] == direction) {
+                slotIndex = i;
+                break;
             }
-            
-            // Try to transfer to another sorting pipe
-            if (targetBlock instanceof starduster.circuitmod.block.SortingPipeBlock && 
-                world.getBlockEntity(targetPos) instanceof SortingPipeBlockEntity targetSortingPipe) {
-                
-                if (!targetSortingPipe.isEmpty()) {
-                    return false; // Skip if the target pipe already has an item
+        }
+        
+        if (slotIndex == -1) {
+            return true; // Invalid direction, allow by default
+        }
+        
+        ItemStack filterStack = blockEntity.getFilterStack(slotIndex);
+        
+        if (filterStack.isEmpty()) {
+            // No filter set - check if any other direction has a filter for this item
+            for (int i = 0; i < 6; i++) {
+                if (i != slotIndex) {
+                    ItemStack otherFilter = blockEntity.getFilterStack(i);
+                    if (!otherFilter.isEmpty() && ItemStack.areItemsAndComponentsEqual(item, otherFilter)) {
+                        return false; // This item should go in a different direction
+                    }
                 }
-                
-                // Transfer the entire stack to the neighbor pipe
-                targetSortingPipe.setStack(0, currentItem.copy());
-                targetSortingPipe.setLastInputDirection(targetDirection.getOpposite());
-                targetSortingPipe.setTransferCooldown(8); // Set cooldown
-                targetSortingPipe.markDirty();
-                
-                blockEntity.setStack(0, ItemStack.EMPTY);
-                blockEntity.markDirty();
-                return true;
             }
-            
-            // Try to transfer to output pipe (which accepts everything)
-            if (targetBlock instanceof starduster.circuitmod.block.OutputPipeBlock && 
-                world.getBlockEntity(targetPos) instanceof starduster.circuitmod.block.entity.OutputPipeBlockEntity targetOutputPipe) {
-                
-                if (!targetOutputPipe.isEmpty()) {
-                    return false; // Skip if the target pipe already has an item
+            return true; // No conflicting filters, allow
+        } else {
+            // Filter is set - only allow if item matches
+            return ItemStack.areItemsAndComponentsEqual(item, filterStack);
+        }
+    }
+    
+    /**
+     * Get the next step in a route from the current position.
+     */
+    private static BlockPos getNextStepInRoute(ItemRoute route, BlockPos currentPos) {
+        List<BlockPos> path = route.getPath();
+        
+        for (int i = 0; i < path.size() - 1; i++) {
+            if (path.get(i).equals(currentPos)) {
+                return path.get(i + 1);
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Transfer item to an adjacent block (pipe or inventory).
+     */
+    private static boolean transferToAdjacentBlock(World world, BlockPos fromPos, BlockPos toPos, 
+                                                   SortingPipeBlockEntity fromPipe, ItemStack stack) {
+        // Try to transfer to another pipe first
+        if (world.getBlockState(toPos).getBlock() instanceof BasePipeBlock) {
+            if (world.getBlockEntity(toPos) instanceof Inventory targetPipe) {
+                if (targetPipe.isEmpty()) {
+                    // Transfer the stack to the target pipe
+                    targetPipe.setStack(0, stack.copy());
+                    
+                    // Update target pipe's input direction
+                    if (targetPipe instanceof ItemPipeBlockEntity itemPipe) {
+                        Direction direction = getDirectionTowards(fromPos, toPos);
+                        if (direction != null) {
+                            itemPipe.lastInputDirection = direction.getOpposite();
+                            itemPipe.setTransferCooldown(8);
+                        }
+                    } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
+                        Direction direction = getDirectionTowards(fromPos, toPos);
+                        if (direction != null) {
+                            sortingPipe.setLastInputDirection(direction.getOpposite());
+                            sortingPipe.setTransferCooldown(8);
+                        }
+                    }
+                    
+                    // Send animation
+                    if (world instanceof ServerWorld serverWorld) {
+                        fromPipe.sendAnimationIfAllowed(serverWorld, stack, fromPos, toPos);
+                    }
+                    
+                    targetPipe.markDirty();
+                    return true;
                 }
-                
-                // Transfer the entire stack to the neighbor pipe
-                targetOutputPipe.setStack(0, currentItem.copy());
-                targetOutputPipe.lastInputDirection = targetDirection.getOpposite();
-                targetOutputPipe.markDirty();
-                
-                blockEntity.setStack(0, ItemStack.EMPTY);
-                blockEntity.markDirty();
-                return true;
             }
-            
-            // Try to transfer to other pipe types or inventories
-            if (world.getBlockEntity(targetPos) instanceof net.minecraft.inventory.Inventory targetInventory) {
-                ItemStack remaining = transferToInventory(blockEntity, targetInventory, currentItem.copy(), targetDirection.getOpposite());
+        }
+        
+        // Try to transfer to inventory
+        if (world.getBlockEntity(toPos) instanceof Inventory targetInventory) {
+            Direction direction = getDirectionTowards(fromPos, toPos);
+            if (direction != null) {
+                ItemStack remaining = transferToInventory(fromPipe, targetInventory, stack.copy(), direction.getOpposite());
                 
-                if (remaining.isEmpty() || remaining.getCount() < currentItem.getCount()) {
+                if (remaining.isEmpty() || remaining.getCount() < stack.getCount()) {
                     // Successfully transferred at least part of the item
-                    blockEntity.setStack(0, remaining);
-                    blockEntity.markDirty();
+                    fromPipe.setStack(0, remaining);
+                    
+                    // Send animation
+                    if (world instanceof ServerWorld serverWorld) {
+                        fromPipe.sendAnimationIfAllowed(serverWorld, stack, fromPos, toPos);
+                    }
+                    
+                    fromPipe.markDirty();
                     return true;
                 }
             }
@@ -306,51 +403,34 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         return false;
     }
     
-    private static Direction getTargetDirection(SortingPipeBlockEntity blockEntity, ItemStack item) {
-        // Check each filter slot to see if this item matches
-        for (int i = 0; i < 6; i++) {
-            ItemStack filterStack = blockEntity.getFilterStack(i);
-            if (!filterStack.isEmpty() && areItemsEqual(item, filterStack)) {
-                return DIRECTION_ORDER[i];
-            }
-        }
-        return null; // No matching filter found
-    }
-    
-    private static Direction findAvailableOutputDirection(World world, BlockPos pos, SortingPipeBlockEntity blockEntity) {
-        // Try all directions except where we came from and directions with existing filters
-        for (Direction direction : Direction.values()) {
-            if (direction == blockEntity.lastInputDirection) {
-                continue; // Don't send back where we came from
-            }
-            
-            // Skip directions that have existing filters for different items
-            if (hasFilterForDirection(blockEntity, direction)) {
-                continue; // This direction is reserved for specific filtered items
-            }
-            
-            BlockPos targetPos = pos.offset(direction);
-            if (world.getBlockEntity(targetPos) instanceof net.minecraft.inventory.Inventory) {
-                return direction;
-            }
-        }
+    /**
+     * Get the direction from one position to another.
+     */
+    private static Direction getDirectionTowards(BlockPos from, BlockPos to) {
+        BlockPos diff = to.subtract(from);
+        
+        if (diff.getX() == 1) return Direction.EAST;
+        if (diff.getX() == -1) return Direction.WEST;
+        if (diff.getY() == 1) return Direction.UP;
+        if (diff.getY() == -1) return Direction.DOWN;
+        if (diff.getZ() == 1) return Direction.SOUTH;
+        if (diff.getZ() == -1) return Direction.NORTH;
+        
         return null;
     }
     
-    private static boolean hasFilterForDirection(SortingPipeBlockEntity blockEntity, Direction direction) {
-        // Find the slot index for this direction
-        for (int i = 0; i < 6; i++) {
-            if (DIRECTION_ORDER[i] == direction) {
-                // Check if this direction has a filter assigned
-                ItemStack filterStack = blockEntity.getFilterStack(i);
-                return !filterStack.isEmpty();
-            }
+    /**
+     * Send animation to clients if allowed.
+     */
+    private void sendAnimationIfAllowed(ServerWorld world, ItemStack stack, BlockPos from, BlockPos to) {
+        int currentTick = (int) world.getTime();
+        
+        // Only send animation if at least 3 ticks have passed since the last one
+        if (currentTick - this.lastAnimationTick >= 3) {
+            // Send animation starting immediately
+            PipeNetworkAnimator.sendMoveAnimation(world, stack.copy(), from, to, 5); // Use 5 ticks for animation
+            this.lastAnimationTick = currentTick;
         }
-        return false;
-    }
-    
-    private static boolean areItemsEqual(ItemStack stack1, ItemStack stack2) {
-        return ItemStack.areItemsEqual(stack1, stack2);
     }
     
     private static boolean canExtract(net.minecraft.inventory.Inventory inventory, ItemStack stack, int slot, Direction side) {

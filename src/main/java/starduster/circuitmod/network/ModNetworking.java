@@ -60,15 +60,11 @@ public class ModNetworking {
      * Send a mining progress update to a player
      * 
      * @param player The player to send the update to
-     * @param miningProgress The mining progress (0-100)
-     * @param miningPos The position being mined
+     * @param miningProgress The mining progress percentage (0-100)
+     * @param miningPos The current mining position
      * @param quarryPos The position of the quarry
      */
     public static void sendMiningProgressUpdate(ServerPlayerEntity player, int miningProgress, BlockPos miningPos, BlockPos quarryPos) {
-        // Create the payload and send it
-        Circuitmod.LOGGER.info("[SERVER] Sending mining progress packet to player " + 
-            player.getName().getString() + ": " + miningProgress + "% at " + miningPos + " for quarry at " + quarryPos);
-            
         QuarryMiningProgressPayload payload = new QuarryMiningProgressPayload(miningProgress, miningPos, quarryPos);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
@@ -91,15 +87,15 @@ public class ModNetworking {
     /**
      * Send quarry dimensions sync to a player
      * 
-     * @param player The player to send the update to
-     * @param width The width of the mining area
-     * @param length The length of the mining area
+     * This method sends the quarry dimensions from server to client for UI sync.
+     * Used to ensure the client-side UI displays the correct quarry dimensions.
+     * 
+     * @param player The player to send the sync to
+     * @param width The quarry width
+     * @param length The quarry length
      * @param quarryPos The position of the quarry
      */
     public static void sendQuarryDimensionsSync(ServerPlayerEntity player, int width, int length, BlockPos quarryPos) {
-        Circuitmod.LOGGER.info("[SERVER] Sending quarry dimensions sync to player " + 
-            player.getName().getString() + ": " + width + "x" + length + " for quarry at " + quarryPos);
-            
         QuarryDimensionsSyncPayload payload = new QuarryDimensionsSyncPayload(quarryPos, width, length);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }

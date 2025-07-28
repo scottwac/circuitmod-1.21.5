@@ -14,7 +14,7 @@ import starduster.circuitmod.screen.ModScreenHandlers.QuarryData;
 import starduster.circuitmod.Circuitmod;
 
 public class QuarryScreenHandler extends ScreenHandler {
-    private final Inventory inventory;
+    private Inventory inventory;
     private final PropertyDelegate propertyDelegate;
     private final QuarryBlockEntity blockEntity; // Reference to block entity for getting position
     
@@ -22,101 +22,86 @@ public class QuarryScreenHandler extends ScreenHandler {
     private static final int ENERGY_RECEIVED_INDEX = 0;
     private static final int MINING_ENABLED_INDEX = 1;
     
+    private BlockPos pos; // Added for client-side constructor
 
     
-    // Client constructor
+    /**
+     * Client-side constructor called when opening the screen
+     */
     public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, QuarryData data) {
         super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
         
-        // Get the block position from the data
-        BlockPos pos = data.pos();
-        // Look up the block entity in the client world
-        QuarryBlockEntity blockEntity = 
+        // Store the position for reference
+        this.pos = data.pos(); 
+        
+        QuarryBlockEntity blockEntity =
             (QuarryBlockEntity) playerInventory.player.getWorld().getBlockEntity(pos);
-        
-        // Initialize fields
-        this.inventory = blockEntity;
-        this.propertyDelegate = blockEntity.getPropertyDelegate();
-        this.blockEntity = blockEntity;
-        
-        // Add property delegate for synchronization
-        this.addProperties(propertyDelegate);
-        
-        // Make the inventory accessible to the player
-        inventory.onOpen(playerInventory.player);
-        
-        // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
-        int rows = 3;
-        int columns = 4;
-        int startX = 98; // Position on the right side, starting at x=97
-        int startY = 18; // Starting at y=17
-        
-        // Add the quarry inventory slots
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                this.addSlot(new Slot(inventory, column + row * columns, startX + column * 18, startY + row * 18));
-            }
-        }
-        
-        // Add player inventory slots (3 rows of 9)
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < 9; column++) {
-                this.addSlot(new Slot(playerInventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
-            }
-        }
-        
-        // Add player hotbar slots (1 row of 9)
-        for (int column = 0; column < 9; column++) {
-            this.addSlot(new Slot(playerInventory, column, 8 + column * 18, 142));
-        }
-        
-        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Client constructor called - blockEntity at pos: {}", pos);
-    }
-    
-    // Server constructor
-    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate, QuarryBlockEntity blockEntity) {
-        super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
-        checkSize(inventory, 12);
-        this.inventory = inventory;
-        this.propertyDelegate = propertyDelegate;
         this.blockEntity = blockEntity;
         
         if (blockEntity != null) {
-            Circuitmod.LOGGER.info("[QUARRY-HANDLER] Server constructor called - blockEntity at pos: {}", blockEntity.getPos());
+            this.inventory = blockEntity;
+            this.propertyDelegate = blockEntity.getPropertyDelegate();
         } else {
-            Circuitmod.LOGGER.warn("[QUARRY-HANDLER] Server constructor called - blockEntity is null!");
+            // Create a fallback inventory and property delegate
+            this.inventory = new SimpleInventory(12);
+            this.propertyDelegate = new PropertyDelegate() {
+                @Override
+                public int get(int index) {
+                    return 0; // Default value for all properties
+                }
+                
+                @Override
+                public void set(int index, int value) {
+                    // Do nothing for fallback
+                }
+                
+                @Override
+                public int size() {
+                    return 3; // miningEnabled, width, length
+                }
+            };
         }
         
-        // Add property delegate for synchronization
+        // Add property delegate
+        this.addProperties(this.propertyDelegate);
+        
+        // Add quarry inventory slots (4x3 grid = 12 slots) positioned in center-left area
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 4; col++) {
+                int slotIndex = row * 4 + col;
+                this.addSlot(new Slot(this.inventory, slotIndex, 98 + col * 18, 18 + row * 18));
+            }
+        }
+        
+        addPlayerInventory(playerInventory);
+        addPlayerHotbar(playerInventory);
+    }
+    
+    /**
+     * Server-side constructor
+     */
+    public QuarryScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory, PropertyDelegate propertyDelegate, QuarryBlockEntity blockEntity) {
+        super(ModScreenHandlers.QUARRY_SCREEN_HANDLER, syncId);
+        
+        // Store references
+        this.inventory = inventory;
+        this.blockEntity = blockEntity;
+        this.propertyDelegate = propertyDelegate;
+        this.pos = blockEntity != null ? blockEntity.getPos() : BlockPos.ORIGIN;
+        
+        // Add property delegate
         this.addProperties(propertyDelegate);
         
-        // Make the inventory accessible to the player
-        inventory.onOpen(playerInventory.player);
-        
-        // Add quarry inventory slots (3x4 grid = 12 slots) positioned on the far right
-        int rows = 3;
-        int columns = 4;
-        int startX = 98; // Position on the right side, starting at x=97
-        int startY = 18; // Starting at y=17
-        
-        // Add the quarry inventory slots
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                this.addSlot(new Slot(inventory, column + row * columns, startX + column * 18, startY + row * 18));
-            }
-        }
-        
-        // Add player inventory slots (3 rows of 9)
+        // Add quarry inventory slots (4x3 grid = 12 slots) positioned in center-left area
         for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < 9; column++) {
-                this.addSlot(new Slot(playerInventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
+            for (int col = 0; col < 4; col++) {
+                int slotIndex = row * 4 + col;
+                this.addSlot(new Slot(inventory, slotIndex, 98 + col * 18, 18 + row * 18));
             }
         }
         
-        // Add player hotbar slots (1 row of 9)
-        for (int column = 0; column < 9; column++) {
-            this.addSlot(new Slot(playerInventory, column, 8 + column * 18, 142));
-        }
+        addPlayerInventory(playerInventory);
+        addPlayerHotbar(playerInventory);
     }
     
     @Override
@@ -170,10 +155,8 @@ public class QuarryScreenHandler extends ScreenHandler {
     public BlockPos getBlockPos() {
         if (blockEntity != null) {
             BlockPos pos = blockEntity.getPos();
-            Circuitmod.LOGGER.info("[QUARRY-HANDLER] getBlockPos() - blockEntity exists, pos: {}", pos);
             return pos;
         } else {
-            Circuitmod.LOGGER.warn("[QUARRY-HANDLER] getBlockPos() - blockEntity is null! Returning ORIGIN");
             return BlockPos.ORIGIN;
         }
     }
@@ -181,6 +164,21 @@ public class QuarryScreenHandler extends ScreenHandler {
     // Update mining enabled status from client networking
     public void updateMiningEnabledFromNetwork(boolean enabled) {
         this.propertyDelegate.set(MINING_ENABLED_INDEX, enabled ? 1 : 0);
-        Circuitmod.LOGGER.info("[QUARRY-HANDLER] Updated mining enabled property to: {}", enabled);
+    }
+
+    // Helper method to add player inventory slots
+    private void addPlayerInventory(PlayerInventory playerInventory) {
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 9; column++) {
+                this.addSlot(new Slot(playerInventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
+            }
+        }
+    }
+
+    // Helper method to add player hotbar slots
+    private void addPlayerHotbar(PlayerInventory playerInventory) {
+        for (int column = 0; column < 9; column++) {
+            this.addSlot(new Slot(playerInventory, column, 8 + column * 18, 142));
+        }
     }
 } 

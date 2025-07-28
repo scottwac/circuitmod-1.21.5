@@ -1227,11 +1227,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             perimeter.add(new BlockPos(maxX, startPos.getY(), z));
         }
         
-        // Debug log the final result
-        if (System.currentTimeMillis() % 10000 < 50) { // Log every ~10 seconds
-            Circuitmod.LOGGER.info("[PERIMETER] Calculated {} perimeter positions for quarry at {} (bounds: X:{} to {}, Z:{} to {})", 
-                perimeter.size(), pos, minX, maxX, minZ, maxZ);
-        }
+
         
         return perimeter;
     }

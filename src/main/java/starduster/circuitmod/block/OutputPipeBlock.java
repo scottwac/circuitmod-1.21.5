@@ -5,7 +5,9 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -15,6 +17,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
+import starduster.circuitmod.item.network.ItemNetworkManager;
 
 public class OutputPipeBlock extends BasePipeBlock {
     public static final MapCodec<OutputPipeBlock> CODEC = createCodec(OutputPipeBlock::new);
@@ -31,6 +34,29 @@ public class OutputPipeBlock extends BasePipeBlock {
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new OutputPipeBlockEntity(pos, state);
+    }
+    
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
+        super.onPlaced(world, pos, state, placer, itemStack);
+        
+        // Connect to item network
+        if (!world.isClient && world.getBlockEntity(pos) instanceof OutputPipeBlockEntity blockEntity) {
+            blockEntity.onPlaced();
+        }
+    }
+    
+    @Override
+    protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            // Disconnect from item network before removal
+            BlockEntity entity = world.getBlockEntity(pos);
+            if (entity instanceof OutputPipeBlockEntity blockEntity) {
+                blockEntity.onRemoved();
+            }
+        }
+        
+        super.onStateReplaced(state, world, pos, moved);
     }
 
     @Nullable

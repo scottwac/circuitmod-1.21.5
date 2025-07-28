@@ -44,7 +44,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
             widthField.setText(String.valueOf(width));
             lengthField.setText(String.valueOf(length));
             isInitializing = false;
-            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Updated text fields with dimensions: {}x{}", width, length);
         }
     }
 
@@ -63,7 +62,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         // Only keep mining enabled status tracking
         boolean currentMiningEnabled = handler.isMiningEnabled();
         if (currentMiningEnabled != lastMiningEnabled) {
-            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Mining enabled status changed: {} -> {}", lastMiningEnabled, currentMiningEnabled);
             lastMiningEnabled = currentMiningEnabled;
         }
         if (toggleMiningButton != null) {
@@ -92,10 +90,10 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         int baseX = (width - backgroundWidth) / 2;
         int baseY = (height - backgroundHeight) / 2;
         // Width label
-        Text widthLabel = Text.literal("");
+        Text widthLabel = Text.literal("Width:");
         context.drawText(textRenderer, widthLabel, baseX + 58, baseY + 8, 0xFFFFFF, false);
         // Length label
-        Text lengthLabel = Text.literal("");
+        Text lengthLabel = Text.literal("Length:");
         context.drawText(textRenderer, lengthLabel, baseX + 58, baseY + 30, 0xFFFFFF, false);
         // Draw toggle button indicator
         if (toggleMiningButton != null) {
@@ -109,14 +107,11 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         try {
             if (widthField != null && !widthField.getText().isEmpty()) {
                 int value = Integer.parseInt(widthField.getText());
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] getWidthValue() returning: {}", value);
                 return value;
             } else {
-                Circuitmod.LOGGER.warn("[QUARRY-SCREEN] getWidthValue() - text field is null or empty, returning 16");
                 return 16;
             }
         } catch (NumberFormatException e) {
-            Circuitmod.LOGGER.warn("[QUARRY-SCREEN] getWidthValue() - invalid number format, returning 16");
             return 16; // Default value
         }
     }
@@ -125,14 +120,11 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         try {
             if (lengthField != null && !lengthField.getText().isEmpty()) {
                 int value = Integer.parseInt(lengthField.getText());
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] getLengthValue() returning: {}", value);
                 return value;
             } else {
-                Circuitmod.LOGGER.warn("[QUARRY-SCREEN] getLengthValue() - text field is null or empty, returning 16");
                 return 16;
             }
         } catch (NumberFormatException e) {
-            Circuitmod.LOGGER.warn("[QUARRY-SCREEN] getLengthValue() - invalid number format, returning 16");
             return 16; // Default value
         }
     }
@@ -147,23 +139,14 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         int buttonX = (width - backgroundWidth) / 2 + 18;
         int buttonY = (height - backgroundHeight) / 2 + 52;
         
-        Circuitmod.LOGGER.info("[QUARRY-SCREEN] init() - Creating toggle button at ({}, {})", buttonX, buttonY);
-        Circuitmod.LOGGER.info("[QUARRY-SCREEN] init() - Handler block pos: {}", handler.getBlockPos());
-        
         toggleMiningButton = ButtonWidget.builder(
             Text.literal(""), // Empty text - we'll draw texture underneath
             button -> {
                 // Find the quarry position from the client world instead of relying on handler
                 BlockPos pos = findQuarryPosition();
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Button clicked! Found quarry at: {}", pos);
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Handler pos (for comparison): {}", handler.getBlockPos());
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Mining enabled before toggle: {}", handler.isMiningEnabled());
                 
                 if (!pos.equals(BlockPos.ORIGIN)) {
                     ClientNetworking.sendToggleMiningRequest(pos);
-                    Circuitmod.LOGGER.info("[QUARRY-SCREEN] Sent toggle mining request to server for position: {}", pos);
-                } else {
-                    Circuitmod.LOGGER.error("[QUARRY-SCREEN] Could not find quarry position, not sending toggle request!");
                 }
             })
             .dimensions(buttonX, buttonY, 15, 15)
@@ -185,7 +168,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         widthField.setTextPredicate(text -> text.matches("\\d*")); // Only numbers
         widthField.setChangedListener(text -> {
             if (isInitializing) {
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Skipping width change listener during initialization");
                 return;
             }
             if (!text.isEmpty()) {
@@ -194,7 +176,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
                     if (width > 0 && width <= 100) { // Reasonable limits
                         BlockPos pos = findQuarryPosition();
                         if (!pos.equals(BlockPos.ORIGIN)) {
-                            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Width changed to: {}, sending to server", width);
                             ClientNetworking.sendQuarryDimensions(pos, width, getLengthValue());
                         }
                     }
@@ -214,7 +195,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
         lengthField.setTextPredicate(text -> text.matches("\\d*")); // Only numbers
         lengthField.setChangedListener(text -> {
             if (isInitializing) {
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Skipping length change listener during initialization");
                 return;
             }
             if (!text.isEmpty()) {
@@ -223,7 +203,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
                     if (length > 0 && length <= 100) { // Reasonable limits
                         BlockPos pos = findQuarryPosition();
                         if (!pos.equals(BlockPos.ORIGIN)) {
-                            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Length changed to: {}, sending to server", length);
                             ClientNetworking.sendQuarryDimensions(pos, getWidthValue(), length);
                         }
                     }
@@ -243,20 +222,12 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
                 int actualLength = quarry.getMiningLength();
                 widthField.setText(String.valueOf(actualWidth));
                 lengthField.setText(String.valueOf(actualLength));
-                Circuitmod.LOGGER.info("[QUARRY-SCREEN] Initialized text fields with actual width: {}, length: {} from quarry", 
-                    actualWidth, actualLength);
-            } else {
-                Circuitmod.LOGGER.warn("[QUARRY-SCREEN] Could not get quarry block entity for initialization");
             }
-        } else {
-            Circuitmod.LOGGER.warn("[QUARRY-SCREEN] Could not find quarry position for text field initialization");
         }
         isInitializing = false;
         
         addDrawableChild(widthField);
         addDrawableChild(lengthField);
-        
-        Circuitmod.LOGGER.info("[QUARRY-SCREEN] init() - Toggle button and text fields created and added");
     }
     
     private void drawToggleButtonIndicator(DrawContext context) {
@@ -267,7 +238,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     private BlockPos findQuarryPosition() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) {
-            Circuitmod.LOGGER.warn("[QUARRY-SCREEN] Client player or world is null!");
             return BlockPos.ORIGIN;
         }
         
@@ -282,7 +252,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
                     if (client.world.getBlockEntity(pos) instanceof QuarryBlockEntity quarry) {
                         // Check if this quarry can be used by the player (same as the one they opened)
                         if (quarry.canPlayerUse(client.player)) {
-                            Circuitmod.LOGGER.info("[QUARRY-SCREEN] Found quarry at position: {}", pos);
                             return pos;
                         }
                     }
@@ -290,7 +259,6 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
             }
         }
         
-        Circuitmod.LOGGER.warn("[QUARRY-SCREEN] Could not find quarry block entity near player!");
         return BlockPos.ORIGIN;
     }
     

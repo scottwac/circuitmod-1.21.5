@@ -21,66 +21,410 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.ItemPipeBlock;
+import starduster.circuitmod.item.network.ItemNetwork;
+import starduster.circuitmod.item.network.ItemNetworkManager;
+import starduster.circuitmod.item.network.ItemRoute;
 import starduster.circuitmod.network.PipeNetworkAnimator;
 
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Block entity for item pipes, which can transfer items between inventories
- * similar to hoppers but forming networks.
+ * using the network-based routing system.
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     private static final int INVENTORY_SIZE = 1; 
     private static final int COOLDOWN_TICKS = 5; 
-    public static final int ANIMATION_TICKS = 5; 
+    public static final int ANIMATION_TICKS = 5;
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     int transferCooldown = -1; // Package-private for access from other pipe classes
     private long lastTickTime;
-    @Nullable Direction lastInputDirection = null; // Package-private for access from other pipe classes
+    Direction lastInputDirection; // Package-private for access from other pipe classes
+    private @Nullable BlockPos sourceExclusion = null; // Track where this item came from
     private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ITEM_PIPE, pos, state);
     }
+    
+    /**
+     * Called when this pipe is added to the world - connects to network.
+     */
+    public void onPlaced() {
+        if (world != null && !world.isClient()) {
+            ItemNetworkManager.connectPipe(world, pos);
+        }
+    }
+    
+    /**
+     * Called when this pipe is removed from the world - disconnects from network.
+     */
+    public void onRemoved() {
+        if (world != null && !world.isClient()) {
+            ItemNetworkManager.disconnectPipe(world, pos);
+        }
+    }
+    
+    /**
+     * Gets the current network this pipe belongs to.
+     */
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
 
     /**
-     * Called every tick to update the pipe's state.
+     * Called every tick to update the pipe's state using network-based routing.
      */
     public static void tick(World world, BlockPos pos, BlockState state, ItemPipeBlockEntity blockEntity) {
-        if (world.isClient()) {
+        if (world.isClient) {
             return;
         }
+        
+        // Check for new unconnected inventories every 10 ticks (similar to power cables)
+        if (world.getTime() % 10 == 0) {
+            checkForUnconnectedInventories(world, pos, blockEntity);
+        }
+        
+        // Only proceed with item processing if we have an item to process
+        if (blockEntity.getStack(0).isEmpty()) {
+            return;
+        }
+        
+        Circuitmod.LOGGER.info("[PIPE-TICK] Processing item at {} - {}", pos, blockEntity.getStack(0).getItem().getName().getString());
         
         blockEntity.transferCooldown--;
         blockEntity.lastTickTime = world.getTime();
         
         if (!blockEntity.needsCooldown()) {
-            // Debug logging for tick processing (reduced frequency)
-            if (world.getTime() % 20 == 0) { // Only log every second
-                // Circuitmod.LOGGER.info("[PIPE-TICK] Processing tick at " + pos + 
-                //                       ", lastInputDir: " + blockEntity.lastInputDirection);
-            }
-            
-            // Only transport items, don't extract from inventories
             boolean didWork = false;
             
-            // If we have an item, try to push it in valid directions
+            // If we have an item, use network routing to find destination
             if (!blockEntity.isEmpty()) {
-                didWork = transferItem(world, pos, state, blockEntity);
+                ItemStack item = blockEntity.getStack(0);
+                
+                // Get the network for this pipe
+                ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+                if (network != null) {
+                    Circuitmod.LOGGER.info("[PIPE-ROUTING] Pipe at {} routing item with sourceExclusion: {}", pos, blockEntity.sourceExclusion);
+                    // Find a route for this item with fallback support, excluding the source
+                    ItemRoute route = network.findRouteWithFallback(item, pos, blockEntity.sourceExclusion);
+                    if (route != null) {
+                        // Get the next step in the route
+                        BlockPos nextStep = route.getNextPosition(pos);
+                        if (nextStep != null) {
+                            Circuitmod.LOGGER.info("[PIPE-TRANSFER] Reached destination {}, transferring to inventory", nextStep);
+                                                    if (nextStep.equals(route.getDestination())) {
+                            // If next step is the destination, transfer directly to inventory
+                            if (transferToInventoryAt(world, nextStep, blockEntity)) {
+                                didWork = true;
+                            } else {
+                                // Transfer failed - try to find alternative destination
+                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Transfer to {} failed, looking for alternatives", nextStep);
+                                ItemRoute alternativeRoute = network.findRouteExcludingFailed(item, pos, blockEntity.sourceExclusion, nextStep);
+                                if (alternativeRoute != null) {
+                                    Circuitmod.LOGGER.info("[PIPE-FALLBACK] Found alternative route: {} -> {}", 
+                                        pos, alternativeRoute.getDestination());
+                                    
+                                    // Try the alternative destination
+                                    BlockPos altNextStep = alternativeRoute.getNextPosition(pos);
+                                    if (altNextStep != null) {
+                                        if (altNextStep.equals(alternativeRoute.getDestination())) {
+                                            // Try alternative inventory
+                                            if (transferToInventoryAt(world, altNextStep, blockEntity)) {
+                                                didWork = true;
+                                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Successfully transferred to alternative destination {}", altNextStep);
+                                            }
+                                        } else {
+                                            // Move towards alternative destination
+                                            if (transferToPipeAt(world, altNextStep, blockEntity)) {
+                                                didWork = true;
+                                                Circuitmod.LOGGER.info("[PIPE-FALLBACK] Moving towards alternative destination via {}", altNextStep);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Circuitmod.LOGGER.info("[PIPE-FALLBACK] No alternative destinations available for {}", item.getItem().getName().getString());
+                                }
+                            }
+                        } else {
+                            // Otherwise, transfer to the next pipe in the route
+                            Circuitmod.LOGGER.info("[PIPE-TRANSFER] Moving to next pipe at {}", nextStep);
+                            if (transferToPipeAt(world, nextStep, blockEntity)) {
+                                didWork = true;
+                            }
+                        }
+                        }
+                    } else {
+                        Circuitmod.LOGGER.info("[PIPE-TRANSFER] No route found - item stuck at {} with sourceExclusion {}", pos, blockEntity.sourceExclusion);
+                        
+                        // If item has been stuck for too long, try one more time to find alternatives before dropping
+                        if (blockEntity.transferCooldown <= -300) { // Been stuck for 15+ seconds
+                            // Final attempt to find ANY available destination
+                            ItemRoute lastChanceRoute = network.findRouteWithFallback(item, pos, blockEntity.sourceExclusion);
+                            if (lastChanceRoute != null) {
+                                Circuitmod.LOGGER.info("[PIPE-LAST-CHANCE] Found route after long delay: {} -> {}", 
+                                    pos, lastChanceRoute.getDestination());
+                                // Reset cooldown and try this route
+                                blockEntity.transferCooldown = 0;
+                            } else {
+                                // No routes available anywhere - drop the item
+                                Circuitmod.LOGGER.info("[PIPE-OVERFLOW] No destinations available, dropping stuck item {} at {}", 
+                                    blockEntity.getStack(0).getItem().getName().getString(), pos);
+                                
+                                // Drop the item into the world
+                                ItemStack droppedStack = blockEntity.removeStack(0);
+                                if (!droppedStack.isEmpty() && world instanceof ServerWorld serverWorld) {
+                                    // Drop at pipe position + 0.5 offset
+                                    double x = pos.getX() + 0.5;
+                                    double y = pos.getY() + 1.0; // Slightly above the pipe
+                                    double z = pos.getZ() + 0.5;
+                                    
+                                    net.minecraft.entity.ItemEntity itemEntity = new net.minecraft.entity.ItemEntity(
+                                        serverWorld, x, y, z, droppedStack);
+                                    serverWorld.spawnEntity(itemEntity);
+                                    
+                                    blockEntity.markDirty();
+                                }
+                                didWork = true; // Reset cooldown since we handled the item
+                            }
+                        }
+                    }
+                } else {
+                    // No network, try direct adjacent transfer as fallback
+                    Circuitmod.LOGGER.info("[PIPE-TRANSFER] No network found, trying adjacent transfer");
+                    if (transferToAdjacentInventory(world, pos, blockEntity)) {
+                        didWork = true;
+                    }
+                }
             }
             
-            // Always set cooldown to prevent constant ticking
-            blockEntity.setTransferCooldown(COOLDOWN_TICKS);
-            
             if (didWork) {
-                // Only log when work is actually done
-                // Circuitmod.LOGGER.info("[PIPE-TICK-WORK] Work done at " + pos + ", calling markDirty");
-                blockEntity.markDirty();
+                blockEntity.setTransferCooldown(COOLDOWN_TICKS);
             }
         }
     }
+
+    /**
+     * Routes an item through the network to its destination.
+     */
+    private static boolean routeItemThroughNetwork(World world, BlockPos pipePos, ItemPipeBlockEntity blockEntity) {
+        ItemNetwork network = blockEntity.getNetwork();
+        if (network == null) {
+            // No network, try direct adjacent transfer as fallback
+            return transferToAdjacentInventory(world, pipePos, blockEntity);
+        }
+        
+        ItemStack currentItem = blockEntity.getStack(0);
+        if (currentItem.isEmpty()) {
+            return false;
+        }
+        
+        // Find a route for this item
+        ItemRoute route = network.findRoute(currentItem);
+        if (route == null) {
+            // No route found, try direct adjacent transfer as fallback
+            return transferToAdjacentInventory(world, pipePos, blockEntity);
+        }
+        
+        // Get the next step in the route
+        BlockPos nextStep = getNextStepInRoute(route, pipePos);
+        if (nextStep == null) {
+            return false;
+        }
+        
+        // If next step is the destination, transfer directly to inventory
+        if (nextStep.equals(route.getDestination())) {
+            return transferToInventoryAt(world, nextStep, blockEntity);
+        }
+        
+        // Otherwise, transfer to the next pipe in the route
+        return transferToPipeAt(world, nextStep, blockEntity);
+    }
     
+    /**
+     * Gets the next step in a route from the current position.
+     */
+    private static BlockPos getNextStepInRoute(ItemRoute route, BlockPos currentPos) {
+        java.util.List<BlockPos> path = route.getPath();
+        
+        for (int i = 0; i < path.size() - 1; i++) {
+            if (path.get(i).equals(currentPos)) {
+                return path.get(i + 1);
+            }
+        }
+        
+        return null; // Current position not found in route
+    }
+    
+    /**
+     * Transfers item to a specific inventory location.
+     */
+    private static boolean transferToInventoryAt(World world, BlockPos inventoryPos, ItemPipeBlockEntity blockEntity) {
+        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Attempting to transfer to inventory at {}", inventoryPos);
+        
+        Inventory inventory = getInventoryAt(world, inventoryPos);
+        if (inventory == null) {
+            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] No inventory found at {}", inventoryPos);
+            return false;
+        }
+        
+        ItemStack currentStack = blockEntity.getStack(0);
+        if (currentStack.isEmpty()) {
+            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] No item to transfer");
+            return false;
+        }
+        
+        // Check if inventory has any space for this item type
+        if (!hasSpaceForItem(inventory, currentStack)) {
+            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Inventory at {} is full - no space for {}", 
+                inventoryPos, currentStack.getItem().getName().getString());
+            return false;
+        }
+        
+        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Transferring {} x{} to {} at {}", 
+            currentStack.getItem().getName().getString(), currentStack.getCount(),
+            inventory.getClass().getSimpleName(), inventoryPos);
+        
+        Direction transferDirection = getDirectionTowards(blockEntity.getPos(), inventoryPos);
+        
+        // Try to insert the FULL stack
+        ItemStack stackToInsert = currentStack.copy();
+        ItemStack remaining = transfer(blockEntity, inventory, stackToInsert, transferDirection);
+        
+        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Transfer result: {} remaining from {} original", 
+            remaining.getCount(), currentStack.getCount());
+        
+        if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+            // Successfully transferred at least part of the stack
+            blockEntity.setStack(0, remaining);
+            blockEntity.markDirty();
+            
+            // Send animation for item leaving the pipe
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), inventoryPos);
+            }
+            
+            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Successfully transferred {} items to {}", 
+                currentStack.getCount() - remaining.getCount(), inventoryPos);
+            return true;
+        }
+        
+        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Failed to transfer any items to {} - inventory appears to be full", inventoryPos);
+        return false;
+    }
+    
+    /**
+     * Check if an inventory has space for a specific item stack.
+     */
+    private static boolean hasSpaceForItem(Inventory inventory, ItemStack itemStack) {
+        // Check each slot to see if we can insert at least one item
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            
+            // Empty slot = space available
+            if (slotStack.isEmpty()) {
+                return true;
+            }
+            
+            // Same item type and not at max capacity = space available
+            if (ItemStack.areItemsEqual(slotStack, itemStack)) {
+                int maxCount = Math.min(slotStack.getMaxCount(), inventory.getMaxCountPerStack());
+                if (slotStack.getCount() < maxCount) {
+                    return true;
+                }
+            }
+        }
+        
+        // No space found in any slot
+        return false;
+    }
+    
+    /**
+     * Transfers item to a pipe at the specified position.
+     */
+    private static boolean transferToPipeAt(World world, BlockPos targetPipePos, ItemPipeBlockEntity blockEntity) {
+        if (world.getBlockEntity(targetPipePos) instanceof ItemPipeBlockEntity targetPipe) {
+            if (!targetPipe.isEmpty()) {
+                return false; // Target pipe is full
+            }
+            
+            ItemStack currentStack = blockEntity.getStack(0);
+            Direction transferDirection = getDirectionTowards(blockEntity.getPos(), targetPipePos);
+            
+            // Transfer the item
+            ItemStack transferredItem = blockEntity.removeStack(0);
+            targetPipe.setStack(0, transferredItem);
+            
+            // Transfer source exclusion information
+            targetPipe.sourceExclusion = blockEntity.sourceExclusion;
+            
+            // Set animation and direction info
+            targetPipe.lastInputDirection = transferDirection;
+            targetPipe.transferCooldown = COOLDOWN_TICKS;
+            targetPipe.markDirty();
+            
+            // Clear source pipe
+            blockEntity.setStack(0, ItemStack.EMPTY);
+            blockEntity.markDirty();
+            
+            // Send animation
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), targetPipePos);
+            }
+            
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Fallback method to transfer to any adjacent inventory.
+     */
+    private static boolean transferToAdjacentInventory(World world, BlockPos pipePos, ItemPipeBlockEntity blockEntity) {
+        ItemStack currentStack = blockEntity.getStack(0);
+        
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos = pipePos.offset(direction);
+            Inventory neighborInventory = getInventoryAt(world, neighborPos);
+            
+            if (neighborInventory != null && !(world.getBlockEntity(neighborPos) instanceof ItemPipeBlockEntity)) {
+                ItemStack remaining = transfer(blockEntity, neighborInventory, currentStack.copy(), direction.getOpposite());
+                
+                if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+                    // Successfully transferred at least part of the stack
+                    blockEntity.setStack(0, remaining);
+                    blockEntity.markDirty();
+                    
+                    // Send animation for item leaving the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pipePos, neighborPos);
+                    }
+                    
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Gets the direction from one position to another.
+     */
+    private static Direction getDirectionTowards(BlockPos from, BlockPos to) {
+        BlockPos diff = to.subtract(from);
+        
+        if (diff.getX() > 0) return Direction.EAST;
+        if (diff.getX() < 0) return Direction.WEST;
+        if (diff.getY() > 0) return Direction.UP;
+        if (diff.getY() < 0) return Direction.DOWN;
+        if (diff.getZ() > 0) return Direction.SOUTH;
+        if (diff.getZ() < 0) return Direction.NORTH;
+        
+        return Direction.UP; // Default fallback
+    }
+
     /**
      * Extract an item from the inventory above this pipe.
      */
@@ -171,179 +515,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         return false;
     }
     
-    /**
-     * Transfer an item to a connected inventory or the next pipe in the network.
-     */
-    private static boolean transferItem(World world, BlockPos pos, BlockState state, ItemPipeBlockEntity blockEntity) {
-        if (blockEntity.isEmpty()) {
-            return false;
-        }
-        
-        // Priority 1: Try to output to the inventory below (highest priority)
-        BlockPos belowPos = pos.down();
-        Inventory belowInventory = getInventoryAt(world, belowPos);
-        
-        if (belowInventory != null && blockEntity.lastInputDirection != Direction.DOWN) {
-            // Try to insert the item
-            ItemStack currentStack = blockEntity.getStack(0);
-            ItemStack remaining = transfer(blockEntity, belowInventory, currentStack.copy(), Direction.UP);
-            
-            if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
-                // Successfully transferred at least part of the stack
-                blockEntity.setStack(0, remaining);
-                blockEntity.markDirty();
-                
-                // Send animation for item leaving the pipe
-                if (world instanceof ServerWorld serverWorld) {
-                    blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, belowPos);
-                }
-                
-                return true;
-            }
-        }
-        
-        // Priority 2: Try to transfer to connected pipes (avoid creating loops)
-        // Define priority order for pipe transfers to encourage flow in one direction
-        Direction[] priorityDirections = getPriorityDirections(blockEntity.lastInputDirection);
-        
-        for (Direction direction : priorityDirections) {
-            // Skip the direction we got the item from to prevent sending back
-            if (direction == blockEntity.lastInputDirection) {
-                continue;
-            }
-            
-            // Check if we're connected in this direction
-            BooleanProperty directionProperty = getDirectionProperty(direction);
-            
-            if (!state.get(directionProperty)) {
-                if (world.getTime() % 100 == 0) { // Debug log occasionally
-                    Circuitmod.LOGGER.info("[PIPE-CONNECTION] Pipe at {} not connected in direction {}", pos, direction);
-                }
-                continue;
-            }
-            
-            BlockPos neighborPos = pos.offset(direction);
-            BlockState neighborState = world.getBlockState(neighborPos);
-            
-            // If it's another pipe, try to transfer to it
-            if (neighborState.getBlock() instanceof ItemPipeBlock && 
-                world.getBlockEntity(neighborPos) instanceof ItemPipeBlockEntity neighborPipe) {
-                
-                if (!neighborPipe.isEmpty()) {
-                    continue; // Skip if the neighbor pipe already has an item
-                }
-                
-                // Check if transferring to this pipe would create a loop
-                if (wouldCreateLoop(pos, neighborPos, direction, blockEntity.lastInputDirection)) {
-                    Circuitmod.LOGGER.info("[PIPE-LOOP-PREVENTION] Prevented loop: {} -> {} (came from {})", 
-                        pos, direction, blockEntity.lastInputDirection);
-                    continue;
-                }
-                
-                // Transfer the entire stack to the neighbor pipe
-                ItemStack currentStack = blockEntity.getStack(0);
-                neighborPipe.setStack(0, currentStack.copy());
-                neighborPipe.lastInputDirection = direction.getOpposite();
-                neighborPipe.setTransferCooldown(COOLDOWN_TICKS);
-                neighborPipe.markDirty();
-                
-                // Send animation to clients
-                if (world instanceof ServerWorld serverWorld) {
-                    blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, neighborPos);
-                }
-                
-                blockEntity.setStack(0, ItemStack.EMPTY);
-                blockEntity.markDirty();
-                // Circuitmod.LOGGER.info("[PIPE-TRANSFER] SUCCESS: Transferred {} from {} to {} (direction: {}, lastInput: {})", 
-                //     currentStack.getItem().getName().getString(), pos, neighborPos, direction, blockEntity.lastInputDirection);
-                return true;
-            }
-            
-            // Priority 3: Try to insert into side inventories (lowest priority)
-            Inventory neighborInventory = getInventoryAt(world, neighborPos);
-            if (neighborInventory != null) {
-                ItemStack currentStack = blockEntity.getStack(0);
-                ItemStack remaining = transfer(blockEntity, neighborInventory, currentStack.copy(), direction.getOpposite());
-                
-                if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
-                    // Successfully transferred at least part of the stack
-                    blockEntity.setStack(0, remaining);
-                    blockEntity.markDirty();
-                    
-                    // Send animation for item leaving the pipe
-                    if (world instanceof ServerWorld serverWorld) {
-                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, neighborPos);
-                    }
-                    
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Get priority directions for item transfer to prevent loops.
-     * Prioritizes downward flow and avoids going back to source.
-     * Shuffles horizontal directions to enable branching.
-     */
-    private static Direction[] getPriorityDirections(@Nullable Direction lastInputDirection) {
-        // Always prioritize DOWN first (gravity-like behavior)
-        if (lastInputDirection == null) {
-            // No input direction, shuffle horizontals to enable branching
-            java.util.List<Direction> horizontals = new java.util.ArrayList<>(java.util.Arrays.asList(
-                Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST));
-            java.util.Collections.shuffle(horizontals);
-            
-            java.util.List<Direction> all = new java.util.ArrayList<>();
-            all.add(Direction.DOWN);
-            all.addAll(horizontals);
-            all.add(Direction.UP);
-            return all.toArray(new Direction[0]);
-        }
-        
-        // Create priority list avoiding the input direction
-        java.util.List<Direction> priorities = new java.util.ArrayList<>();
-        
-        // Always try DOWN first (unless that's where we came from)
-        if (lastInputDirection != Direction.DOWN) {
-            priorities.add(Direction.DOWN);
-        }
-        
-        // Add horizontal directions in random order to enable branching
-        java.util.List<Direction> horizontalDirs = new java.util.ArrayList<>();
-        for (Direction dir : new Direction[]{Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST}) {
-            if (dir != lastInputDirection) {
-                horizontalDirs.add(dir);
-            }
-        }
-        java.util.Collections.shuffle(horizontalDirs);
-        priorities.addAll(horizontalDirs);
-        
-        // Add UP last (unless that's where we came from)
-        if (lastInputDirection != Direction.UP) {
-            priorities.add(Direction.UP);
-        }
-        
-        return priorities.toArray(new Direction[0]);
-    }
-    
-    /**
-     * Check if transferring an item would create a loop.
-     * This is a simple heuristic to prevent immediate bounce-backs.
-     */
-    private static boolean wouldCreateLoop(BlockPos fromPos, BlockPos toPos, Direction transferDirection, @Nullable Direction lastInputDirection) {
-        // Only prevent immediate bounce-back to the exact same direction we received from
-        // This allows legitimate horizontal flow in pipe networks
-        if (lastInputDirection != null && transferDirection == lastInputDirection) {
-            return true;
-        }
-        
-        // Allow all other transfers including opposite direction transfers
-        // The original logic was too restrictive and prevented legitimate pipe chains
-        return false;
-    }
+
     
     /**
      * Get the BooleanProperty for a direction.
@@ -415,11 +587,24 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (!stack.isEmpty() && canExtract(inventory, stack, slot, side)) {
             // Only extract if pipe is empty (we want to move full stacks at once)
             if (pipe.isEmpty()) {
+                // Create a copy for the pipe
                 ItemStack extracted = stack.copy();
-                // Extract the entire stack from the inventory slot
-                pipe.setStack(slot, extracted);
-                inventory.removeStack(slot, extracted.getCount());
+                pipe.setStack(0, extracted); // Put in pipe slot 0, not the inventory slot
+                
+                // IMPORTANT: Decrement the original stack directly to prevent duplication
+                int extractedCount = extracted.getCount();
+                stack.setCount(stack.getCount() - extractedCount);
+                
+                // If the original stack is now empty, clear the slot
+                if (stack.getCount() <= 0) {
+                    inventory.setStack(slot, ItemStack.EMPTY);
+                }
+                
                 inventory.markDirty();
+                
+                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted {} x{} from slot {}, remaining: {}", 
+                    extracted.getItem().getName().getString(), extractedCount, slot, stack.getCount());
+                
                 return true;
             }
         }
@@ -449,7 +634,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             int[] slots = sidedInventory.getAvailableSlots(side);
             
             for (int i = 0; i < slots.length && !stack.isEmpty(); i++) {
-                stack = tryInsertIntoSlot(from, to, stack, slots[i], side);
+                int slotIndex = slots[i];
+                stack = tryInsertIntoSlot(from, to, stack, slotIndex, side);
             }
         } else {
             int size = to.size();
@@ -458,6 +644,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 stack = tryInsertIntoSlot(from, to, stack, i, side);
             }
         }
+        
+        // Mark destination inventory as dirty (the insert methods handle this)
+        to.markDirty();
         
         return stack;
     }
@@ -471,8 +660,11 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (canInsert(to, stack, slot, side)) {
             if (slotStack.isEmpty()) {
                 // Slot is empty, insert the whole stack
-                to.setStack(slot, stack);
-                return ItemStack.EMPTY;
+                to.setStack(slot, stack.copy());
+                to.markDirty();
+                // Consume all items from the source stack
+                stack.setCount(0);
+                return stack; // Return the now-empty stack
             } else if (canMergeItems(slotStack, stack)) {
                 // Items can be merged
                 int maxCount = Math.min(slotStack.getMaxCount(), to.getMaxCountPerStack());
@@ -517,16 +709,47 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     }
     
     /**
-     * Get the inventory at a specific position in the world.
+     * Get the inventory at a specific position in the world using hopper-style detection.
      */
     @Nullable
     private static Inventory getInventoryAt(World world, BlockPos pos) {
-        BlockEntity blockEntity = world.getBlockEntity(pos);
+        BlockState blockState = world.getBlockState(pos);
+        net.minecraft.block.Block block = blockState.getBlock();
         
-        if (blockEntity instanceof Inventory) {
-            return (Inventory) blockEntity;
+        Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] Checking for inventory at {}, block: {}", 
+            pos, block.getName().getString());
+        
+        // Check if block implements InventoryProvider interface
+        if (block instanceof net.minecraft.block.InventoryProvider) {
+            Inventory inventory = ((net.minecraft.block.InventoryProvider)block).getInventory(blockState, world, pos);
+            Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] Found InventoryProvider: {}", 
+                inventory != null ? inventory.getClass().getSimpleName() : "null");
+            return inventory;
+        } 
+        // Check if block has entity AND entity implements Inventory
+        else if (blockState.hasBlockEntity()) {
+            net.minecraft.block.entity.BlockEntity blockEntity = world.getBlockEntity(pos);
+            Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] BlockEntity: {}", 
+                blockEntity != null ? blockEntity.getClass().getSimpleName() : "null");
+                
+            if (blockEntity instanceof Inventory inv) {
+                // Special case: Handle double chests properly
+                if (inv instanceof net.minecraft.block.entity.ChestBlockEntity && 
+                    block instanceof net.minecraft.block.ChestBlock) {
+                    Inventory doubleChest = net.minecraft.block.ChestBlock.getInventory(
+                        (net.minecraft.block.ChestBlock)block, blockState, world, pos, true);
+                    Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] Found chest inventory: {}", 
+                        doubleChest != null ? doubleChest.getClass().getSimpleName() : "null");
+                    return doubleChest;
+                } else {
+                    Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] Found BlockEntity inventory: {}", 
+                        inv.getClass().getSimpleName());
+                    return inv;
+                }
+            }
         }
         
+        Circuitmod.LOGGER.info("[PIPE-GET-INVENTORY] No inventory found at {}", pos);
         return null;
     }
     
@@ -555,7 +778,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
     }
     
-    private void setTransferCooldown(int cooldown) {
+    public void setTransferCooldown(int cooldown) {
         this.transferCooldown = cooldown;
     }
     
@@ -677,52 +900,39 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
         
-        // Save the inventory
-        Inventories.writeNbt(nbt, this.inventory, registries);
+        // Save inventory
+        Inventories.writeNbt(nbt, inventory, registries);
         
-        // Save the last input direction if we have one
-        if (this.lastInputDirection != null) {
-            nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
+        // Save transfer state
+        nbt.putInt("transferCooldown", transferCooldown);
+        
+        // Save direction info
+        if (lastInputDirection != null) {
+            nbt.putInt("lastInputDirection", lastInputDirection.ordinal());
         }
         
-        // Save the last animation tick
-        nbt.putInt("LastAnimationTick", this.lastAnimationTick);
-        
-        // Debug logging for NBT writing (reduced frequency)
-        if (world != null && world.getTime() % 20 == 0) { // Only log every second
-            Circuitmod.LOGGER.info("[PIPE-NBT-WRITE] Writing NBT at " + this.getPos() + 
-                                  ", hasItem: " + !getStack(0).isEmpty() + 
-                                  ", lastInputDir: " + lastInputDirection + 
-                                  ", isClient: " + (world != null && world.isClient()));
-        }
+        nbt.putLong("lastTickTime", lastTickTime);
     }
     
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
         
-        // Load the inventory
-        Inventories.readNbt(nbt, this.inventory, registries);
+        // Load inventory
+        Inventories.readNbt(nbt, inventory, registries);
         
-        // Load the last input direction if saved
-        if (nbt.contains("LastInputDir")) {
-            int dirOrdinal = nbt.getInt("LastInputDir", 0);
-            this.lastInputDirection = Direction.values()[dirOrdinal];
-        } else {
-            this.lastInputDirection = null;
+        // Load transfer state
+        transferCooldown = nbt.getInt("transferCooldown").orElse(-1);
+        
+        // Load direction info
+        if (nbt.contains("lastInputDirection")) {
+            int ordinal = nbt.getInt("lastInputDirection").orElse(-1);
+            if (ordinal >= 0 && ordinal < Direction.values().length) {
+                lastInputDirection = Direction.values()[ordinal];
+            }
         }
         
-        // Load the last animation tick
-        this.lastAnimationTick = nbt.getInt("LastAnimationTick", -1);
-        
-        // Debug logging for NBT reading (reduced frequency)
-        if (world != null && world.getTime() % 20 == 0) { // Only log every second
-            Circuitmod.LOGGER.info("[PIPE-NBT-READ] Reading NBT at " + this.getPos() + 
-                                  ", hasItem: " + !getStack(0).isEmpty() + 
-                                  ", lastInputDir: " + lastInputDirection + 
-                                  ", isClient: " + (world != null && world.isClient()) +
-                                  ", nbtKeys: " + nbt.getKeys());
-        }
+        lastTickTime = nbt.getLong("lastTickTime").orElse(0L);
     }
     
     //
@@ -780,6 +990,66 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     sw.getRegistryKey(),
                     pkt
                 );
+        }
+    }
+
+    /**
+     * Checks for new unconnected inventories around the pipe and triggers a network rescan if needed.
+     */
+    private static void checkForUnconnectedInventories(World world, BlockPos pos, ItemPipeBlockEntity blockEntity) {
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+        if (network == null) {
+            return;
+        }
+        
+        // Count current inventories in network
+        int currentInventoryCount = network.getConnectedInventories().size();
+        
+        // Check all 6 directions for inventories
+        boolean foundNewInventory = false;
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos = pos.offset(direction);
+            BlockState blockState = world.getBlockState(neighborPos);
+            
+            // Skip if it's a pipe
+            if (blockState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+                continue;
+            }
+            
+            // Use the same inventory detection logic as in ItemNetwork
+            net.minecraft.block.Block block = blockState.getBlock();
+            Inventory inventory = null;
+            
+            // Check if block implements InventoryProvider interface
+            if (block instanceof net.minecraft.block.InventoryProvider) {
+                inventory = ((net.minecraft.block.InventoryProvider)block).getInventory(blockState, world, neighborPos);
+            } 
+            // Check if block has entity AND entity implements Inventory
+            else if (blockState.hasBlockEntity()) {
+                net.minecraft.block.entity.BlockEntity blockEntity2 = world.getBlockEntity(neighborPos);
+                if (blockEntity2 instanceof Inventory inv) {
+                    // Special case: Handle double chests properly
+                    if (inv instanceof net.minecraft.block.entity.ChestBlockEntity && 
+                        block instanceof net.minecraft.block.ChestBlock) {
+                        inventory = net.minecraft.block.ChestBlock.getInventory((net.minecraft.block.ChestBlock)block, blockState, world, neighborPos, true);
+                    } else {
+                        inventory = inv;
+                    }
+                }
+            }
+            
+            // If we found an inventory that's not in our network, trigger a rescan
+            if (inventory != null && !network.getConnectedInventories().containsKey(neighborPos)) {
+                Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Found new inventory at {} next to pipe at {}", neighborPos, pos);
+                foundNewInventory = true;
+                break; // Only need to find one to trigger rescan
+            }
+        }
+        
+        // If we found a new inventory, trigger a network rescan
+        if (foundNewInventory) {
+            Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Triggering network rescan due to new inventory discovery");
+            network.forceRescanAllInventories();
         }
     }
 } 

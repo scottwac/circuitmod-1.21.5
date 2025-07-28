@@ -33,6 +33,8 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.ItemPipeBlockEntity;
+import starduster.circuitmod.item.network.ItemNetworkManager;
+import starduster.circuitmod.item.network.ItemNetwork;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
 import net.minecraft.text.Text;
@@ -58,6 +60,36 @@ public class ItemPipeBlock extends BasePipeBlock {
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new ItemPipeBlockEntity(pos, state);
     }
+    
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
+        super.onPlaced(world, pos, state, placer, itemStack);
+        
+        // Connect to item network
+        if (!world.isClient && world.getBlockEntity(pos) instanceof ItemPipeBlockEntity blockEntity) {
+            blockEntity.onPlaced();
+            
+            // Force a network rescan to ensure proper connectivity after rebuilding
+            Circuitmod.LOGGER.info("[PIPE-PLACE] Pipe placed at {}, forcing network rescan", pos);
+            ItemNetwork network = blockEntity.getNetwork();
+            if (network != null) {
+                network.forceRescanAllInventories();
+            }
+        }
+    }
+    
+    @Override
+    protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            // Disconnect from item network before removal
+            BlockEntity entity = world.getBlockEntity(pos);
+            if (entity instanceof ItemPipeBlockEntity blockEntity) {
+                blockEntity.onRemoved();
+            }
+        }
+        
+        super.onStateReplaced(state, world, pos, moved);
+    }
 
     @Nullable
     @Override
@@ -80,7 +112,16 @@ public class ItemPipeBlock extends BasePipeBlock {
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof ItemPipeBlockEntity pipe) {
-                
+                // Force a network rescan for debugging
+                if (pipe.getNetwork() != null) {
+                    Circuitmod.LOGGER.info("[PIPE-DEBUG] Player {} right-clicked pipe at {}, forcing network rescan", 
+                        player.getName().getString(), pos);
+                    pipe.getNetwork().forceRescanAllInventories();
+                    player.sendMessage(net.minecraft.text.Text.literal("§6Network rescanned! Check logs for details."), false);
+                } else {
+                    Circuitmod.LOGGER.info("[PIPE-DEBUG] Pipe at {} has no network", pos);
+                    player.sendMessage(net.minecraft.text.Text.literal("§cPipe has no network!"), false);
+                }
             }
         }
         return ActionResult.SUCCESS;
