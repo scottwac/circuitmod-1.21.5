@@ -43,6 +43,7 @@ import net.minecraft.util.hit.BlockHitResult;
 
 import java.util.List;
 import java.util.Map;
+import net.minecraft.inventory.Inventory;
 
 public class ItemPipeBlock extends BasePipeBlock {
     public static final MapCodec<ItemPipeBlock> CODEC = createCodec(ItemPipeBlock::new);
@@ -112,15 +113,45 @@ public class ItemPipeBlock extends BasePipeBlock {
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof ItemPipeBlockEntity pipe) {
-                // Force a network rescan for debugging
+                // Display pipe and network info when right-clicked
+                player.sendMessage(Text.literal("§6Item Pipe Status:"), false);
+                
                 if (pipe.getNetwork() != null) {
-                    Circuitmod.LOGGER.info("[PIPE-DEBUG] Player {} right-clicked pipe at {}, forcing network rescan", 
-                        player.getName().getString(), pos);
-                    pipe.getNetwork().forceRescanAllInventories();
-                    player.sendMessage(net.minecraft.text.Text.literal("§6Network rescanned! Check logs for details."), false);
+                    ItemNetwork network = pipe.getNetwork();
+                    player.sendMessage(Text.literal("§7Network ID: §9" + network.getNetworkId()), false);
+                    player.sendMessage(Text.literal("§7Connected to network with §9" + network.getSize() + "§7 pipes"), false);
+                    
+                    // Show inventory information
+                    Map<BlockPos, Inventory> connectedInventories = network.getConnectedInventories();
+                    player.sendMessage(Text.literal("§7Connected inventories: §9" + connectedInventories.size()), false);
+                    
+                    if (!connectedInventories.isEmpty()) {
+                        player.sendMessage(Text.literal("§7Inventory positions:"), false);
+                        for (BlockPos invPos : connectedInventories.keySet()) {
+                            Inventory inv = connectedInventories.get(invPos);
+                            String invType = inv.getClass().getSimpleName();
+                            player.sendMessage(Text.literal("§7  §9" + invPos + "§7 (" + invType + ")"), false);
+                        }
+                    }
+                    
+                    // Show source and destination counts
+                    Map<BlockPos, Inventory> sourceInventories = network.getSourceInventories();
+                    Map<BlockPos, Inventory> destinationInventories = network.getDestinationInventories();
+                    player.sendMessage(Text.literal("§7Sources: §9" + sourceInventories.size() + "§7, Destinations: §9" + destinationInventories.size()), false);
+                    
+                    // Show current pipe state
+                    if (!pipe.isEmpty()) {
+                        ItemStack currentItem = pipe.getStack(0);
+                        player.sendMessage(Text.literal("§7Current item: §9" + currentItem.getItem().getName().getString() + "§7 x" + currentItem.getCount()), false);
+                    } else {
+                        player.sendMessage(Text.literal("§7Current item: §9Empty"), false);
+                    }
+                    
+                    // Show transfer cooldown
+                    player.sendMessage(Text.literal("§7Transfer cooldown: §9" + pipe.getTransferCooldown()), false);
+                    
                 } else {
-                    Circuitmod.LOGGER.info("[PIPE-DEBUG] Pipe at {} has no network", pos);
-                    player.sendMessage(net.minecraft.text.Text.literal("§cPipe has no network!"), false);
+                    player.sendMessage(Text.literal("§cNot connected to any network!"), false);
                 }
             }
         }

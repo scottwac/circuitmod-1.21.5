@@ -34,15 +34,18 @@ import org.jetbrains.annotations.Nullable;
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     private static final int INVENTORY_SIZE = 1; 
-    private static final int COOLDOWN_TICKS = 5; 
+    private static final int COOLDOWN_TICKS = 3; // Improved throughput (was 5, now 3)
     public static final int ANIMATION_TICKS = 5;
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     int transferCooldown = -1; // Package-private for access from other pipe classes
     private long lastTickTime;
     Direction lastInputDirection; // Package-private for access from other pipe classes
-    private @Nullable BlockPos sourceExclusion = null; // Track where this item came from
+    @Nullable BlockPos sourceExclusion = null; // Package-private - Track where this item came from
     private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
+    
+    // Network reconnection flag for world load
+    private boolean needsNetworkReconnection = false;
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ITEM_PIPE, pos, state);
@@ -81,9 +84,38 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             return;
         }
         
-        // Check for new unconnected inventories every 10 ticks (similar to power cables)
-        if (world.getTime() % 10 == 0) {
+        // Check if we're in a network, if not try to reconnect
+        ItemNetwork currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+        if (currentNetwork == null) {
+            Circuitmod.LOGGER.info("[PIPE-TICK] Pipe at {} not in network, attempting to reconnect", pos);
+            ItemNetworkManager.connectPipe(world, pos);
+            currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+            if (currentNetwork != null) {
+                Circuitmod.LOGGER.info("[PIPE-TICK] Successfully reconnected to network {}", currentNetwork.getNetworkId());
+            }
+        }
+        
+        // Handle network reconnection after world load
+        if (blockEntity.needsNetworkReconnection) {
+            Circuitmod.LOGGER.info("[PIPE-RECONNECT] Reconnecting pipe at {} to network after world load", pos);
+            ItemNetworkManager.connectPipe(world, pos);
+            blockEntity.needsNetworkReconnection = false;
+        }
+        
+        // Check for new unconnected inventories every 5 ticks (was 10) for faster discovery
+        if (world.getTime() % 5 == 0) {
             checkForUnconnectedInventories(world, pos, blockEntity);
+        }
+        
+        // Monitor inventory changes for closer destinations gaining space
+        if (currentNetwork != null && world.getTime() % 5 == 0) { // Check every 5 ticks instead of 20
+            currentNetwork.monitorInventoryChanges();
+        }
+        
+        // Periodically invalidate route cache to ensure fresh routes
+        if (currentNetwork != null && world.getTime() % 20 == 0) { // Every 20 ticks (1 second)
+            currentNetwork.invalidateRouteCache();
+            Circuitmod.LOGGER.info("[PIPE-TICK] Periodic route cache invalidation at {}", pos);
         }
         
         // Only proceed with item processing if we have an item to process
@@ -279,6 +311,14 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         if (!hasSpaceForItem(inventory, currentStack)) {
             Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Inventory at {} is full - no space for {}", 
                 inventoryPos, currentStack.getItem().getName().getString());
+            
+            // Invalidate route cache to force recalculation when inventory is full
+            ItemNetwork network = ItemNetworkManager.getNetworkForPipe(blockEntity.getPos());
+            if (network != null) {
+                network.invalidateRouteCache();
+                Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Invalidated route cache due to full inventory at {}", inventoryPos);
+            }
+            
             return false;
         }
         
@@ -311,6 +351,14 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Failed to transfer any items to {} - inventory appears to be full", inventoryPos);
+        
+        // Invalidate route cache to force recalculation when transfer fails
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(blockEntity.getPos());
+        if (network != null) {
+            network.invalidateRouteCache();
+            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Invalidated route cache due to failed transfer to {}", inventoryPos);
+        }
+        
         return false;
     }
     
@@ -344,7 +392,10 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
      * Transfers item to a pipe at the specified position.
      */
     private static boolean transferToPipeAt(World world, BlockPos targetPipePos, ItemPipeBlockEntity blockEntity) {
-        if (world.getBlockEntity(targetPipePos) instanceof ItemPipeBlockEntity targetPipe) {
+        BlockEntity targetEntity = world.getBlockEntity(targetPipePos);
+        
+        // Handle ItemPipeBlockEntity
+        if (targetEntity instanceof ItemPipeBlockEntity targetPipe) {
             if (!targetPipe.isEmpty()) {
                 return false; // Target pipe is full
             }
@@ -356,8 +407,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             ItemStack transferredItem = blockEntity.removeStack(0);
             targetPipe.setStack(0, transferredItem);
             
-            // Transfer source exclusion information
-            targetPipe.sourceExclusion = blockEntity.sourceExclusion;
+            // CRITICAL: Set sourceExclusion to current position to prevent infinite loops
+            targetPipe.sourceExclusion = blockEntity.getPos();
             
             // Set animation and direction info
             targetPipe.lastInputDirection = transferDirection;
@@ -375,6 +426,41 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             return true;
         }
+        // Handle SortingPipeBlockEntity  
+        else if (targetEntity instanceof SortingPipeBlockEntity targetSortingPipe) {
+            if (!targetSortingPipe.isEmpty()) {
+                return false; // Target pipe is full
+            }
+            
+            ItemStack currentStack = blockEntity.getStack(0);
+            Direction transferDirection = getDirectionTowards(blockEntity.getPos(), targetPipePos);
+            
+            // Transfer the item
+            ItemStack transferredItem = blockEntity.removeStack(0);
+            targetSortingPipe.setStack(0, transferredItem);
+            
+            // sourceExclusion removed - network routing handles loop prevention properly
+            
+            // Set animation and direction info
+            targetSortingPipe.setLastInputDirection(transferDirection);
+            targetSortingPipe.setTransferCooldown(COOLDOWN_TICKS);
+            targetSortingPipe.markDirty();
+            
+            // Clear source pipe
+            blockEntity.setStack(0, ItemStack.EMPTY);
+            blockEntity.markDirty();
+            
+            // Send animation
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), targetPipePos);
+            }
+            
+            Circuitmod.LOGGER.info("[PIPE-TRANSFER-TO-SORTING] Successfully transferred {} to sorting pipe at {}", 
+                transferredItem.getItem().getName().getString(), targetPipePos);
+            
+            return true;
+        }
+        
         return false;
     }
     
@@ -453,6 +539,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 if (extract(blockEntity, aboveInventory, fullStackSlot, extractDirection)) {
                     // Set input direction to UP, but allow immediate downward flow
                     blockEntity.lastInputDirection = Direction.UP;
+                    // CRITICAL: Set sourceExclusion to prevent item from going back to the inventory
+                    blockEntity.sourceExclusion = abovePos;
                     blockEntity.markDirty();
                     
                     // Send animation for item entering the pipe
@@ -473,6 +561,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 if (extract(blockEntity, aboveInventory, largestStackSlot, extractDirection)) {
                     // Set input direction to UP, but allow immediate downward flow
                     blockEntity.lastInputDirection = Direction.UP;
+                    // CRITICAL: Set sourceExclusion to prevent item from going back to the inventory
+                    blockEntity.sourceExclusion = abovePos;
                     blockEntity.markDirty();
                     
                     // Send animation for item entering the pipe
@@ -498,6 +588,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         for (ItemEntity itemEntity : world.getEntitiesByClass(ItemEntity.class, box, EntityPredicates.VALID_ENTITY)) {
             if (extract(blockEntity, itemEntity)) {
                 blockEntity.lastInputDirection = Direction.UP;
+                // For ItemEntities, no specific source exclusion needed
+                blockEntity.sourceExclusion = null;
                 blockEntity.markDirty();
                 
                 // Send animation for item entering the pipe
@@ -590,6 +682,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 // Create a copy for the pipe
                 ItemStack extracted = stack.copy();
                 pipe.setStack(0, extracted); // Put in pipe slot 0, not the inventory slot
+                
+                // CRITICAL: sourceExclusion will be set by the calling method that knows the inventory position
                 
                 // IMPORTANT: Decrement the original stack directly to prevent duplication
                 int extractedCount = extracted.getCount();
@@ -782,6 +876,10 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         this.transferCooldown = cooldown;
     }
     
+    public int getTransferCooldown() {
+        return this.transferCooldown;
+    }
+    
     private boolean needsCooldown() {
         return this.transferCooldown > 0;
     }
@@ -933,6 +1031,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         lastTickTime = nbt.getLong("lastTickTime").orElse(0L);
+        
+        // Flag for network reconnection after loading
+        needsNetworkReconnection = true;
     }
     
     //
@@ -994,7 +1095,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     }
 
     /**
-     * Checks for new unconnected inventories around the pipe and triggers a network rescan if needed.
+     * Checks for new unconnected inventories and pipes around the pipe and triggers a network rescan if needed.
      */
     private static void checkForUnconnectedInventories(World world, BlockPos pos, ItemPipeBlockEntity blockEntity) {
         ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
@@ -1005,15 +1106,22 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         // Count current inventories in network
         int currentInventoryCount = network.getConnectedInventories().size();
         
-        // Check all 6 directions for inventories
-        boolean foundNewInventory = false;
+        // Check all 6 directions for inventories AND pipes
+        boolean foundNewConnection = false;
         for (Direction direction : Direction.values()) {
             BlockPos neighborPos = pos.offset(direction);
             BlockState blockState = world.getBlockState(neighborPos);
             
-            // Skip if it's a pipe
+            // Check for new pipes (any pipe type)
             if (blockState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
-                continue;
+                // Check if this pipe is in a different network that we should merge with
+                ItemNetwork neighborNetwork = ItemNetworkManager.getNetworkForPipe(neighborPos);
+                if (neighborNetwork != null && neighborNetwork != network) {
+                    Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Found new pipe connection at {} with different network {}", neighborPos, neighborNetwork.getNetworkId());
+                    foundNewConnection = true;
+                    break;
+                }
+                continue; // Skip inventory check for pipes
             }
             
             // Use the same inventory detection logic as in ItemNetwork
@@ -1041,14 +1149,14 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             // If we found an inventory that's not in our network, trigger a rescan
             if (inventory != null && !network.getConnectedInventories().containsKey(neighborPos)) {
                 Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Found new inventory at {} next to pipe at {}", neighborPos, pos);
-                foundNewInventory = true;
+                foundNewConnection = true;
                 break; // Only need to find one to trigger rescan
             }
         }
         
-        // If we found a new inventory, trigger a network rescan
-        if (foundNewInventory) {
-            Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Triggering network rescan due to new inventory discovery");
+        // If we found a new connection, trigger a network rescan
+        if (foundNewConnection) {
+            Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Triggering network rescan due to new connection discovery");
             network.forceRescanAllInventories();
         }
     }

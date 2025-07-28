@@ -38,6 +38,9 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     private int lastAnimationTick = -1; 
     @Nullable BlockPos extractedFrom = null; // Track which inventory the current item was extracted from
     
+    // Network reconnection flag for world load
+    private boolean needsNetworkReconnection = false;
+    
     public OutputPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.OUTPUT_PIPE, pos, state);
     }
@@ -66,6 +69,13 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     public static void tick(World world, BlockPos pos, BlockState state, OutputPipeBlockEntity blockEntity) {
         if (world.isClient) {
             return;
+        }
+        
+        // Handle network reconnection after world load
+        if (blockEntity.needsNetworkReconnection) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-RECONNECT] Reconnecting output pipe at {} to network after world load", pos);
+            ItemNetworkManager.connectPipe(world, pos);
+            blockEntity.needsNetworkReconnection = false;
         }
         
         // Check for new unconnected inventories every 10 ticks (similar to power cables)
@@ -393,13 +403,24 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
                 fromPipe.setStack(0, ItemStack.EMPTY);
                 Circuitmod.LOGGER.info("[OUTPUT-PIPE-TRANSFER] Cleared source item from {} to prevent duplication", fromPos);
             
-                // Update target pipe's input direction
+                // Update target pipe's input direction and source exclusion
                 if (targetPipe instanceof ItemPipeBlockEntity itemPipe) {
                     Direction direction = getDirectionTowards(fromPos, toPos);
                     if (direction != null) {
                         itemPipe.lastInputDirection = direction.getOpposite();
                         itemPipe.setTransferCooldown(COOLDOWN_TICKS);
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-TRANSFER] Set input direction {} for target pipe {}", 
+                        // CRITICAL: Set sourceExclusion to prevent infinite loops
+                        itemPipe.sourceExclusion = fromPos;
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-TRANSFER] Set input direction {} and sourceExclusion {} for target pipe {}", 
+                            direction.getOpposite(), fromPos, toPos);
+                    }
+                } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
+                    Direction direction = getDirectionTowards(fromPos, toPos);
+                    if (direction != null) {
+                        sortingPipe.setLastInputDirection(direction.getOpposite());
+                        sortingPipe.setTransferCooldown(COOLDOWN_TICKS);
+                        // sourceExclusion removed - network routing handles loop prevention properly
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-TRANSFER] Set input direction {} for SORTING pipe {}", 
                             direction.getOpposite(), toPos);
                     }
                 }
@@ -584,8 +605,19 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         }
     }
     
-    private void setTransferCooldown(int cooldown) {
+    public void setTransferCooldown(int cooldown) {
         this.transferCooldown = cooldown;
+    }
+    
+    public int getTransferCooldown() {
+        return this.transferCooldown;
+    }
+    
+    /**
+     * Gets the current network this pipe belongs to.
+     */
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
     }
     
     private boolean needsCooldown() {
@@ -696,6 +728,9 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         } else {
             this.extractedFrom = null;
         }
+        
+        // Flag for network reconnection after loading
+        needsNetworkReconnection = true;
     }
     
     // ===== HELPER METHODS =====

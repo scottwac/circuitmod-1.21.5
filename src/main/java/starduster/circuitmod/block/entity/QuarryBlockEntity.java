@@ -47,7 +47,7 @@ import java.util.List;
 
 public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.QuarryData>, IEnergyConsumer {
     // Energy properties
-    private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
+    private static final int MAX_ENERGY_DEMAND = 3600; // Maximum energy demand per tick (allows instant mining of most blocks)
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
     private int energyReceived = 0; // Energy received this tick
     private EnergyNetwork network;

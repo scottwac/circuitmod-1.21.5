@@ -23,6 +23,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.BasePipeBlock;
 import starduster.circuitmod.block.ItemPipeBlock;
 import starduster.circuitmod.item.network.ItemNetwork;
@@ -32,6 +33,8 @@ import starduster.circuitmod.network.PipeNetworkAnimator;
 import starduster.circuitmod.screen.SortingPipeScreenHandler;
 import starduster.circuitmod.util.ImplementedInventory;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory {
@@ -42,8 +45,9 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     private final DefaultedList<ItemStack> filterInventory = DefaultedList.ofSize(6, ItemStack.EMPTY);
     
     private int transferCooldown = 0;
-    private Direction lastInputDirection = null;
+    Direction lastInputDirection = null; // Package-private for access from other pipe classes
     private int lastAnimationTick = -1; // Track when we last sent an animation to prevent duplicates
+    // sourceExclusion removed - network routing handles source exclusion properly
 
     // Direction to slot mapping for filters
     public static final Direction[] DIRECTION_ORDER = {
@@ -57,6 +61,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
 
     public SortingPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SORTING_PIPE, pos, state);
+        Circuitmod.LOGGER.info("[SORTING-PIPE-CONSTRUCTOR] Created sorting pipe block entity at {}", pos);
     }
     
     /**
@@ -64,7 +69,20 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
      */
     public void onPlaced() {
         if (world != null && !world.isClient) {
-            ItemNetworkManager.connectPipe(world, pos);
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Connecting sorting pipe to network at {}", pos);
+            
+            // Schedule the connection for the next tick to ensure block entity is fully initialized
+            world.getServer().execute(() -> {
+                ItemNetworkManager.connectPipe(world, pos);
+                
+                // Verify connection
+                ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+                if (network != null) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Successfully connected to network {}", network.getNetworkId());
+                } else {
+                    Circuitmod.LOGGER.error("[SORTING-PIPE-PLACE] FAILED to connect to network!");
+                }
+            });
         }
     }
     
@@ -78,14 +96,65 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     }
 
     public static void tick(World world, BlockPos pos, BlockState state, SortingPipeBlockEntity blockEntity) {
+        Circuitmod.LOGGER.info("[SORTING-PIPE-TICK-START] Tick called for sorting pipe at {}", pos);
+        
         if (world.isClient) {
             return;
+        }
+        
+        // Check if pipe is in a network
+        ItemNetwork currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+        if (currentNetwork == null) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Pipe at {} not in network, attempting to reconnect", pos);
+            ItemNetworkManager.connectPipe(world, pos);
+            currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+            if (currentNetwork != null) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Successfully reconnected to network {}", currentNetwork.getNetworkId());
+            }
+        }
+
+        // sourceExclusion timeout mechanism removed - no longer needed
+
+        // Log every 20 ticks (1 second) to verify ticking
+        if (world.getTime() % 20 == 0) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Sorting pipe at {} is ticking, has item: {}, in network: {}", 
+                pos, !blockEntity.isEmpty(), currentNetwork != null);
+        }
+
+        // Check for new unconnected inventories every 5 ticks (was 10) for faster discovery
+        if (world.getTime() % 5 == 0) {
+            checkForUnconnectedInventories(world, pos, blockEntity);
+        }
+        
+        // Force network refresh if item has been stuck for too long
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+        if (network != null && blockEntity.transferCooldown <= -60) { // Been stuck for 3+ seconds
+            Circuitmod.LOGGER.info("[SORTING-PIPE-FORCE-REFRESH] Item stuck for too long, forcing network refresh at {}", pos);
+            network.forceRescanAllInventories();
+            blockEntity.transferCooldown = 0; // Reset cooldown to try again
+        }
+        
+        // TEMPORARY DEBUG: Force refresh every 50 ticks (2.5 seconds) to catch new chests and space changes
+        if (network != null && world.getTime() % 50 == 0) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+            network.forceRescanAllInventories();
+            network.monitorInventoryChanges(); // Monitor for space changes in closer destinations
         }
 
         // Decrease transfer cooldown
         if (blockEntity.transferCooldown > 0) {
             blockEntity.transferCooldown--;
+            if (!blockEntity.isEmpty()) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] On cooldown, has item {} at {}", 
+                    blockEntity.getStack(0).getItem().getName().getString(), pos);
+            }
             return;
+        }
+
+        // Log start of tick
+        if (!blockEntity.isEmpty()) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Processing item {} at {}", 
+                blockEntity.getStack(0).getItem().getName().getString(), pos);
         }
 
         // Try to extract items from adjacent inventories into this pipe
@@ -95,8 +164,20 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         
         // Process items in the pipe
         if (!blockEntity.isEmpty()) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Attempting to route {} from {}", 
+                blockEntity.getStack(0).getItem().getName().getString(), pos);
+            
+            // TEMPORARY DEBUG: Force refresh every 100 ticks (5 seconds) to catch new chests
+            if (network != null && world.getTime() % 100 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+                network.forceRescanAllInventories();
+            }
+            
             if (routeItemThroughNetwork(world, pos, blockEntity)) {
-                blockEntity.transferCooldown = 8; // Set cooldown after successful transfer
+                blockEntity.transferCooldown = 3; // Match faster throughput (was 8, now 3)
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Successfully routed item from {}", pos);
+            } else {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Failed to route item from {}", pos);
             }
         }
     }
@@ -207,6 +288,17 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         this.transferCooldown = cooldown;
     }
     
+    public int getTransferCooldown() {
+        return this.transferCooldown;
+    }
+    
+    /**
+     * Gets the current network this pipe belongs to.
+     */
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
+    
     // Sorting pipe logic methods
     private static void extractFromAdjacentInventories(World world, BlockPos pos, SortingPipeBlockEntity blockEntity) {
         // Try to extract from inventories in all directions except where we last came from
@@ -234,6 +326,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                         stack.decrement(1);
                         inventory.markDirty();
                         blockEntity.lastInputDirection = direction;
+                        // sourceExclusion removed - network routing handles source prevention properly
                         blockEntity.markDirty();
                         return; // Only extract one item at a time
                     }
@@ -242,6 +335,32 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         }
     }
     
+    /**
+     * Check if an inventory has space for a specific item.
+     */
+    private static boolean hasSpaceForItem(Inventory inventory, ItemStack itemStack) {
+        // Check each slot to see if we can insert at least one item
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            
+            // Empty slot = space available
+            if (slotStack.isEmpty()) {
+                return true;
+            }
+            
+            // Same item type and not at max capacity = space available
+            if (ItemStack.areItemsEqual(slotStack, itemStack)) {
+                int maxCount = Math.min(slotStack.getMaxCount(), inventory.getMaxCountPerStack());
+                if (slotStack.getCount() < maxCount) {
+                    return true;
+                }
+            }
+        }
+        
+        // No space found in any slot
+        return false;
+    }
+
     /**
      * Route an item through the network while respecting sorting filters.
      */
@@ -257,37 +376,238 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
             return false;
         }
         
-        // Find a route for this item
-        ItemRoute route = network.findRoute(currentStack);
-        if (route == null) {
-            return false; // No available destination
+        // FILTER FIRST: Get allowed directions for this item based on filters
+        List<Direction> allowedDirections = getAllowedDirectionsForItem(blockEntity, currentStack);
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Item {} at {} - allowed directions: {}", 
+            currentStack.getItem().getName().getString(), pos, allowedDirections);
+        
+        // Use network routing to find destinations, but filter by allowed directions
+        List<BlockPos> allDestinations = network.findDestinationsForItem(currentStack, null);
+        List<BlockPos> filteredDestinations = new ArrayList<>();
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Network found {} total destinations", allDestinations.size());
+        
+        // For each destination, check if it's reachable via any of our allowed directions
+        for (BlockPos destination : allDestinations) {
+            // Check if this destination is reachable via any of our allowed directions
+            boolean isReachable = isDestinationReachableViaAllowedDirections(world, pos, destination, allowedDirections, network);
+            
+            if (isReachable) {
+                filteredDestinations.add(destination);
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Added filtered destination: {} (reachable via allowed directions)", destination);
+            } else {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Destination {} not reachable via allowed directions", destination);
+            }
         }
         
-        // Get the next step in the route
-        BlockPos nextStep = getNextStepInRoute(route, pos);
-        if (nextStep == null) {
+        if (filteredDestinations.isEmpty()) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] No destinations reachable via allowed directions");
             return false;
         }
         
-        // Check if this direction is allowed by our filters
-        Direction nextDirection = getDirectionTowards(pos, nextStep);
-        if (nextDirection != null && !isDirectionAllowedByFilter(blockEntity, currentStack, nextDirection)) {
-            return false; // Filter blocks this direction
+        // Find the best route to a filtered destination
+        ItemRoute bestRoute = null;
+        int shortestDistance = Integer.MAX_VALUE;
+        
+        for (BlockPos destination : filteredDestinations) {
+            List<BlockPos> path = network.findPath(pos, destination);
+            if (path != null && path.size() < shortestDistance) {
+                shortestDistance = path.size();
+                bestRoute = new ItemRoute(pos, destination, path);
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Found route to {} via allowed directions, distance: {}", 
+                    destination, path.size());
+            }
         }
         
-        // If next step is the destination, transfer directly to inventory
-        if (nextStep.equals(route.getDestination())) {
-            return transferToAdjacentBlock(world, pos, nextStep, blockEntity, currentStack);
+        if (bestRoute != null) {
+            // Get the next step in the route
+            BlockPos nextStep = bestRoute.getNextPosition(pos);
+            if (nextStep != null) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] Routing to {} via next step {}", 
+                    bestRoute.getDestination(), nextStep);
+                
+                // Transfer to the next step
+                if (nextStep.equals(bestRoute.getDestination())) {
+                    // Next step is the destination, transfer directly to inventory
+                    return transferToInventoryAt(world, nextStep, blockEntity);
+                } else {
+                    // Next step is a pipe, transfer to pipe
+                    return transferToPipeAt(world, nextStep, blockEntity);
+                }
+            }
         }
         
-        // Transfer to the next pipe in the route
-        if (transferToAdjacentBlock(world, pos, nextStep, blockEntity, currentStack)) {
+        Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER] No valid route found for item {}", currentStack.getItem().getName().getString());
+        return false;
+    }
+    
+    /**
+     * Checks if a destination is reachable via any of the allowed directions.
+     * This uses network pathfinding to verify the path actually goes through allowed directions.
+     */
+    private static boolean isDestinationReachableViaAllowedDirections(World world, BlockPos sortingPipePos, BlockPos destination, 
+                                                                   List<Direction> allowedDirections, ItemNetwork network) {
+        // Get the path from sorting pipe to destination
+        List<BlockPos> path = network.findPath(sortingPipePos, destination);
+        if (path == null || path.size() < 2) {
+            return false; // No path or path is too short
+        }
+        
+        // Check if the first step in the path goes in an allowed direction
+        BlockPos firstStep = path.get(1); // First step after the sorting pipe
+        Direction pathDirection = getDirectionTowards(sortingPipePos, firstStep);
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Path to {} starts with direction: {}", destination, pathDirection);
+        Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Allowed directions: {}", allowedDirections);
+        
+        // Check if the path direction is in our allowed directions
+        boolean isAllowed = allowedDirections.contains(pathDirection);
+        
+        if (isAllowed) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Destination {} is reachable via allowed direction {}", destination, pathDirection);
+        } else {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-PATH] Destination {} is NOT reachable - path direction {} not in allowed directions {}", 
+                destination, pathDirection, allowedDirections);
+        }
+        
+        return isAllowed;
+    }
+    
+    /**
+     * Transfers item to a specific inventory location.
+     */
+    private static boolean transferToInventoryAt(World world, BlockPos inventoryPos, SortingPipeBlockEntity blockEntity) {
+        if (world.getBlockEntity(inventoryPos) instanceof Inventory inventory) {
+            ItemStack currentStack = blockEntity.getStack(0);
+            Direction transferDirection = getDirectionTowards(blockEntity.getPos(), inventoryPos);
+            
+            if (transferDirection != null) {
+                ItemStack remaining = transferToInventory(blockEntity, inventory, currentStack.copy(), transferDirection.getOpposite());
+                
+                if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+                    // Successfully transferred at least part of the item
+                    blockEntity.setStack(0, remaining);
+                    blockEntity.markDirty();
+                    
+                    // Send animation for item leaving the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), inventoryPos);
+                    }
+                    
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Transfers item to a pipe at the specified position.
+     */
+    private static boolean transferToPipeAt(World world, BlockPos targetPipePos, SortingPipeBlockEntity blockEntity) {
+        if (world.getBlockEntity(targetPipePos) instanceof Inventory targetPipe) {
+            if (!targetPipe.isEmpty()) {
+                return false; // Target pipe is full
+            }
+            
+            ItemStack currentStack = blockEntity.getStack(0);
+            Direction transferDirection = getDirectionTowards(blockEntity.getPos(), targetPipePos);
+            
+            // Transfer the item
+            ItemStack transferredItem = blockEntity.removeStack(0);
+            targetPipe.setStack(0, transferredItem);
+            
+            // Set animation and direction info based on target pipe type
+            if (targetPipe instanceof ItemPipeBlockEntity itemPipe) {
+                itemPipe.lastInputDirection = transferDirection;
+                itemPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
+                // sourceExclusion removed - network routing handles loop prevention properly
+            } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
+                sortingPipe.setLastInputDirection(transferDirection);
+                sortingPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
+                // sourceExclusion removed - network routing handles loop prevention properly
+            }
+            
+            targetPipe.markDirty();
+            
+            // Clear source pipe
             blockEntity.setStack(0, ItemStack.EMPTY);
             blockEntity.markDirty();
+            
+            // Send animation
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), targetPipePos);
+            }
+            
             return true;
         }
-        
         return false;
+    }
+    
+    /**
+     * Get all directions that are allowed for a specific item based on filters.
+     */
+    private static List<Direction> getAllowedDirectionsForItem(SortingPipeBlockEntity blockEntity, ItemStack item) {
+        List<Direction> allowedDirections = new ArrayList<>();
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] Checking filters for item: {}", item.getItem().getName().getString());
+        
+        // First, check if this item has a specific filter set anywhere
+        boolean hasSpecificFilter = false;
+        for (int i = 0; i < 6; i++) {
+            ItemStack filterStack = blockEntity.getFilterStack(i);
+            if (!filterStack.isEmpty() && ItemStack.areItemsAndComponentsEqual(item, filterStack)) {
+                hasSpecificFilter = true;
+                Direction direction = DIRECTION_ORDER[i];
+                allowedDirections.add(direction);
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] Found specific filter for {} in direction {} (slot {})", 
+                    item.getItem().getName().getString(), direction, i);
+            }
+        }
+        
+        // If the item has a specific filter, only use those directions
+        if (hasSpecificFilter) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] Item has specific filters - allowed directions: {}", allowedDirections);
+            return allowedDirections;
+        }
+        
+        // If no specific filter, item can go in any direction that doesn't have a filter
+        for (int i = 0; i < 6; i++) {
+            ItemStack filterStack = blockEntity.getFilterStack(i);
+            if (filterStack.isEmpty()) {
+                Direction direction = DIRECTION_ORDER[i];
+                allowedDirections.add(direction);
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] No filter in slot {} (direction {}) - allowing item", i, direction);
+            } else {
+                Direction direction = DIRECTION_ORDER[i];
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] Filter in slot {} (direction {}) for {} - blocking item", 
+                    i, direction, filterStack.getItem().getName().getString());
+            }
+        }
+        
+        // If no directions are available (all directions have filters for other items), 
+        // allow all directions as fallback (shouldn't normally happen)
+        if (allowedDirections.isEmpty()) {
+            allowedDirections.addAll(Arrays.asList(Direction.values()));
+            Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] No directions available, allowing all directions as fallback");
+        }
+        
+        Circuitmod.LOGGER.info("[SORTING-PIPE-FILTER-LOGIC] Final allowed directions for {}: {}", 
+            item.getItem().getName().getString(), allowedDirections);
+        return allowedDirections;
+    }
+    
+    /**
+     * Check if any filters are configured in this sorting pipe.
+     */
+    private static boolean hasNoFiltersSet(SortingPipeBlockEntity blockEntity) {
+        for (int i = 0; i < 6; i++) {
+            if (!blockEntity.getFilterStack(i).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**
@@ -358,13 +678,13 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                         Direction direction = getDirectionTowards(fromPos, toPos);
                         if (direction != null) {
                             itemPipe.lastInputDirection = direction.getOpposite();
-                            itemPipe.setTransferCooldown(8);
+                            itemPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
                         }
                     } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
                         Direction direction = getDirectionTowards(fromPos, toPos);
                         if (direction != null) {
                             sortingPipe.setLastInputDirection(direction.getOpposite());
-                            sortingPipe.setTransferCooldown(8);
+                            sortingPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
                         }
                     }
                     
@@ -487,4 +807,68 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         }
         return inventory.isValid(slot, stack);
     }
-} 
+    
+    /**
+     * Checks for new unconnected inventories and pipes around the pipe and triggers a network rescan if needed.
+     */
+    private static void checkForUnconnectedInventories(World world, BlockPos pos, SortingPipeBlockEntity blockEntity) {
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+        if (network == null) {
+            return;
+        }
+        
+        // Check all 6 directions for inventories AND pipes
+        boolean foundNewConnection = false;
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos = pos.offset(direction);
+            BlockState blockState = world.getBlockState(neighborPos);
+            
+            // Check for new pipes (any pipe type)
+            if (blockState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+                // Check if this pipe is in a different network that we should merge with
+                ItemNetwork neighborNetwork = ItemNetworkManager.getNetworkForPipe(neighborPos);
+                if (neighborNetwork != null && neighborNetwork != network) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-DISCOVERY] Found new pipe connection at {} with different network {}", neighborPos, neighborNetwork.getNetworkId());
+                    foundNewConnection = true;
+                    break;
+                }
+                continue; // Skip inventory check for pipes
+            }
+            
+            // Use the same inventory detection logic as in ItemNetwork
+            net.minecraft.block.Block block = blockState.getBlock();
+            Inventory inventory = null;
+            
+            // Check if block implements InventoryProvider interface
+            if (block instanceof net.minecraft.block.InventoryProvider) {
+                inventory = ((net.minecraft.block.InventoryProvider)block).getInventory(blockState, world, neighborPos);
+            } 
+            // Check if block has entity AND entity implements Inventory
+            else if (blockState.hasBlockEntity()) {
+                net.minecraft.block.entity.BlockEntity blockEntity2 = world.getBlockEntity(neighborPos);
+                if (blockEntity2 instanceof Inventory inv) {
+                    // Special case: Handle double chests properly
+                    if (inv instanceof net.minecraft.block.entity.ChestBlockEntity && 
+                        block instanceof net.minecraft.block.ChestBlock) {
+                        inventory = net.minecraft.block.ChestBlock.getInventory((net.minecraft.block.ChestBlock)block, blockState, world, neighborPos, true);
+                    } else {
+                        inventory = inv;
+                    }
+                }
+            }
+            
+            // If we found an inventory that's not in our network, trigger a rescan
+            if (inventory != null && !network.getConnectedInventories().containsKey(neighborPos)) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-DISCOVERY] Found new inventory at {} next to sorting pipe at {}", neighborPos, pos);
+                foundNewConnection = true;
+                break; // Only need to find one to trigger rescan
+            }
+        }
+        
+        // If we found a new connection, trigger a network rescan
+        if (foundNewConnection) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-DISCOVERY] Triggering network rescan due to new connection discovery");
+            network.forceRescanAllInventories();
+        }
+    }
+}

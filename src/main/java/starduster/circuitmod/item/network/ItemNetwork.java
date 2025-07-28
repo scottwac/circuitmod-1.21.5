@@ -218,16 +218,39 @@ public class ItemNetwork {
             return null;
         }
         
-        // Calculate best route using shortest path from the specified source
-        ItemRoute bestRoute = null;
-        int shortestDistance = Integer.MAX_VALUE;
+        // Sort destinations by distance (closest first) and find the best route
+        List<RouteCandidate> candidates = new ArrayList<>();
         
         for (BlockPos destination : destinations) {
             List<BlockPos> path = findPath(sourcePos, destination);
-            if (path != null && path.size() < shortestDistance) {
-                shortestDistance = path.size();
-                bestRoute = new ItemRoute(sourcePos, destination, path);
-                Circuitmod.LOGGER.info("[ROUTE-CREATE] Created route: {} -> {} with path: {}", sourcePos, destination, path);
+            if (path != null) {
+                // Calculate available space at this destination
+                Inventory destInventory = destinationInventories.get(destination);
+                int availableSpace = calculateAvailableSpace(destInventory, itemStack);
+                
+                Circuitmod.LOGGER.info("[ROUTE-CREATE] Destination {} has {} available space, path length: {}", 
+                    destination, availableSpace, path.size());
+                
+                candidates.add(new RouteCandidate(destination, path, availableSpace, path.size()));
+            }
+        }
+        
+        // Sort by distance (closest first), then by available space
+        candidates.sort((a, b) -> {
+            if (a.distance != b.distance) {
+                return Integer.compare(a.distance, b.distance); // Closest first
+            }
+            return Integer.compare(b.availableSpace, a.availableSpace); // More space first for same distance
+        });
+        
+        // Find the best route: closest with space, or closest with any space
+        ItemRoute bestRoute = null;
+        for (RouteCandidate candidate : candidates) {
+            if (candidate.availableSpace > 0) {
+                bestRoute = new ItemRoute(sourcePos, candidate.destination, candidate.path);
+                Circuitmod.LOGGER.info("[ROUTE-CREATE] Selected route: {} -> {} (distance: {}, space: {})", 
+                    sourcePos, candidate.destination, candidate.distance, candidate.availableSpace);
+                break;
             }
         }
         
@@ -314,13 +337,14 @@ public class ItemNetwork {
     /**
      * Finds all destinations that can accept a specific item (excluding specified position).
      */
-    private List<BlockPos> findDestinationsForItem(ItemStack itemStack, BlockPos excludeDestination) {
+    public List<BlockPos> findDestinationsForItem(ItemStack itemStack, BlockPos excludeDestination) {
         Circuitmod.LOGGER.info("[NETWORK-DEST] Finding destinations for {} (excluding {})", 
             itemStack.getItem().getName().getString(), excludeDestination);
         
         List<BlockPos> destinations = new ArrayList<>();
         
         Circuitmod.LOGGER.info("[NETWORK-DEST] Checking destination inventories: {}", destinationInventories.size());
+        Circuitmod.LOGGER.info("[NETWORK-DEST] All destination positions: {}", destinationInventories.keySet());
         
         // Only check DESTINATION inventories (adjacent to regular pipes)
         // Never check source inventories (adjacent to output pipes) as destinations
@@ -328,7 +352,7 @@ public class ItemNetwork {
             BlockPos inventoryPos = entry.getKey();
             Inventory inventory = entry.getValue();
             
-            Circuitmod.LOGGER.info("[NETWORK-DEST] Checking destination inventory at {}", inventoryPos);
+            Circuitmod.LOGGER.info("[NETWORK-DEST] Checking destination inventory at {}: {}", inventoryPos, inventory.getClass().getSimpleName());
             
             // Skip if this is the excluded destination
             if (excludeDestination != null && inventoryPos.equals(excludeDestination)) {
@@ -338,6 +362,8 @@ public class ItemNetwork {
             
             // Check all possible connection directions for this inventory
             Set<Direction> connectionDirs = inventoryConnections.getOrDefault(inventoryPos, new HashSet<>());
+            Circuitmod.LOGGER.info("[NETWORK-DEST] Connection directions for {}: {}", inventoryPos, connectionDirs);
+            
             for (Direction direction : connectionDirs) {
                 Circuitmod.LOGGER.info("[NETWORK-DEST] Testing direction {} for inventory {}", direction, inventoryPos);
                 
@@ -355,6 +381,7 @@ public class ItemNetwork {
         
         Circuitmod.LOGGER.info("[NETWORK-DEST] Found {} destinations for {}", 
             destinations.size(), itemStack.getItem().getName().getString());
+        Circuitmod.LOGGER.info("[NETWORK-DEST] Destination positions: {}", destinations);
         return destinations;
     }
     
@@ -531,11 +558,23 @@ public class ItemNetwork {
     }
     
     /**
-     * Invalidates the route cache.
+     * Invalidates the route cache to force recalculation of routes.
+     * This should be called when inventory contents change.
      */
-    private void invalidateRouteCache() {
+    public void invalidateRouteCache() {
         routeCache.clear();
         lastRouteUpdate = System.currentTimeMillis();
+        Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated route cache for network {}", networkId);
+    }
+    
+    /**
+     * Invalidates routes for a specific item type when inventory contents change.
+     */
+    public void invalidateRoutesForItem(ItemStack itemStack) {
+        // Remove all cached routes for this item type
+        routeCache.entrySet().removeIf(entry -> entry.getKey().contains(itemStack.getItem().toString()));
+        Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated routes for {} in network {}", 
+            itemStack.getItem().getName().getString(), networkId);
     }
     
     /**
@@ -699,5 +738,119 @@ public class ItemNetwork {
      */
     public Map<BlockPos, Inventory> getDestinationInventories() {
         return destinationInventories;
+    }
+
+    /**
+     * Calculates the available space for a specific item in an inventory.
+     */
+    private int calculateAvailableSpace(Inventory inventory, ItemStack itemStack) {
+        int totalSpace = 0;
+        
+        // Handle SidedInventory (furnaces, hoppers, etc.)
+        if (inventory instanceof net.minecraft.inventory.SidedInventory sidedInventory) {
+            // For sided inventories, we need to check all sides
+            for (Direction side : Direction.values()) {
+                int[] availableSlots = sidedInventory.getAvailableSlots(side);
+                for (int slot : availableSlots) {
+                    if (sidedInventory.canInsert(slot, itemStack, side)) {
+                        ItemStack stackInSlot = sidedInventory.getStack(slot);
+                        if (stackInSlot.isEmpty()) {
+                            totalSpace += itemStack.getMaxCount();
+                        } else if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
+                            int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
+                            totalSpace += (maxCount - stackInSlot.getCount());
+                        }
+                    }
+                }
+            }
+        } else {
+            // Handle regular Inventory
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                ItemStack stackInSlot = inventory.getStack(slot);
+                if (stackInSlot.isEmpty()) {
+                    totalSpace += itemStack.getMaxCount();
+                } else if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
+                    int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
+                    totalSpace += (maxCount - stackInSlot.getCount());
+                }
+            }
+        }
+        
+        return totalSpace;
+    }
+
+    /**
+     * Monitors inventory changes and updates routes when space becomes available.
+     * This should be called periodically to check if closer destinations now have space.
+     */
+    public void monitorInventoryChanges() {
+        // Check if any destination inventories have changed their available space
+        boolean hasChanges = false;
+        
+        for (Map.Entry<BlockPos, Inventory> entry : destinationInventories.entrySet()) {
+            BlockPos inventoryPos = entry.getKey();
+            Inventory inventory = entry.getValue();
+            
+            // Check if this inventory has any available space for any item type
+            boolean hasSpace = false;
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                ItemStack stackInSlot = inventory.getStack(slot);
+                if (stackInSlot.isEmpty()) {
+                    hasSpace = true;
+                    Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} has empty slot {}", inventoryPos, slot);
+                    break;
+                } else {
+                    // Check if this slot can hold more of the same item
+                    int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
+                    if (stackInSlot.getCount() < maxCount) {
+                        hasSpace = true;
+                        Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} has partial slot {} with {} < {}", 
+                            inventoryPos, slot, stackInSlot.getCount(), maxCount);
+                        break;
+                    }
+                }
+            }
+            
+            if (hasSpace) {
+                // This inventory has space, invalidate routes to force recalculation
+                Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} now has space, invalidating routes", inventoryPos);
+                invalidateRouteCache();
+                hasChanges = true;
+                break; // Only need to find one change to trigger update
+            }
+        }
+        
+        if (hasChanges) {
+            Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory changes detected, routes will be recalculated");
+        }
+    }
+    
+    /**
+     * Checks if a specific destination has space for an item.
+     */
+    public boolean destinationHasSpace(BlockPos destination, ItemStack itemStack) {
+        Inventory inventory = destinationInventories.get(destination);
+        if (inventory == null) {
+            return false;
+        }
+        
+        return calculateAvailableSpace(inventory, itemStack) > 0;
+    }
+
+    /**
+     * Helper class to store route candidates with their properties.
+     */
+    private static class RouteCandidate {
+        final BlockPos destination;
+        final List<BlockPos> path;
+        final int availableSpace;
+        final int distance;
+        
+        RouteCandidate(BlockPos destination, List<BlockPos> path, int availableSpace, int distance) {
+            this.destination = destination;
+            this.path = path;
+            this.availableSpace = availableSpace;
+            this.distance = distance;
+        }
     }
 } 

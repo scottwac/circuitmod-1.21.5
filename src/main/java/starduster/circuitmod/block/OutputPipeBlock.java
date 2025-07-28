@@ -18,6 +18,10 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
 import starduster.circuitmod.item.network.ItemNetworkManager;
+import net.minecraft.text.Text;
+import net.minecraft.inventory.Inventory;
+import starduster.circuitmod.item.network.ItemNetwork;
+import java.util.Map;
 
 public class OutputPipeBlock extends BasePipeBlock {
     public static final MapCodec<OutputPipeBlock> CODEC = createCodec(OutputPipeBlock::new);
@@ -81,12 +85,54 @@ public class OutputPipeBlock extends BasePipeBlock {
 
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-        // Output pipes don't have a GUI, but we can provide feedback
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof OutputPipeBlockEntity outputPipe) {
-                boolean isPowered = world.getReceivedRedstonePower(pos) > 0;
-                // Could add feedback here if needed
+            if (blockEntity instanceof OutputPipeBlockEntity pipe) {
+                // Display output pipe and network info when right-clicked
+                player.sendMessage(Text.literal("§6Output Pipe Status:"), false);
+                
+                if (pipe.getNetwork() != null) {
+                    ItemNetwork network = pipe.getNetwork();
+                    player.sendMessage(Text.literal("§7Network ID: §9" + network.getNetworkId()), false);
+                    player.sendMessage(Text.literal("§7Connected to network with §9" + network.getSize() + "§7 pipes"), false);
+                    
+                    // Show inventory information
+                    Map<BlockPos, Inventory> connectedInventories = network.getConnectedInventories();
+                    player.sendMessage(Text.literal("§7Connected inventories: §9" + connectedInventories.size()), false);
+                    
+                    if (!connectedInventories.isEmpty()) {
+                        player.sendMessage(Text.literal("§7Inventory positions:"), false);
+                        for (BlockPos invPos : connectedInventories.keySet()) {
+                            Inventory inv = connectedInventories.get(invPos);
+                            String invType = inv.getClass().getSimpleName();
+                            player.sendMessage(Text.literal("§7  §9" + invPos + "§7 (" + invType + ")"), false);
+                        }
+                    }
+                    
+                    // Show source and destination counts
+                    Map<BlockPos, Inventory> sourceInventories = network.getSourceInventories();
+                    Map<BlockPos, Inventory> destinationInventories = network.getDestinationInventories();
+                    player.sendMessage(Text.literal("§7Sources: §9" + sourceInventories.size() + "§7, Destinations: §9" + destinationInventories.size()), false);
+                    
+                    // Show current pipe state
+                    if (!pipe.isEmpty()) {
+                        ItemStack currentItem = pipe.getStack(0);
+                        player.sendMessage(Text.literal("§7Current item: §9" + currentItem.getItem().getName().getString() + "§7 x" + currentItem.getCount()), false);
+                    } else {
+                        player.sendMessage(Text.literal("§7Current item: §9Empty"), false);
+                    }
+                    
+                    // Show transfer cooldown
+                    player.sendMessage(Text.literal("§7Transfer cooldown: §9" + pipe.getTransferCooldown()), false);
+                    
+                    // Show redstone power status
+                    boolean isPowered = world.getReceivedRedstonePower(pos) > 0;
+                    String powerStatus = isPowered ? "§aPowered" : "§cUnpowered";
+                    player.sendMessage(Text.literal("§7Redstone power: " + powerStatus), false);
+                    
+                } else {
+                    player.sendMessage(Text.literal("§cNot connected to any network!"), false);
+                }
             }
         }
         return ActionResult.SUCCESS;
