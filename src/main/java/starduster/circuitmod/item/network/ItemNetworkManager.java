@@ -11,12 +11,10 @@ import net.minecraft.block.entity.BlockEntity;
 import starduster.circuitmod.block.entity.ItemPipeBlockEntity;
 import starduster.circuitmod.block.entity.SortingPipeBlockEntity;
 import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
-import starduster.circuitmod.block.entity.UpPipeBlockEntity;
-import java.util.List;
 
 /**
- * Global manager for all item networks in the world.
- * Handles network creation, merging, and splitting.
+ * Simplified network manager - only handles pipe connections and network discovery.
+ * No complex routing logic since pipes handle movement themselves.
  */
 public class ItemNetworkManager {
     private static final Map<String, ItemNetwork> networks = new HashMap<>();
@@ -29,13 +27,6 @@ public class ItemNetworkManager {
         ItemNetwork network = new ItemNetwork(world);
         networks.put(network.getNetworkId(), network);
         return network;
-    }
-    
-    /**
-     * Gets a network by ID.
-     */
-    public static ItemNetwork getNetwork(String networkId) {
-        return networks.get(networkId);
     }
     
     /**
@@ -62,7 +53,7 @@ public class ItemNetworkManager {
                 pipeToNetwork.remove(pipe);
             }
             
-            Circuitmod.LOGGER.info("Removed item network: " + networkId);
+            Circuitmod.LOGGER.debug("Removed item network: " + networkId);
         }
     }
     
@@ -70,14 +61,13 @@ public class ItemNetworkManager {
      * Connects a pipe to an existing network or creates a new one.
      */
     public static void connectPipe(World world, BlockPos pipePos) {
-        if (world.isClient()) {
-            return;
-        }
+        if (world.isClient()) return;
         
-        // Get the pipe block entity
+        // Verify this is actually a pipe
         BlockEntity pipeBlock = world.getBlockEntity(pipePos);
-        if (!(pipeBlock instanceof ItemPipeBlockEntity || pipeBlock instanceof SortingPipeBlockEntity || 
-              pipeBlock instanceof OutputPipeBlockEntity || pipeBlock instanceof UpPipeBlockEntity)) {
+        if (!(pipeBlock instanceof ItemPipeBlockEntity || 
+              pipeBlock instanceof SortingPipeBlockEntity || 
+              pipeBlock instanceof OutputPipeBlockEntity)) {
             return;
         }
         
@@ -88,52 +78,35 @@ public class ItemNetworkManager {
             // No existing networks found, create a new one
             ItemNetwork newNetwork = createNetwork(world);
             newNetwork.addPipe(pipePos);
-            pipeToNetwork.put(pipePos, newNetwork);
             
-            // Only log occasionally to prevent spam
-            if (world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Created new item network {} for pipe at {}",
-                    newNetwork.getNetworkId(), pipePos);
-            }
+            Circuitmod.LOGGER.debug("[NETWORK-CONNECT] Created new network {} for pipe at {}",
+                newNetwork.getNetworkId(), pipePos);
         } else if (connectableNetworks.size() == 1) {
             // Found exactly one network, join it
             ItemNetwork network = connectableNetworks.iterator().next();
             network.addPipe(pipePos);
-            pipeToNetwork.put(pipePos, network);
             
-            // Only log occasionally to prevent spam
-            if (world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Connected pipe at {} to existing network {}",
-                    pipePos, network.getNetworkId());
-            }
+            Circuitmod.LOGGER.debug("[NETWORK-CONNECT] Connected pipe at {} to network {}",
+                pipePos, network.getNetworkId());
         } else {
             // Found multiple networks, merge them
             mergeNetworks(connectableNetworks, pipePos);
             
-            // Only log occasionally to prevent spam
-            if (world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Merging {} networks for pipe at {}", connectableNetworks.size(), pipePos);
-            }
+            Circuitmod.LOGGER.debug("[NETWORK-CONNECT] Merged {} networks for pipe at {}", 
+                connectableNetworks.size(), pipePos);
         }
     }
     
     /**
-     * Disconnects a pipe from its network, potentially splitting the network.
+     * Disconnects a pipe from its network.
      */
     public static void disconnectPipe(World world, BlockPos pipePos) {
-        if (world.isClient()) {
-            return;
-        }
+        if (world.isClient()) return;
         
         ItemNetwork network = pipeToNetwork.remove(pipePos);
-        if (network == null) {
-            return;
-        }
+        if (network == null) return;
         
         String networkId = network.getNetworkId();
-        Circuitmod.LOGGER.debug("Disconnecting pipe at {} from network {}", pipePos, networkId);
-        
-        // Remove the pipe from the network
         network.removePipe(pipePos);
         
         // If the network is now empty, remove it entirely
@@ -143,11 +116,7 @@ public class ItemNetworkManager {
         }
         
         // Check if the network needs to be split
-        Set<BlockPos> remainingPipes = network.getPipes();
-        if (!remainingPipes.isEmpty()) {
-            // Check if all remaining pipes are still connected
-            checkNetworkConnectivity(world, network);
-        }
+        checkAndSplitNetwork(world, network);
     }
     
     /**
@@ -160,10 +129,9 @@ public class ItemNetworkManager {
         for (net.minecraft.util.math.Direction dir : net.minecraft.util.math.Direction.values()) {
             BlockPos neighborPos = pipePos.offset(dir);
             BlockState neighborState = world.getBlockState(neighborPos);
-            Block neighborBlock = neighborState.getBlock();
             
-            // Check if there's another pipe that can connect (any pipe type)
-            if (neighborBlock instanceof starduster.circuitmod.block.BasePipeBlock) {
+            // Check if there's another pipe that can connect
+            if (neighborState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
                 ItemNetwork neighborNetwork = pipeToNetwork.get(neighborPos);
                 if (neighborNetwork != null) {
                     connectableNetworks.add(neighborNetwork);
@@ -178,54 +146,40 @@ public class ItemNetworkManager {
      * Merges multiple networks into one.
      */
     private static void mergeNetworks(Set<ItemNetwork> networksToMerge, BlockPos newPipePos) {
-        if (networksToMerge.isEmpty()) {
-            return;
-        }
+        if (networksToMerge.isEmpty()) return;
         
         // Use the largest network as the base
         ItemNetwork primaryNetwork = networksToMerge.stream()
             .max(Comparator.comparingInt(ItemNetwork::getSize))
             .orElse(null);
         
-        if (primaryNetwork == null) {
-            return;
-        }
-        
-        Circuitmod.LOGGER.info("Merging {} networks into {}", 
-            networksToMerge.size(), primaryNetwork.getNetworkId());
+        if (primaryNetwork == null) return;
         
         // Add the new pipe to the primary network
         primaryNetwork.addPipe(newPipePos);
-        pipeToNetwork.put(newPipePos, primaryNetwork);
         
         // Merge all other networks into the primary
         for (ItemNetwork networkToMerge : networksToMerge) {
-            if (networkToMerge == primaryNetwork) {
-                continue;
-            }
+            if (networkToMerge == primaryNetwork) continue;
             
             // Transfer all pipes from the old network to the primary
             Set<BlockPos> pipesToTransfer = new HashSet<>(networkToMerge.getPipes());
             primaryNetwork.merge(networkToMerge);
             
-            // Update pipe mappings
-            for (BlockPos pipePos : pipesToTransfer) {
-                pipeToNetwork.put(pipePos, primaryNetwork);
-            }
-            
             // Remove the old network
             removeNetwork(networkToMerge.getNetworkId());
         }
+        
+        Circuitmod.LOGGER.debug("Merged {} networks into {}", 
+            networksToMerge.size(), primaryNetwork.getNetworkId());
     }
     
     /**
-     * Checks if a network is still connected after a pipe was removed.
+     * Checks if a network needs to be split after a pipe removal.
      */
-    private static void checkNetworkConnectivity(World world, ItemNetwork network) {
+    private static void checkAndSplitNetwork(World world, ItemNetwork network) {
         Set<BlockPos> pipes = network.getPipes();
-        if (pipes.isEmpty()) {
-            return;
-        }
+        if (pipes.isEmpty()) return;
         
         // Use flood-fill to check connectivity
         BlockPos startPipe = pipes.iterator().next();
@@ -237,14 +191,14 @@ public class ItemNetworkManager {
             Set<BlockPos> unreachable = new HashSet<>(pipes);
             unreachable.removeAll(reachable);
             
-            // Create new networks for unreachable components
-            createNetworksForDisconnectedPipes(world, unreachable);
-            
             // Remove unreachable pipes from current network
             for (BlockPos unreachablePipe : unreachable) {
                 network.removePipe(unreachablePipe);
                 pipeToNetwork.remove(unreachablePipe);
             }
+            
+            // Create new networks for disconnected pipe groups
+            createNetworksForDisconnectedPipes(world, unreachable);
         }
     }
     
@@ -270,15 +224,14 @@ public class ItemNetworkManager {
                 for (BlockPos connectedPos : connectedPipes) {
                     if (world.getBlockState(connectedPos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
                         newNetwork.addPipe(connectedPos);
-                        pipeToNetwork.put(connectedPos, newNetwork);
                     }
                 }
                 
-                Circuitmod.LOGGER.info("Created new network {} for {} disconnected pipes", 
-                    newNetwork.getNetworkId(), connectedPipes.size());
-                
                 // Remove processed pipes
                 unprocessed.removeAll(connectedPipes);
+                
+                Circuitmod.LOGGER.debug("Created new network {} for {} disconnected pipes", 
+                    newNetwork.getNetworkId(), connectedPipes.size());
             } else {
                 // Pipe no longer exists, just remove it
                 unprocessed.remove(startPos);
@@ -332,4 +285,4 @@ public class ItemNetworkManager {
         pipeToNetwork.clear();
         Circuitmod.LOGGER.info("Cleared all item networks");
     }
-} 
+}
