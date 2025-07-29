@@ -12,13 +12,12 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import starduster.circuitmod.item.network.ItemNetwork;
-
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.BasePipeBlock;
 import starduster.circuitmod.item.network.ItemNetworkManager;
+import starduster.circuitmod.item.network.ItemNetwork;
 import starduster.circuitmod.network.PipeNetworkAnimator;
 
 /**
@@ -78,14 +77,6 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
             blockEntity.markDirty();
         }
     }
-
-    public ItemNetwork getNetwork() {
-        return ItemNetworkManager.getNetworkForPipe(pos);
-    }
-    
-    public int getTransferCooldown() {
-        return this.pushCooldown;
-    }
     
     /**
      * Try to push the current item to any adjacent pipe that can accept it.
@@ -135,8 +126,8 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
             
             // Send animation
             if (world instanceof ServerWorld serverWorld) {
-                PipeNetworkAnimator.sendMoveAnimation(serverWorld, itemToTransfer, 
-                    pos, pos.offset(bestDirection), 5);
+                PipeNetworkAnimator.sendExtractionAnimation(serverWorld, itemToTransfer, 
+                    pos, pos.offset(bestDirection));
             }
             
             Circuitmod.LOGGER.debug("[OUTPUT-PIPE] Pushed {} to pipe at {}", 
@@ -268,6 +259,22 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
             return inventory;
         }
         return null;
+    }
+    
+    // Legacy compatibility methods for existing Block classes
+    
+    /**
+     * Gets the current network this pipe belongs to.
+     */
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
+    
+    /**
+     * Gets the transfer cooldown (for debugging).
+     */
+    public int getTransferCooldown() {
+        return this.pushCooldown; // Return push cooldown as the main transfer timing
     }
     
     // Inventory implementation

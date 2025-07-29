@@ -90,11 +90,6 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
     }
     
-
-    public Direction getMovementDirection() {
-        return this.movementDirection;
-    }
-    
     /**
      * Try to move the current item towards a destination.
      * Priority order:
@@ -125,7 +120,8 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         
         // Step 2: Try all adjacent inventories for direct delivery
         for (Direction direction : Direction.values()) {
-            if (isSourceDirection(pos, direction)) continue; // Don't go backwards
+            if (direction == getOppositeDirection(movementDirection)) continue; // Don't go backwards
+            if (isSourceDirection(pos, direction)) continue; // Don't return to source
             
             BlockPos targetPos = pos.offset(direction);
             if (tryInsertIntoInventory(world, targetPos, item)) {
@@ -223,7 +219,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             // Send animation for successful delivery
             if (world instanceof ServerWorld serverWorld) {
-                PipeNetworkAnimator.sendMoveAnimation(serverWorld, item, this.pos, pos, 8);
+                PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, this.pos, pos);
             }
             
             Circuitmod.LOGGER.debug("[ITEM-PIPE] Delivered {} to inventory at {}", 
@@ -264,14 +260,13 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         
         // Send animation for pipe-to-pipe transfer
         if (world instanceof ServerWorld serverWorld) {
-            PipeNetworkAnimator.sendMoveAnimation(serverWorld, item, this.pos, pos, 8);
+            PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, this.pos, pos);
         }
         
         Circuitmod.LOGGER.debug("[ITEM-PIPE] Passed {} to pipe at {}", 
             item.getItem().getName().getString(), pos);
         return true;
     }
-    
     
     /**
      * Find the best direction using pathfinding that looks ahead for inventories.
@@ -293,12 +288,6 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         return bestDirection;
-    }
-    public ItemNetwork getNetwork() {
-        return ItemNetworkManager.getNetworkForPipe(pos);
-    }
-    public int getTransferCooldown() {
-        return this.transferCooldown;
     }
     
     /**
@@ -427,6 +416,10 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     }
     
     // Helper methods
+    private Direction getOppositeDirection(Direction direction) {
+        return direction != null ? direction.getOpposite() : null;
+    }
+    
     private boolean isSourceDirection(BlockPos currentPos, Direction direction) {
         return sourcePosition != null && currentPos.offset(direction).equals(sourcePosition);
     }
@@ -448,6 +441,29 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     
     public void setTransferCooldown(int cooldown) {
         this.transferCooldown = cooldown;
+    }
+    
+    // Legacy compatibility methods for existing code
+    
+    /**
+     * Gets the current network this pipe belongs to.
+     */
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
+    
+    /**
+     * Gets the transfer cooldown (for debugging/compatibility).
+     */  
+    public int getTransferCooldown() {
+        return this.transferCooldown;
+    }
+    
+    /**
+     * Gets the current movement direction (for debugging).
+     */
+    public Direction getMovementDirection() {
+        return this.movementDirection;
     }
     
     // Inventory implementation
