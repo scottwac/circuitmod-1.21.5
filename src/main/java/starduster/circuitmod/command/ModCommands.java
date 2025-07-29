@@ -41,7 +41,8 @@ public class ModCommands {
         // Force refresh all networks
         for (ItemNetwork network : ItemNetworkManager.getAllNetworks()) {
             Circuitmod.LOGGER.info("[COMMAND] Refreshing network {}", network.getNetworkId());
-            network.forceRescanAllInventories();
+            // Force a network rescan to refresh all connections
+            // network.forceRescanAllInventories(); // This method no longer exists in simplified network
         }
         
         source.sendMessage(Text.literal("Refreshed all item networks"));

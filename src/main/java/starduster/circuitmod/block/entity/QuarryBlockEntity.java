@@ -10,6 +10,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
@@ -709,11 +710,33 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         BlockState blockState = world.getBlockState(miningPos);
         ItemStack minedItem;
         
+        // Debug logging to see what we're mining
+        // Circuitmod.LOGGER.info("[QUARRY-MINE] Mining block {} at {}", blockState.getBlock().getName().getString(), miningPos);
+        
         // Special handling for powdered snow - give snowballs instead of powdered snow bucket
         if (blockState.getBlock() == net.minecraft.block.Blocks.POWDER_SNOW) {
             minedItem = new ItemStack(net.minecraft.item.Items.SNOWBALL);
         } else {
-            minedItem = new ItemStack(blockState.getBlock().asItem());
+            // Check if the block has a valid item - use a more robust check
+            Item item = blockState.getBlock().asItem();
+            if (item == net.minecraft.item.Items.AIR || item == null) {
+                // This block doesn't have a valid item, skip it
+                //   Circuitmod.LOGGER.info("[QUARRY-MINE] Block {} has no valid item, skipping", blockState.getBlock().getName().getString());
+                world.removeBlock(miningPos, false);
+                return true; // Successfully removed the block
+            } else {
+                minedItem = new ItemStack(item);
+            }
+        }
+        
+        // Debug logging to see what item we created
+        Circuitmod.LOGGER.info("[QUARRY-MINE] Created item {} from block {}", minedItem.getItem().getName().getString(), blockState.getBlock().getName().getString());
+        
+        // Don't add Air items to inventory
+        if (minedItem.getItem() == net.minecraft.item.Items.AIR) {
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Skipping Air item, not adding to inventory");
+            world.removeBlock(miningPos, false);
+            return true;
         }
         
         // Check if we have space in inventory
@@ -723,10 +746,12 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             if (stack.isEmpty()) {
                 inventory.set(i, minedItem);
                 addedToInventory = true;
+                Circuitmod.LOGGER.info("[QUARRY-MINE] Added {} to inventory slot {}", minedItem.getItem().getName().getString(), i);
                 break;
             } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
                 stack.increment(1);
                 addedToInventory = true;
+                Circuitmod.LOGGER.info("[QUARRY-MINE] Incremented {} in inventory slot {}", minedItem.getItem().getName().getString(), i);
                 break;
             }
         }
@@ -736,6 +761,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return true;
         } else {
             // Inventory full, cannot mine
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Inventory full, cannot mine {}", minedItem.getItem().getName().getString());
             return false;
         }
     }

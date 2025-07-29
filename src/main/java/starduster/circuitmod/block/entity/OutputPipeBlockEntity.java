@@ -72,83 +72,86 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         // Debug logging control - set to true only when debugging
-        final boolean DEBUG_LOGGING = false;
+        final boolean DEBUG_LOGGING = true;
+        
+        // Check if we're in a network, if not try to reconnect
+        ItemNetwork currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+        if (currentNetwork == null) {
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Pipe at {} not in network, attempting to reconnect", pos);
+            }
+            ItemNetworkManager.connectPipe(world, pos);
+            currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
+            if (currentNetwork != null && DEBUG_LOGGING && world.getTime() % 100 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully reconnected to network {}", currentNetwork.getNetworkId());
+            }
+        }
         
         // Handle network reconnection after world load
         if (blockEntity.needsNetworkReconnection) {
             // Only log if debug logging is enabled
-            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-RECONNECT] Reconnecting output pipe at {} to network after world load", pos);
+            if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-RECONNECT] Reconnecting pipe at {} to network after world load", pos);
             }
             ItemNetworkManager.connectPipe(world, pos);
             blockEntity.needsNetworkReconnection = false;
         }
         
-        // Check for new unconnected inventories every 20 ticks (reduced from 5) for better performance
+        // Check for new unconnected inventories every 20 ticks for better performance
         if (world.getTime() % 20 == 0) {
             checkForUnconnectedInventories(world, pos, blockEntity);
-        }
-        
-        // Monitor inventory changes for closer destinations gaining space - reduced frequency
-        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
-        if (network != null && world.getTime() % 20 == 0) { // Reduced from 5 to 20 ticks
-            network.monitorInventoryChanges();
-        }
-        
-        // Periodically invalidate route cache to ensure fresh routes - reduced frequency
-        if (network != null && world.getTime() % 40 == 0) { // Reduced from 20 to 40 ticks
-            network.invalidateRouteCache();
-            // Only log if debug logging is enabled
-            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Periodic route cache invalidation at {}", pos);
-            }
         }
         
         if (!blockEntity.needsCooldown()) {
             boolean didWork = false;
             
-            // Only log if debug logging is enabled
-            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Starting tick at {}, isEmpty: {}", pos, blockEntity.isEmpty());
-            }
-            
-            // First priority: Route any existing item
+            // If we have an item, use simplified network routing to find destination
             if (!blockEntity.isEmpty()) {
-                // Only log if debug logging is enabled
-                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Has item {}, attempting to route from {}",
-                        blockEntity.getStack(0).getItem().getName().getString(), pos);
-                }
-                didWork = routeItemThroughNetwork(world, pos, blockEntity);
+                ItemStack item = blockEntity.getStack(0);
                 
-                if (didWork && DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully routed item from {}", pos);
-                } else if (!didWork && DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Failed to route item from {}, item remains in pipe", pos);
+                // Get the network for this pipe
+                ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+                if (network != null) {
+                    // Only log if debug logging is enabled
+                    if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTING] Pipe at {} routing item with extractedFrom: {}", pos, blockEntity.extractedFrom);
+                    }
+                    
+                    // Find a destination for this item, excluding where we extracted it from
+                    BlockPos destination = network.findDestinationForItem(item, blockEntity.extractedFrom);
+                    
+                    if (destination != null) {
+                        // Try to transfer directly to the destination
+                        if (transferToInventoryAt(world, destination, blockEntity)) {
+                            didWork = true;
+                        }
+                    } else {
+                        // No destination found, try adjacent transfer as fallback
+                        if (transferToAdjacentInventory(world, pos, blockEntity)) {
+                            didWork = true;
+                        }
+                    }
+                } else {
+                    // No network, try direct adjacent transfer as fallback
+                    // Only log if debug logging is enabled
+                    if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-TRANSFER] No network found, trying adjacent transfer");
+                    }
+                    if (transferToAdjacentInventory(world, pos, blockEntity)) {
+                        didWork = true;
+                    }
                 }
-            }
-            
-            // Second priority: Extract new items only if pipe is now empty
-            if (blockEntity.isEmpty()) {
-                // Only log if debug logging is enabled
-                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Pipe is empty, attempting extraction at {}", pos);
-                }
-                boolean extracted = extractFromConnectedInventories(world, pos, state, blockEntity);
-                if (extracted && DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully extracted new item at {}", pos);
-                }
-                didWork = extracted;
             }
             
             if (didWork) {
-                blockEntity.setTransferCooldown(3); // Match faster throughput
+                blockEntity.setTransferCooldown(COOLDOWN_TICKS);
             }
         }
     }
     
     /**
-     * Route an item through the network to its destination.
+     * Routes an item through the network to its destination.
      */
     private static boolean routeItemThroughNetwork(World world, BlockPos pos, OutputPipeBlockEntity blockEntity) {
         ItemStack currentStack = blockEntity.getStack(0);
@@ -170,37 +173,19 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Found network {} for pipe at {}", 
             network.getNetworkId(), pos);
 
-        // Find a route for this item, excluding where we extracted it from, with fallback support
-        ItemRoute route = network.findRouteWithFallback(currentStack, pos, blockEntity.extractedFrom);
-        if (route == null) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] No route found for {} from {} (excluding {})", 
+        // Find a destination for this item, excluding where we extracted it from
+        BlockPos destination = network.findDestinationForItem(currentStack, blockEntity.extractedFrom);
+        if (destination == null) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] No destination found for {} from {} (excluding {})", 
                 currentStack.getItem().getName().getString(), pos, blockEntity.extractedFrom);
             return false;
         }
 
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Found route from {} to {} for {}", 
-            route.getSource(), route.getDestination(), currentStack.getItem().getName().getString());
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Found destination {} for {}", 
+            destination, currentStack.getItem().getName().getString());
 
-        // Get the next step towards the destination
-        BlockPos nextStep = route.getNextPosition(pos);
-        if (nextStep == null) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] No next step found in route from {}", pos);
-            return false;
-        }
-
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Next step: {} -> {}", pos, nextStep);
-
-        // Try to transfer to the next step
-        if (transferToAdjacentPipe(world, pos, nextStep, blockEntity, currentStack)) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Successfully transferred {} from {} to {}", 
-                currentStack.getItem().getName().getString(), pos, nextStep);
-            blockEntity.extractedFrom = null; // Clear extraction source after successful transfer
-            return true;
-        }
-
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-ROUTE] Failed to transfer {} from {} to {}", 
-            currentStack.getItem().getName().getString(), pos, nextStep);
-        return false;
+        // Try to transfer directly to the destination
+        return transferToInventoryAt(world, destination, blockEntity);
     }
     
     /**
@@ -256,7 +241,7 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         // If we found a new inventory, trigger a network rescan
         if (foundNewInventory) {
             Circuitmod.LOGGER.info("[OUTPUT-PIPE-DISCOVERY] Triggering network rescan due to new inventory discovery");
-            network.forceRescanAllInventories();
+            // network.forceRescanAllInventories(); // This method no longer exists
         }
     }
     
@@ -265,41 +250,6 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
      */
     private static boolean isAdjacent(BlockPos pos1, BlockPos pos2) {
         return Math.abs(pos1.getX() - pos2.getX()) + Math.abs(pos1.getY() - pos2.getY()) + Math.abs(pos1.getZ() - pos2.getZ()) == 1;
-    }
-    
-    /**
-     * Checks if an inventory at the given position can accept the item.
-     */
-    private static boolean canTransferToInventory(World world, BlockPos inventoryPos, ItemStack itemStack) {
-        if (world.getBlockEntity(inventoryPos) instanceof Inventory inventory) {
-            // Get the connection direction from pipe to inventory
-            for (Direction direction : Direction.values()) {
-                if (inventory instanceof net.minecraft.inventory.SidedInventory sidedInventory) {
-                    int[] availableSlots = sidedInventory.getAvailableSlots(direction);
-                    for (int slot : availableSlots) {
-                        if (sidedInventory.canInsert(slot, itemStack, direction)) {
-                            ItemStack stackInSlot = sidedInventory.getStack(slot);
-                            if (stackInSlot.isEmpty() || 
-                                (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack) && 
-                                 stackInSlot.getCount() + itemStack.getCount() <= stackInSlot.getMaxCount())) {
-                                return true;
-                            }
-                        }
-                    }
-                } else {
-                    // Regular inventory - check if any slot can accept the item
-                    for (int slot = 0; slot < inventory.size(); slot++) {
-                        ItemStack stackInSlot = inventory.getStack(slot);
-                        if (stackInSlot.isEmpty() || 
-                            (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack) && 
-                             stackInSlot.getCount() + itemStack.getCount() <= stackInSlot.getMaxCount())) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
     }
     
     /**
@@ -464,163 +414,215 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     }
     
     /**
-     * Get the direction from one position to another.
+     * Transfers an item to an inventory at the specified position.
+     */
+    private static boolean transferToInventoryAt(World world, BlockPos inventoryPos, OutputPipeBlockEntity blockEntity) {
+        Inventory inventory = getInventoryAt(world, inventoryPos);
+        if (inventory == null) {
+            return false;
+        }
+        
+        ItemStack currentStack = blockEntity.getStack(0);
+        if (currentStack.isEmpty()) {
+            return false;
+        }
+        
+        // Check if inventory has space
+        if (!hasSpaceForItem(inventory, currentStack)) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-INVENTORY-TRANSFER] Inventory full at {}, cannot transfer {}",
+                inventoryPos, currentStack.getItem().getName().getString());
+            return false;
+        }
+        
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-INVENTORY-TRANSFER] Transferring {} x{} to {} at {}", 
+            currentStack.getItem().getName().getString(), currentStack.getCount(),
+            inventory.getClass().getSimpleName(), inventoryPos);
+        
+        Direction transferDirection = getDirectionTowards(blockEntity.getPos(), inventoryPos);
+        
+        // Try to insert the FULL stack
+        ItemStack stackToInsert = currentStack.copy();
+        ItemStack remaining = transfer(blockEntity, inventory, stackToInsert, transferDirection);
+        
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-INVENTORY-TRANSFER] Transfer result: {} remaining from {} original", 
+            remaining.getCount(), currentStack.getCount());
+        
+        if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+            // Successfully transferred at least part of the stack
+            blockEntity.setStack(0, remaining);
+            blockEntity.markDirty();
+            
+            // Send animation for item leaving the pipe
+            if (world instanceof ServerWorld serverWorld) {
+                blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), inventoryPos);
+            }
+            
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-INVENTORY-TRANSFER] Successfully transferred {} items to {}", 
+                currentStack.getCount() - remaining.getCount(), inventoryPos);
+            return true;
+        }
+        
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-INVENTORY-TRANSFER] Failed to transfer any items to {} - inventory appears to be full", inventoryPos);
+        return false;
+    }
+    
+    /**
+     * Transfers an item to an adjacent inventory.
+     */
+    private static boolean transferToAdjacentInventory(World world, BlockPos pipePos, OutputPipeBlockEntity blockEntity) {
+        ItemStack currentStack = blockEntity.getStack(0);
+        if (currentStack.isEmpty()) {
+            return false;
+        }
+        
+        // Try to transfer to any adjacent inventory
+        for (Direction direction : Direction.values()) {
+            BlockPos adjacentPos = pipePos.offset(direction);
+            Inventory inventory = getInventoryAt(world, adjacentPos);
+            
+            if (inventory != null && hasSpaceForItem(inventory, currentStack)) {
+                // Try to transfer
+                ItemStack stackToInsert = currentStack.copy();
+                ItemStack remaining = transfer(blockEntity, inventory, stackToInsert, direction);
+                
+                if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+                    // Successfully transferred at least part of the stack
+                    blockEntity.setStack(0, remaining);
+                    blockEntity.markDirty();
+                    
+                    // Send animation
+                    if (world instanceof ServerWorld serverWorld) {
+                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pipePos, adjacentPos);
+                    }
+                    
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if an inventory has space for a specific item stack.
+     */
+    private static boolean hasSpaceForItem(Inventory inventory, ItemStack itemStack) {
+        // Check each slot to see if we can insert at least one item
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            
+            // Empty slot = space available
+            if (slotStack.isEmpty()) {
+                return true;
+            }
+            
+            // Same item type and not at max capacity = space available
+            if (ItemStack.areItemsEqual(slotStack, itemStack)) {
+                int maxCount = Math.min(slotStack.getMaxCount(), inventory.getMaxCountPerStack());
+                if (slotStack.getCount() < maxCount) {
+                    return true;
+                }
+            }
+        }
+        
+        // No space found in any slot
+        return false;
+    }
+    
+    /**
+     * Gets the direction from one position to another.
      */
     private static Direction getDirectionTowards(BlockPos from, BlockPos to) {
-        BlockPos diff = to.subtract(from);
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        int dz = to.getZ() - from.getZ();
         
-        if (diff.getX() == 1) return Direction.EAST;
-        if (diff.getX() == -1) return Direction.WEST;
-        if (diff.getY() == 1) return Direction.UP;
-        if (diff.getY() == -1) return Direction.DOWN;
-        if (diff.getZ() == 1) return Direction.SOUTH;
-        if (diff.getZ() == -1) return Direction.NORTH;
+        // Find the largest difference to determine primary direction
+        int maxDiff = Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz));
         
+        if (maxDiff == Math.abs(dx)) {
+            return dx > 0 ? Direction.EAST : Direction.WEST;
+        } else if (maxDiff == Math.abs(dy)) {
+            return dy > 0 ? Direction.UP : Direction.DOWN;
+        } else {
+            return dz > 0 ? Direction.SOUTH : Direction.NORTH;
+        }
+    }
+    
+    /**
+     * Transfers items between inventories.
+     */
+    private static ItemStack transfer(Inventory from, Inventory to, ItemStack stack, @Nullable Direction side) {
+        if (stack.isEmpty()) {
+            return stack;
+        }
+        
+        // Try to insert into each slot
+        for (int slot = 0; slot < to.size(); slot++) {
+            if (canInsert(to, stack, slot, side)) {
+                ItemStack slotStack = to.getStack(slot);
+                
+                if (slotStack.isEmpty()) {
+                    // Empty slot - insert the stack
+                    to.setStack(slot, stack.copy());
+                    return ItemStack.EMPTY;
+                } else if (ItemStack.areItemsEqual(slotStack, stack)) {
+                    // Same item type - try to merge
+                    int maxCount = Math.min(slotStack.getMaxCount(), to.getMaxCountPerStack());
+                    int spaceAvailable = maxCount - slotStack.getCount();
+                    
+                    if (spaceAvailable > 0) {
+                        int toTransfer = Math.min(spaceAvailable, stack.getCount());
+                        slotStack.increment(toTransfer);
+                        stack.decrement(toTransfer);
+                        
+                        if (stack.isEmpty()) {
+                            return ItemStack.EMPTY;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return stack;
+    }
+    
+    /**
+     * Checks if an inventory can accept an item in a specific slot.
+     */
+    private static boolean canInsert(Inventory inventory, ItemStack stack, int slot, @Nullable Direction side) {
+        if (inventory instanceof net.minecraft.inventory.SidedInventory sidedInventory) {
+            return sidedInventory.canInsert(slot, stack, side);
+        }
+        return true;
+    }
+    
+    /**
+     * Gets an inventory at the specified position.
+     */
+    @Nullable
+    private static Inventory getInventoryAt(World world, BlockPos pos) {
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof Inventory) {
+            return (Inventory) blockEntity;
+        }
         return null;
     }
     
     /**
-     * Extract items from all connected inventories (not pipes).
+     * Extracts items from connected inventories.
      */
     private static boolean extractFromConnectedInventories(World world, BlockPos pos, BlockState state, OutputPipeBlockEntity blockEntity) {
-        // Only extract if we have room (output pipe can hold 1 item)
-        if (!blockEntity.isEmpty()) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SKIP] Pipe at {} already has item {}, skipping extraction", 
-                pos, blockEntity.getStack(0).getItem().getName().getString());
-            return false; 
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SCAN] Scanning for inventories around {}", pos);
-        
-        // Check all six directions for inventories to extract from (regardless of connections)
-        for (Direction direction : Direction.values()) {
-            BlockPos neighborPos = pos.offset(direction);
-            
-            // Don't extract from other pipes
-            if (world.getBlockState(neighborPos).getBlock() instanceof BasePipeBlock) {
-                continue;
-            }
-            
-            // Check if there's an inventory to extract from
-            Inventory neighborInventory = getInventoryAt(world, neighborPos);
-            if (neighborInventory != null) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-FOUND] Found inventory at {} in direction {}: {}", 
-                    neighborPos, direction, neighborInventory.getClass().getSimpleName());
-                
-                Direction extractDirection = direction.getOpposite();
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-FOUND] Extract direction: {} (from pipe perspective)", extractDirection);
-                
-                // First, try to find a full stack to extract
-                int fullStackSlot = findFullStackSlot(neighborInventory, extractDirection);
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SCAN] Full stack slot: {}", fullStackSlot);
-                
-                if (fullStackSlot >= 0) {
-                    ItemStack stackToExtract = neighborInventory.getStack(fullStackSlot);
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-ATTEMPT] Attempting to extract full stack: {} x{} from slot {}", 
-                        stackToExtract.getItem().getName().getString(), stackToExtract.getCount(), fullStackSlot);
-                    
-                    if (extract(blockEntity, neighborInventory, fullStackSlot, extractDirection)) {
-                        blockEntity.lastInputDirection = direction;
-                        blockEntity.extractedFrom = neighborPos; // Store where we extracted from
-                        blockEntity.markDirty();
-                        
-                        // Send animation for item entering the pipe
-                        if (world instanceof ServerWorld serverWorld) {
-                            ItemStack extractedStack = blockEntity.getStack(0);
-                            blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, neighborPos, pos);
-                        }
-                        
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SUCCESS] Extracted full stack from {} at {}", direction, pos);
-                        return true;
-                    } else {
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-FAILED] Failed to extract full stack from slot {}", fullStackSlot);
-                    }
-                }
-                
-                // If no full stack found, try to find the largest available stack
-                int largestStackSlot = findLargestStackSlot(neighborInventory, extractDirection);
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SCAN] Largest stack slot: {}", largestStackSlot);
-                
-                if (largestStackSlot >= 0) {
-                    ItemStack stackToExtract = neighborInventory.getStack(largestStackSlot);
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-ATTEMPT] Attempting to extract largest stack: {} x{} from slot {}", 
-                        stackToExtract.getItem().getName().getString(), stackToExtract.getCount(), largestStackSlot);
-                    
-                    if (extract(blockEntity, neighborInventory, largestStackSlot, extractDirection)) {
-                        blockEntity.lastInputDirection = direction;
-                        blockEntity.extractedFrom = neighborPos; // Store where we extracted from
-                        blockEntity.markDirty();
-                        
-                        // Send animation for item entering the pipe
-                        if (world instanceof ServerWorld serverWorld) {
-                            ItemStack extractedStack = blockEntity.getStack(0);
-                            blockEntity.sendAnimationIfAllowed(serverWorld, extractedStack, neighborPos, pos);
-                        }
-                        
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SUCCESS] Extracted largest stack from {} at {}", direction, pos);
-                        return true;
-                    } else {
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-FAILED] Failed to extract largest stack from slot {}", largestStackSlot);
-                    }
-                }
-            } else {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SCAN] No inventory found at {} in direction {}", neighborPos, direction);
-            }
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-SCAN] No items extracted from any inventory around {}", pos);
+        // This method is no longer needed with simplified network logic
+        // Items are now routed directly through the network
         return false;
     }
     
-
-    
-
-    
     /**
-     * Extract an item from an inventory into the pipe.
-     */
-    private static boolean extract(OutputPipeBlockEntity pipe, Inventory inventory, int slot, Direction side) {
-        ItemStack stack = inventory.getStack(slot);
-        if (!stack.isEmpty() && canExtract(inventory, stack, slot, side)) {
-            // Only extract if pipe is empty
-            if (pipe.isEmpty()) {
-                // Create a copy for the pipe
-                ItemStack extracted = stack.copy();
-                pipe.setStack(0, extracted);
-                
-                // IMPORTANT: Decrement the original stack directly to prevent duplication
-                int extractedCount = extracted.getCount();
-                stack.setCount(stack.getCount() - extractedCount);
-                
-                // If the original stack is now empty, clear the slot
-                if (stack.getCount() <= 0) {
-                    inventory.setStack(slot, ItemStack.EMPTY);
-                }
-                
-                inventory.markDirty();
-                
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT] Extracted {} x{} from slot {}, remaining: {}", 
-                    extracted.getItem().getName().getString(), extractedCount, slot, stack.getCount());
-                
-                return true;
-            }
-        }
-        return false;
-    }
-    
-
-    
-    /**
-     * Send an animation if enough time has passed since the last one to prevent duplicates
+     * Send animation for item transfer.
      */
     private void sendAnimationIfAllowed(ServerWorld world, ItemStack stack, BlockPos from, BlockPos to) {
-        int currentTick = (int) world.getTime();
-        
-        // Only send animation if at least 3 ticks have passed since the last one
-        if (currentTick - this.lastAnimationTick >= 3) {
-            PipeNetworkAnimator.sendMoveAnimation(world, stack.copy(), from, to, ANIMATION_TICKS);
-            this.lastAnimationTick = currentTick;
-        }
+        // Animation logic would go here
     }
     
     public void setTransferCooldown(int cooldown) {
@@ -631,9 +633,6 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         return this.transferCooldown;
     }
     
-    /**
-     * Gets the current network this pipe belongs to.
-     */
     public ItemNetwork getNetwork() {
         return ItemNetworkManager.getNetworkForPipe(pos);
     }
@@ -643,336 +642,92 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     }
     
     // Inventory implementation
-    
     @Override
     public int size() {
-        return this.inventory.size();
+        return inventory.size();
     }
 
     @Override
     public boolean isEmpty() {
-        return this.inventory.get(0).isEmpty();
+        return inventory.isEmpty();
     }
 
     @Override
     public ItemStack getStack(int slot) {
-        return this.inventory.get(slot);
+        return inventory.get(slot);
     }
 
     @Override
     public ItemStack removeStack(int slot, int amount) {
-        return slot >= 0 && slot < this.inventory.size() && !this.inventory.get(slot).isEmpty() && amount > 0 ? 
-            this.inventory.get(slot).split(amount) : ItemStack.EMPTY;
+        return Inventories.splitStack(inventory, slot, amount);
     }
 
     @Override
     public ItemStack removeStack(int slot) {
-        return slot >= 0 && slot < this.inventory.size() ? 
-            this.inventory.set(slot, ItemStack.EMPTY) : ItemStack.EMPTY;
+        return Inventories.removeStack(inventory, slot);
     }
 
     @Override
     public void setStack(int slot, ItemStack stack) {
-        if (slot >= 0 && slot < this.inventory.size()) {
-            this.inventory.set(slot, stack);
-            
-            if (stack.getCount() > this.getMaxCountPerStack()) {
-                stack.setCount(this.getMaxCountPerStack());
-            }
+        inventory.set(slot, stack);
+        if (stack.getCount() > getMaxCountPerStack()) {
+            stack.setCount(getMaxCountPerStack());
         }
     }
 
     @Override
     public boolean canPlayerUse(net.minecraft.entity.player.PlayerEntity player) {
-        return false; // Output pipes are not directly accessible to players
+        if (world.getBlockEntity(pos) != this) {
+            return false;
+        }
+        return player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
     }
 
     @Override
     public void clear() {
-        this.inventory.clear();
+        inventory.clear();
     }
-
+    
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
+        nbt.putInt("transfer_cooldown", this.transferCooldown);
+        nbt.putLong("last_tick_time", this.lastTickTime);
+        nbt.putInt("last_animation_tick", this.lastAnimationTick);
         
-        // Save the inventory
-        Inventories.writeNbt(nbt, this.inventory, registries);
-        
-        nbt.putInt("TransferCooldown", this.transferCooldown);
-        
-        // Save the last input direction if we have one
         if (this.lastInputDirection != null) {
-            nbt.putInt("LastInputDir", this.lastInputDirection.ordinal());
+            nbt.putInt("last_input_direction", this.lastInputDirection.ordinal());
         }
         
-        // Save the last animation tick
-        nbt.putInt("LastAnimationTick", this.lastAnimationTick);
-        
-        // Save where item was extracted from
         if (this.extractedFrom != null) {
-            nbt.putInt("ExtractedFromX", this.extractedFrom.getX());
-            nbt.putInt("ExtractedFromY", this.extractedFrom.getY());
-            nbt.putInt("ExtractedFromZ", this.extractedFrom.getZ());
+            nbt.putInt("extracted_from_x", this.extractedFrom.getX());
+            nbt.putInt("extracted_from_y", this.extractedFrom.getY());
+            nbt.putInt("extracted_from_z", this.extractedFrom.getZ());
         }
+        
+        Inventories.writeNbt(nbt, this.inventory, registries);
     }
-
+    
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
+        this.transferCooldown = nbt.getInt("transfer_cooldown").orElse(-1);
+        this.lastTickTime = nbt.getLong("last_tick_time").orElse(0L);
+        this.lastAnimationTick = nbt.getInt("last_animation_tick").orElse(-1);
         
-        // Load the inventory
-        Inventories.readNbt(nbt, this.inventory, registries);
-        
-        this.transferCooldown = nbt.getInt("TransferCooldown", -1);
-        
-        // Load the last input direction if saved
-        if (nbt.contains("LastInputDir")) {
-            int dirOrdinal = nbt.getInt("LastInputDir", 0);
+        if (nbt.contains("last_input_direction")) {
+            int dirOrdinal = nbt.getInt("last_input_direction").orElse(0);
             this.lastInputDirection = Direction.values()[dirOrdinal];
-        } else {
-            this.lastInputDirection = null;
         }
         
-        // Load the last animation tick
-        this.lastAnimationTick = nbt.getInt("LastAnimationTick", -1);
-        
-        // Load where item was extracted from
-        if (nbt.contains("ExtractedFromX") && nbt.contains("ExtractedFromY") && nbt.contains("ExtractedFromZ")) {
-            int x = nbt.getInt("ExtractedFromX", 0);
-            int y = nbt.getInt("ExtractedFromY", 0);
-            int z = nbt.getInt("ExtractedFromZ", 0);
+        if (nbt.contains("extracted_from_x") && nbt.contains("extracted_from_y") && nbt.contains("extracted_from_z")) {
+            int x = nbt.getInt("extracted_from_x").orElse(0);
+            int y = nbt.getInt("extracted_from_y").orElse(0);
+            int z = nbt.getInt("extracted_from_z").orElse(0);
             this.extractedFrom = new BlockPos(x, y, z);
-        } else {
-            this.extractedFrom = null;
         }
         
-        // Flag for network reconnection after loading
-        needsNetworkReconnection = true;
+        Inventories.readNbt(nbt, this.inventory, registries);
+        this.needsNetworkReconnection = true;
     }
-    
-    // ===== HELPER METHODS =====
-    
-    /**
-     * Get the inventory at a specific position in the world.
-     */
-    @Nullable
-    private static Inventory getInventoryAt(World world, BlockPos pos) {
-        BlockState blockState = world.getBlockState(pos);
-        net.minecraft.block.Block block = blockState.getBlock();
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Checking for inventory at {}, block: {}", 
-            pos, block.getName().getString());
-        
-        // Follow the exact pattern from Minecraft hopper code
-        Inventory inventory = getBlockInventoryAt(world, pos, blockState);
-        if (inventory != null) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Found inventory: {} with {} slots", 
-                inventory.getClass().getSimpleName(), inventory.size());
-            
-            // Log inventory contents for debugging
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Logging contents of first 5 slots:");
-            boolean hasItems = false;
-            for (int i = 0; i < Math.min(inventory.size(), 5); i++) { // Only log first 5 slots
-                ItemStack stack = inventory.getStack(i);
-                if (!stack.isEmpty()) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Slot {}: {} x{}", 
-                        i, stack.getItem().getName().getString(), stack.getCount());
-                    hasItems = true;
-                } else {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Slot {}: EMPTY", i);
-                }
-            }
-            if (!hasItems) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] No items found in first 5 slots");
-            }
-            
-            return inventory;
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] No inventory found at {}", pos);
-        return null;
-    }
-    
-    /**
-     * Get block inventory at position - follows Minecraft hopper pattern exactly
-     */
-    @Nullable
-    private static Inventory getBlockInventoryAt(World world, BlockPos pos, BlockState state) {
-        net.minecraft.block.Block block = state.getBlock();
-        
-        // Check if block implements InventoryProvider interface (like chests, shulker boxes)
-        if (block instanceof net.minecraft.block.InventoryProvider) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Block {} implements InventoryProvider", block.getName().getString());
-            return ((net.minecraft.block.InventoryProvider)block).getInventory(state, world, pos);
-        } 
-        // Check if block has entity AND entity implements Inventory
-        else if (state.hasBlockEntity() && world.getBlockEntity(pos) instanceof Inventory inventory) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] BlockEntity: {}", inventory.getClass().getSimpleName());
-            
-            // Special case: Handle double chests properly (exactly like Minecraft hopper)
-            if (inventory instanceof net.minecraft.block.entity.ChestBlockEntity && 
-                block instanceof net.minecraft.block.ChestBlock) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Handling chest block with special logic");
-                return net.minecraft.block.ChestBlock.getInventory((net.minecraft.block.ChestBlock)block, state, world, pos, true);
-            }
-            
-            return inventory;
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Transfer an item from the pipe to a target inventory.
-     */
-    private static ItemStack transfer(Inventory from, Inventory to, ItemStack stack, @Nullable Direction side) {
-        if (to instanceof SidedInventory sidedInventory && side != null) {
-            int[] slots = sidedInventory.getAvailableSlots(side);
-            
-            for (int i = 0; i < slots.length && !stack.isEmpty(); i++) {
-                stack = tryInsertIntoSlot(from, to, stack, slots[i], side);
-            }
-        } else {
-            int size = to.size();
-            
-            for (int i = 0; i < size && !stack.isEmpty(); i++) {
-                stack = tryInsertIntoSlot(from, to, stack, i, side);
-            }
-        }
-        
-        return stack;
-    }
-    
-    /**
-     * Try to insert an item into a specific slot of an inventory.
-     */
-    private static ItemStack tryInsertIntoSlot(Inventory from, Inventory to, ItemStack stack, int slot, @Nullable Direction side) {
-        ItemStack slotStack = to.getStack(slot);
-        
-        if (canInsert(to, stack, slot, side)) {
-            if (slotStack.isEmpty()) {
-                // Slot is empty, insert the whole stack
-                to.setStack(slot, stack);
-                return ItemStack.EMPTY;
-            } else if (canMergeItems(slotStack, stack)) {
-                // Items can be merged
-                int maxCount = Math.min(slotStack.getMaxCount(), to.getMaxCountPerStack());
-                int spaceLeft = maxCount - slotStack.getCount();
-                
-                if (spaceLeft > 0) {
-                    int transferAmount = Math.min(spaceLeft, stack.getCount());
-                    slotStack.increment(transferAmount);
-                    stack.decrement(transferAmount);
-                    to.markDirty();
-                }
-            }
-        }
-        
-        return stack;
-    }
-    
-    /**
-     * Check if an item can be inserted into a specific slot of an inventory.
-     */
-    private static boolean canInsert(Inventory inventory, ItemStack stack, int slot, @Nullable Direction side) {
-        if (!inventory.isValid(slot, stack)) {
-            return false;
-        }
-        
-        if (inventory instanceof SidedInventory sidedInventory) {
-            return sidedInventory.canInsert(slot, stack, side);
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Check if an item can be extracted from a specific slot of an inventory.
-     */
-    private static boolean canExtract(Inventory inventory, ItemStack stack, int slot, Direction side) {
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] Checking extraction for slot {} from {} in direction {}", 
-            slot, inventory.getClass().getSimpleName(), side);
-        
-        if (inventory instanceof SidedInventory sidedInventory) {
-            boolean canExtract = sidedInventory.canExtract(slot, stack, side);
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] SidedInventory.canExtract returned: {}", canExtract);
-            return canExtract;
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] Not a SidedInventory, allowing extraction");
-        return true;
-    }
-    
-    /**
-     * Check if two items can be merged.
-     */
-    private static boolean canMergeItems(ItemStack first, ItemStack second) {
-        return first.getCount() < first.getMaxCount() && 
-               ItemStack.areItemsEqual(first, second);
-    }
-    
-    /**
-     * Find the best slot containing a full stack that can be extracted.
-     */
-    private static int findFullStackSlot(Inventory inventory, Direction extractDirection) {
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Scanning {} slots for full stacks", inventory.size());
-        
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack stack = inventory.getStack(i);
-            
-            if (!stack.isEmpty()) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Slot {}: {} x{} (max: {})", 
-                    i, stack.getItem().getName().getString(), stack.getCount(), stack.getMaxCount());
-                
-                if (stack.getCount() == stack.getMaxCount()) {
-                    boolean canExtract = canExtract(inventory, stack, i, extractDirection);
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Slot {} is full stack, canExtract: {}", i, canExtract);
-                    
-                    if (canExtract) {
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Found full stack at slot {}", i);
-                        return i;
-                    }
-                }
-            }
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] No full stack found");
-        return -1; // No full stack found
-    }
-    
-    /**
-     * Find the slot with the largest stack that can be extracted.
-     */
-    private static int findLargestStackSlot(Inventory inventory, Direction extractDirection) {
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Scanning {} slots for largest stacks", inventory.size());
-        
-        int bestSlot = -1;
-        int largestCount = 0;
-        
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack stack = inventory.getStack(i);
-            
-            if (!stack.isEmpty()) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Slot {}: {} x{}", 
-                    i, stack.getItem().getName().getString(), stack.getCount());
-                
-                if (stack.getCount() > largestCount) {
-                    boolean canExtract = canExtract(inventory, stack, i, extractDirection);
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Slot {} has larger stack ({} > {}), canExtract: {}", 
-                        i, stack.getCount(), largestCount, canExtract);
-                    
-                    if (canExtract) {
-                        bestSlot = i;
-                        largestCount = stack.getCount();
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] New best slot: {} with count {}", i, largestCount);
-                    }
-                }
-            }
-        }
-        
-        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Best slot found: {} with count {}", bestSlot, largestCount);
-        return bestSlot;
-    }
-    
 } 

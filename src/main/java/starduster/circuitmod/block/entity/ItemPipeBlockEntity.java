@@ -87,7 +87,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         // Debug logging control - set to true only when debugging
-        final boolean DEBUG_LOGGING = false;
+        final boolean DEBUG_LOGGING = true;
         
         // Check if we're in a network, if not try to reconnect
         ItemNetwork currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
@@ -119,38 +119,31 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         // Monitor inventory changes for closer destinations gaining space - reduced frequency
-        if (currentNetwork != null && world.getTime() % 20 == 0) { // Reduced from 5 to 20 ticks
-            currentNetwork.monitorInventoryChanges();
-        }
-        
-        // Periodically invalidate route cache to ensure fresh routes - reduced frequency
-        if (currentNetwork != null && world.getTime() % 40 == 0) { // Reduced from 20 to 40 ticks
-            currentNetwork.invalidateRouteCache();
+        if (world.getTime() % 40 == 0) {
             // Only log if debug logging is enabled
             if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[PIPE-TICK] Periodic route cache invalidation at {}", pos);
+                Circuitmod.LOGGER.info("[PIPE-MONITOR] Monitoring inventory changes at {}", pos);
             }
         }
-        
-        // Only proceed with item processing if we have an item to process
-        if (blockEntity.getStack(0).isEmpty()) {
-            return;
-        }
-        
-        // Only log if debug logging is enabled
-        if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-            Circuitmod.LOGGER.info("[PIPE-TICK] Processing item at {} - {}", pos, blockEntity.getStack(0).getItem().getName().getString());
-        }
-        
-        blockEntity.transferCooldown--;
-        blockEntity.lastTickTime = world.getTime();
         
         if (!blockEntity.needsCooldown()) {
             boolean didWork = false;
             
-            // If we have an item, use network routing to find destination
+            // Clear any Air items that might be in the pipe
+            ItemStack currentItem = blockEntity.getStack(0);
+            if (currentItem.getItem() == net.minecraft.item.Items.AIR) {
+                Circuitmod.LOGGER.info("[PIPE-CLEANUP] Clearing Air item from pipe at {}", pos);
+                blockEntity.setStack(0, ItemStack.EMPTY);
+                currentItem = ItemStack.EMPTY;
+            }
+            
+            // If we have an item, use simplified network routing to find destination
             if (!blockEntity.isEmpty()) {
                 ItemStack item = blockEntity.getStack(0);
+                
+                // Debug logging to see what item we have
+                Circuitmod.LOGGER.info("[PIPE-ITEM] Pipe at {} has item: {} x{} (sourceExclusion: {})", 
+                    pos, item.getItem().getName().getString(), item.getCount(), blockEntity.sourceExclusion);
                 
                 // Get the network for this pipe
                 ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
@@ -160,76 +153,18 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                         Circuitmod.LOGGER.info("[PIPE-ROUTING] Pipe at {} routing item with sourceExclusion: {}", pos, blockEntity.sourceExclusion);
                     }
                     
-                    // First, try to find a route to a destination with space
-                    ItemRoute route = network.findRouteWithFallback(item, pos, blockEntity.sourceExclusion);
+                    // Find a destination for this item
+                    BlockPos destination = network.findDestinationForItem(item, blockEntity.sourceExclusion);
                     
-                    if (route != null) {
-                        // Only log if debug logging is enabled
-                        if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-                            Circuitmod.LOGGER.info("[PIPE-ROUTING] Found route from {} to {} ({} steps)", 
-                                route.getSource(), route.getDestination(), route.getPath().size());
-                        }
-                        
-                        // Get the next step in the route
-                        BlockPos nextStep = getNextStepInRoute(route, pos);
-                        if (nextStep != null) {
-                            // Only log if debug logging is enabled
-                            if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-                                Circuitmod.LOGGER.info("[PIPE-ROUTING] Next step: {} -> {}", pos, nextStep);
-                            }
-                            
-                            // If next step is the destination, transfer directly to inventory
-                            if (nextStep.equals(route.getDestination())) {
-                                didWork = transferToInventoryAt(world, nextStep, blockEntity);
-                            } else {
-                                // Otherwise, transfer to the next pipe in the route
-                                didWork = transferToPipeAt(world, nextStep, blockEntity);
-                            }
-                        } else {
-                            // Only log if debug logging is enabled
-                            if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-                                Circuitmod.LOGGER.info("[PIPE-ROUTING] No next step found in route from {}", pos);
-                            }
+                    if (destination != null) {
+                        // Try to transfer directly to the destination
+                        if (transferToInventoryAt(world, destination, blockEntity)) {
+                            didWork = true;
                         }
                     } else {
-                        // No route found, try to find alternative destinations
-                        List<BlockPos> alternatives = network.findAlternativeDestinations(item, pos, blockEntity.sourceExclusion, null);
-                        
-                        if (!alternatives.isEmpty()) {
-                            // Try the first alternative
-                            BlockPos alternative = alternatives.get(0);
-                            List<BlockPos> path = network.findPath(pos, alternative);
-                            
-                            if (path != null) {
-                                // Only log if debug logging is enabled
-                                if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-                                    Circuitmod.LOGGER.info("[PIPE-ROUTING] Using alternative destination: {}", alternative);
-                                }
-                                didWork = transferToInventoryAt(world, alternative, blockEntity);
-                            }
-                        } else {
-                            // No routes available anywhere - drop the item
-                            // Only log if debug logging is enabled
-                            if (DEBUG_LOGGING && world.getTime() % 100 == 0) {
-                                Circuitmod.LOGGER.info("[PIPE-OVERFLOW] No destinations available, dropping stuck item {} at {}", 
-                                    blockEntity.getStack(0).getItem().getName().getString(), pos);
-                            }
-                            
-                            // Drop the item into the world
-                            ItemStack droppedStack = blockEntity.removeStack(0);
-                            if (!droppedStack.isEmpty() && world instanceof ServerWorld serverWorld) {
-                                // Drop at pipe position + 0.5 offset
-                                double x = pos.getX() + 0.5;
-                                double y = pos.getY() + 1.0; // Slightly above the pipe
-                                double z = pos.getZ() + 0.5;
-                                
-                                net.minecraft.entity.ItemEntity itemEntity = new net.minecraft.entity.ItemEntity(
-                                    serverWorld, x, y, z, droppedStack);
-                                serverWorld.spawnEntity(itemEntity);
-                                
-                                blockEntity.markDirty();
-                            }
-                            didWork = true; // Reset cooldown since we handled the item
+                        // No destination found, try adjacent transfer as fallback
+                        if (transferToAdjacentInventory(world, pos, blockEntity)) {
+                            didWork = true;
                         }
                     }
                 } else {
@@ -265,121 +200,73 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             return false;
         }
         
-        // Find a route for this item, excluding the source if we have one
-        ItemRoute route;
+        // Find a destination for this item, excluding the source if we have one
+        BlockPos destination;
         if (blockEntity.sourceExclusion != null) {
             Circuitmod.LOGGER.info("[PIPE-ROUTING] Pipe at {} routing item with sourceExclusion: {}", pipePos, blockEntity.sourceExclusion);
-            route = network.findRoute(currentItem, pipePos, blockEntity.sourceExclusion);
+            destination = network.findDestinationForItem(currentItem, blockEntity.sourceExclusion);
         } else {
-            route = network.findRoute(currentItem, pipePos, null);
+            destination = network.findDestinationForItem(currentItem, null);
         }
         
-        if (route == null) {
-            // No route found, try direct adjacent transfer as fallback
+        if (destination == null) {
+            // No destination found, try direct adjacent transfer as fallback
             return transferToAdjacentInventory(world, pipePos, blockEntity);
         }
         
-        // Get the next step in the route
-        BlockPos nextStep = getNextStepInRoute(route, pipePos);
-        if (nextStep == null) {
-            return false;
-        }
-        
-        // If next step is the destination, transfer directly to inventory
-        if (nextStep.equals(route.getDestination())) {
-            return transferToInventoryAt(world, nextStep, blockEntity);
-        }
-        
-        // Otherwise, transfer to the next pipe in the route
-        return transferToPipeAt(world, nextStep, blockEntity);
+        // Try to transfer directly to the destination
+        return transferToInventoryAt(world, destination, blockEntity);
     }
     
     /**
-     * Gets the next step in a route from the current position.
-     */
-    private static BlockPos getNextStepInRoute(ItemRoute route, BlockPos currentPos) {
-        java.util.List<BlockPos> path = route.getPath();
-        
-        for (int i = 0; i < path.size() - 1; i++) {
-            if (path.get(i).equals(currentPos)) {
-                return path.get(i + 1);
-            }
-        }
-        
-        return null; // Current position not found in route
-    }
-    
-    /**
-     * Transfers item to a specific inventory location.
+     * Transfers an item to an inventory at the specified position.
      */
     private static boolean transferToInventoryAt(World world, BlockPos inventoryPos, ItemPipeBlockEntity blockEntity) {
-        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Attempting to transfer to inventory at {}", inventoryPos);
-        
         Inventory inventory = getInventoryAt(world, inventoryPos);
         if (inventory == null) {
-            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] No inventory found at {}", inventoryPos);
+            Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] No inventory found at {}", inventoryPos);
             return false;
         }
         
         ItemStack currentStack = blockEntity.getStack(0);
         if (currentStack.isEmpty()) {
-            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] No item to transfer");
+            Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] No item to transfer");
             return false;
         }
         
-        // Check if inventory has any space for this item type
+        Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] Attempting to transfer {} to inventory at {}", 
+            currentStack.getItem().getName().getString(), inventoryPos);
+        
+        // Check if inventory has space
         if (!hasSpaceForItem(inventory, currentStack)) {
-            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Inventory at {} is full - no space for {}", 
+            Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] Inventory at {} has no space for {}", 
                 inventoryPos, currentStack.getItem().getName().getString());
-            
-            // Invalidate route cache to force recalculation when inventory is full
-            ItemNetwork network = ItemNetworkManager.getNetworkForPipe(blockEntity.getPos());
-            if (network != null) {
-                network.invalidateRouteCache();
-                Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Invalidated route cache due to full inventory at {}", inventoryPos);
-            }
-            
             return false;
         }
         
-        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Transferring {} x{} to {} at {}", 
-            currentStack.getItem().getName().getString(), currentStack.getCount(),
-            inventory.getClass().getSimpleName(), inventoryPos);
-        
-        Direction transferDirection = getDirectionTowards(blockEntity.getPos(), inventoryPos);
-        
-        // Try to insert the FULL stack
+        // Try to transfer
         ItemStack stackToInsert = currentStack.copy();
-        ItemStack remaining = transfer(blockEntity, inventory, stackToInsert, transferDirection);
-        
-        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Transfer result: {} remaining from {} original", 
-            remaining.getCount(), currentStack.getCount());
+        ItemStack remaining = transfer(blockEntity, inventory, stackToInsert, Direction.NORTH);
         
         if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
             // Successfully transferred at least part of the stack
             blockEntity.setStack(0, remaining);
             blockEntity.markDirty();
             
-            // Send animation for item leaving the pipe
+            Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] Successfully transferred {} to inventory at {}", 
+                currentStack.getItem().getName().getString(), inventoryPos);
+            
+            // Send animation
             if (world instanceof ServerWorld serverWorld) {
                 blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, blockEntity.getPos(), inventoryPos);
             }
             
-            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Successfully transferred {} items to {}", 
-                currentStack.getCount() - remaining.getCount(), inventoryPos);
             return true;
+        } else {
+            Circuitmod.LOGGER.info("[ITEM-PIPE-TRANSFER] Failed to transfer {} to inventory at {}", 
+                currentStack.getItem().getName().getString(), inventoryPos);
+            return false;
         }
-        
-        Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Failed to transfer any items to {} - inventory appears to be full", inventoryPos);
-        
-        // Invalidate route cache to force recalculation when transfer fails
-        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(blockEntity.getPos());
-        if (network != null) {
-            network.invalidateRouteCache();
-            Circuitmod.LOGGER.info("[PIPE-INVENTORY-TRANSFER] Invalidated route cache due to failed transfer to {}", inventoryPos);
-        }
-        
-        return false;
     }
     
     /**
@@ -696,6 +583,17 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
      */
     private static boolean extract(ItemPipeBlockEntity pipe, Inventory inventory, int slot, Direction side) {
         ItemStack stack = inventory.getStack(slot);
+        
+        // Debug logging to see what we're trying to extract
+        Circuitmod.LOGGER.info("[PIPE-EXTRACT] Trying to extract from slot {}: {} x{}", 
+            slot, stack.getItem().getName().getString(), stack.getCount());
+        
+        // Don't extract Air items
+        if (stack.getItem() == net.minecraft.item.Items.AIR) {
+            Circuitmod.LOGGER.info("[PIPE-EXTRACT] Skipping Air item in slot {}", slot);
+            return false;
+        }
+        
         if (!stack.isEmpty() && canExtract(inventory, stack, slot, side)) {
             // Only extract if pipe is empty (we want to move full stacks at once)
             if (pipe.isEmpty()) {
@@ -716,11 +614,16 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 
                 inventory.markDirty();
                 
-                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Extracted {} x{} from slot {}, remaining: {}", 
+                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Successfully extracted {} x{} from slot {}, remaining: {}", 
                     extracted.getItem().getName().getString(), extractedCount, slot, stack.getCount());
                 
                 return true;
+            } else {
+                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Pipe is not empty, cannot extract");
             }
+        } else {
+            Circuitmod.LOGGER.info("[PIPE-EXTRACT] Cannot extract: isEmpty={}, canExtract={}", 
+                stack.isEmpty(), canExtract(inventory, stack, slot, side));
         }
         return false;
     }
@@ -732,6 +635,13 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         // Only extract if pipe is empty (we want to move full stacks at once)
         if (pipe.isEmpty()) {
             ItemStack entityStack = itemEntity.getStack().copy();
+            
+            // Don't extract Air items
+            if (entityStack.getItem() == net.minecraft.item.Items.AIR) {
+                Circuitmod.LOGGER.info("[PIPE-EXTRACT] Skipping Air item from ItemEntity");
+                return false;
+            }
+            
             // Take the entire stack from the item entity
             pipe.setStack(0, entityStack);
             itemEntity.discard();
@@ -960,28 +870,20 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
 
     @Override
     public void setStack(int slot, ItemStack stack) {
-        // Only log when actually setting a non-empty stack or clearing a stack, and only occasionally
-        if ((!stack.isEmpty() || !this.inventory.get(0).isEmpty()) && world != null && world.getTime() % 200 == 0) {
-            Circuitmod.LOGGER.info("[PIPE-SET-STACK] setStack called at " + this.getPos() + 
-                                  ", slot: " + slot + 
-                                  ", item: " + (stack.isEmpty() ? "empty" : stack.getItem().getName().getString()) +
-                                  ", count: " + stack.getCount() +
-                                  ", isClient: " + (world != null && world.isClient()));
+        if (slot >= 0 && slot < inventory.size()) {
+            // Debug logging to see when items are set in pipes
+            if (stack.getItem() == net.minecraft.item.Items.AIR) {
+                Circuitmod.LOGGER.info("[PIPE-SET-STACK] WARNING: Setting Air item in pipe at {} slot {}", pos, slot);
+            } else if (!stack.isEmpty()) {
+                Circuitmod.LOGGER.info("[PIPE-SET-STACK] Setting item {} x{} in pipe at {} slot {}", 
+                    stack.getItem().getName().getString(), stack.getCount(), pos, slot);
+            }
+            
+            inventory.set(slot, stack);
+            if (stack.getCount() > getMaxCountPerStack()) {
+                stack.setCount(getMaxCountPerStack());
+            }
         }
-        
-        // Ensure the stack doesn't exceed the item's maximum stack size
-        if (!stack.isEmpty() && stack.getCount() > stack.getMaxCount()) {
-            stack.setCount(stack.getMaxCount());
-        }
-        
-        this.inventory.set(0, stack);
-        
-        // Reset input direction when pipe becomes empty to prevent stale data
-        if (stack.isEmpty()) {
-            this.lastInputDirection = null;
-        }
-        
-        markDirty();
     }
 
     @Override
@@ -1183,7 +1085,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         // If we found a new connection, trigger a network rescan
         if (foundNewConnection) {
             Circuitmod.LOGGER.info("[PIPE-DISCOVERY] Triggering network rescan due to new connection discovery");
-            network.forceRescanAllInventories();
+
         }
     }
 } 
