@@ -12,6 +12,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
+import net.minecraft.block.entity.BlockEntity;
 
 /**
  * Manages a network of energy producers, consumers, and cables.
@@ -34,13 +35,29 @@ public class EnergyNetwork {
     private int lastTickEnergyStoredInBatteries = 0;
     private int lastTickEnergyDrawnFromBatteries = 0;
     
+    // Flag to control logging during startup
+    public static boolean startupMode = true;
+    
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
+    
+    /**
+     * Sets startup mode to control logging
+     */
+    public static void setStartupMode(boolean mode) {
+        startupMode = mode;
+    }
+    
     /**
      * Creates a new network with a random ID.
      */
     public EnergyNetwork() {
         // Generate a unique ID for this network - use first 8 chars of UUID for readability
         this.networkId = "NET-" + UUID.randomUUID().toString().substring(0, 8);
-        Circuitmod.LOGGER.info("Created new energy network with ID: " + networkId);
+        
+        if (DEBUG_LOGGING && !startupMode) {
+            Circuitmod.LOGGER.info("Created new energy network with ID: " + networkId);
+        }
     }
     
     /**
@@ -86,7 +103,9 @@ public class EnergyNetwork {
             batteries.add((IEnergyStorage) block);
         }
         
-        Circuitmod.LOGGER.debug("Added block at " + pos + " to energy network. Network size: " + connectedBlocks.size());
+        if (DEBUG_LOGGING && !startupMode) {
+            Circuitmod.LOGGER.debug("Added block at " + pos + " to energy network. Network size: " + connectedBlocks.size());
+        }
     }
     
     /**
@@ -111,13 +130,17 @@ public class EnergyNetwork {
             // Clear the network reference from the block
             block.setNetwork(null);
             
-            // Log the removal
-            Circuitmod.LOGGER.debug("Removed block reference at " + pos + " from energy network tracking. Network size: " + connectedBlocks.size());
+            // Log the removal only if not in startup mode
+            if (DEBUG_LOGGING && !startupMode) {
+                Circuitmod.LOGGER.debug("Removed block reference at " + pos + " from energy network tracking. Network size: " + connectedBlocks.size());
+            }
             
             // If the network is now empty, deactivate it
             if (connectedBlocks.isEmpty()) {
                 active = false;
-                Circuitmod.LOGGER.info("Network " + networkId + " is now empty and inactive");
+                if (DEBUG_LOGGING && !startupMode) {
+                    Circuitmod.LOGGER.info("Network " + networkId + " is now empty and inactive");
+                }
             }
         }
     }
@@ -133,8 +156,11 @@ public class EnergyNetwork {
         // Store the other network's ID for logging
         String otherNetworkId = other.networkId;
         
+        // Create a copy of the entries to avoid ConcurrentModificationException
+        List<Map.Entry<BlockPos, IPowerConnectable>> entriesToMerge = new ArrayList<>(other.connectedBlocks.entrySet());
+        
         // Add all blocks from the other network to this one
-        for (Map.Entry<BlockPos, IPowerConnectable> entry : other.connectedBlocks.entrySet()) {
+        for (Map.Entry<BlockPos, IPowerConnectable> entry : entriesToMerge) {
             addBlock(entry.getKey(), entry.getValue());
         }
         
@@ -146,7 +172,9 @@ public class EnergyNetwork {
         other.active = false;
         other.networkId = "MERGED-" + otherNetworkId; // Mark as merged to prevent further operations
         
-        Circuitmod.LOGGER.info("Networks merged. Network " + otherNetworkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
+        if (DEBUG_LOGGING && !startupMode) {
+            Circuitmod.LOGGER.info("Networks merged. Network " + otherNetworkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
+        }
     }
     
     /**
@@ -435,6 +463,126 @@ public class EnergyNetwork {
     }
     
     /**
+     * Validates and repairs this network if it's in an inconsistent state.
+     * This is called during world loading to recover from crashes.
+     * 
+     * @param world The world
+     * @return true if the network was repaired, false if it's healthy
+     */
+    public boolean validateAndRepair(World world) {
+        if (world == null) return false;
+        
+        boolean wasRepaired = false;
+        Set<BlockPos> invalidPositions = new HashSet<>();
+        
+        // Check each block position to see if the block still exists and is valid
+        for (Map.Entry<BlockPos, IPowerConnectable> entry : connectedBlocks.entrySet()) {
+            BlockPos pos = entry.getKey();
+            IPowerConnectable connectable = entry.getValue();
+            
+            // Check if the block still exists at this position
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity == null || !(blockEntity instanceof IPowerConnectable)) {
+                // Block no longer exists or is not a power connectable
+                invalidPositions.add(pos);
+                wasRepaired = true;
+                if (DEBUG_LOGGING && !startupMode) {
+                    Circuitmod.LOGGER.warn("Found invalid block at {} in network {}, removing", pos, networkId);
+                }
+                continue;
+            }
+            
+            // Check if the block's network reference is consistent
+            IPowerConnectable currentConnectable = (IPowerConnectable) blockEntity;
+            EnergyNetwork blockNetwork = currentConnectable.getNetwork();
+            if (blockNetwork != this) {
+                // Block's network reference is inconsistent
+                invalidPositions.add(pos);
+                wasRepaired = true;
+                if (DEBUG_LOGGING && !startupMode) {
+                    Circuitmod.LOGGER.warn("Found inconsistent network reference at {} in network {}, removing", pos, networkId);
+                }
+            }
+        }
+        
+        // Remove invalid positions
+        for (BlockPos pos : invalidPositions) {
+            removeBlock(pos);
+        }
+        
+        // If network is now empty, deactivate it
+        if (connectedBlocks.isEmpty()) {
+            active = false;
+            if (DEBUG_LOGGING && !startupMode) {
+                Circuitmod.LOGGER.info("Network {} is now empty after repair, deactivating", networkId);
+            }
+        }
+        
+        if (wasRepaired && DEBUG_LOGGING && !startupMode) {
+            Circuitmod.LOGGER.info("Repaired network {}: removed {} invalid blocks, remaining: {}", 
+                networkId, invalidPositions.size(), connectedBlocks.size());
+        }
+        
+        return wasRepaired;
+    }
+    
+    /**
+     * Performs global recovery of all energy networks in the world.
+     * This should be called during world loading to recover from crashes.
+     * 
+     * @param world The world
+     */
+    public static void performGlobalRecovery(World world) {
+        if (world == null) return;
+        
+        if (DEBUG_LOGGING) {
+            Circuitmod.LOGGER.info("Starting global energy network recovery...");
+        }
+        
+        // Track all networks we find
+        Set<EnergyNetwork> allNetworks = new HashSet<>();
+        Set<BlockPos> powerConnectablePositions = new HashSet<>();
+        
+        // Scan the world for all power connectable blocks
+        for (int x = -30000; x < 30000; x += 16) {
+            for (int z = -30000; z < 30000; z += 16) {
+                // Only check loaded chunks
+                if (world.isChunkLoaded(x >> 4, z >> 4)) {
+                    for (int y = world.getBottomY(); y < world.getHeight(); y++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        BlockEntity blockEntity = world.getBlockEntity(pos);
+                        if (blockEntity instanceof IPowerConnectable) {
+                            powerConnectablePositions.add(pos);
+                            IPowerConnectable connectable = (IPowerConnectable) blockEntity;
+                            EnergyNetwork network = connectable.getNetwork();
+                            if (network != null) {
+                                allNetworks.add(network);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (DEBUG_LOGGING) {
+            Circuitmod.LOGGER.info("Found {} power connectable blocks and {} networks", 
+                powerConnectablePositions.size(), allNetworks.size());
+        }
+        
+        // Validate and repair each network
+        int repairedNetworks = 0;
+        for (EnergyNetwork network : allNetworks) {
+            if (network.validateAndRepair(world)) {
+                repairedNetworks++;
+            }
+        }
+        
+        if (DEBUG_LOGGING) {
+            Circuitmod.LOGGER.info("Global recovery complete: {} networks repaired", repairedNetworks);
+        }
+    }
+    
+    /**
      * Saves network data to an NBT compound.
      * 
      * @param nbt The NBT compound to save to
@@ -469,7 +617,9 @@ public class EnergyNetwork {
             networkId = nbt.getString("networkId").orElse("NET-" + UUID.randomUUID().toString().substring(0, 8));
         } else {
             networkId = "NET-" + UUID.randomUUID().toString().substring(0, 8);
-            Circuitmod.LOGGER.info("Generated new network ID during NBT load: " + networkId);
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("Generated new network ID during NBT load: " + networkId);
+            }
         }
         
         // Load statistics

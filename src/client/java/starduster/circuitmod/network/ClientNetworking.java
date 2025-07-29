@@ -494,6 +494,28 @@ public class ClientNetworking {
     }
     
     /**
+     * Send quarry reset height request to the server
+     * 
+     * @param quarryPos The position of the quarry
+     */
+    public static void sendQuarryResetHeight(BlockPos quarryPos) {
+        Circuitmod.LOGGER.info("[CLIENT] sendQuarryResetHeight called with position: {}", quarryPos);
+        
+        if (quarryPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send reset height for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.QuarryResetHeightPayload payload = new ModNetworking.QuarryResetHeightPayload(quarryPos);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent quarry reset height request for quarry at {}", quarryPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send quarry reset height request: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
      * Send constructor building toggle to the server
      * 
      * @param constructorPos The position of the constructor

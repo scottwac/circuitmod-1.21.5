@@ -45,6 +45,7 @@ public class ModNetworking {
         // Register the payload type for client->server communication
         PayloadTypeRegistry.playC2S().register(ToggleMiningPayload.ID, ToggleMiningPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuarryDimensionsPayload.ID, QuarryDimensionsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(QuarryResetHeightPayload.ID, QuarryResetHeightPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DrillDimensionsPayload.ID, DrillDimensionsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(LaserDrillDepthPayload.ID, LaserDrillDepthPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ConstructorBuildingPayload.ID, ConstructorBuildingPayload.CODEC);
@@ -838,6 +839,26 @@ public class ModNetworking {
                 ConstructorTransformPayload::new
         );
 
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * Payload for quarry reset height (client -> server)
+     */
+    public record QuarryResetHeightPayload(BlockPos quarryPos) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<QuarryResetHeightPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "quarry_reset_height"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, QuarryResetHeightPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, QuarryResetHeightPayload::quarryPos,
+            QuarryResetHeightPayload::new
+        );
+        
         @Override
         public Id<? extends CustomPayload> getId() {
             return ID;

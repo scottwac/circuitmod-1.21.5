@@ -85,8 +85,8 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
             blockEntity.updateEnergyProduction(world, pos);
         }
         
-        // Debug logging (only log occasionally to avoid spam)
-        if (world.getTime() % 100 == 0) { // Only log every 5 seconds
+        // Debug logging (only log occasionally to avoid spam and not during startup)
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode && world.getTime() % 200 == 0) { // Only log every 10 seconds and not during startup
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
             long timeOfDay = world.getTimeOfDay() % 24000;
             int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
@@ -103,23 +103,43 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     private void updateEnergyProduction(World world, BlockPos pos) {
         if (world.isClient()) return;
         
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-UPDATE] Starting energy production update at {}", pos);
+        // Only log if NOT in startup mode
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-UPDATE] Starting energy production update at {}", pos);
+        }
         
         // Check if there's a clear path to the sky
         BlockPos skyPos = pos.up();
+        
+        // Check if the chunk is loaded before doing any sky/light operations
+        if (!world.isChunkLoaded(skyPos.getX() >> 4, skyPos.getZ() >> 4)) {
+            // Chunk not loaded, use minimal energy production to avoid blocking
+            this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
+            this.lastLightLevel = 0.0f;
+            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Chunk not loaded, minimal energy: {}", this.currentEnergyProduction);
+            }
+            return;
+        }
+        
         boolean canSeeSky = world.isSkyVisible(skyPos);
         
         // Also check if the block above is transparent to sky light
         boolean hasSkyAccess = canSeeSky || world.getBlockState(skyPos).getLuminance() == 0;
         
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-SKY] Can see sky: {}, Has sky access: {}, Block above: {}", 
-            canSeeSky, hasSkyAccess, world.getBlockState(skyPos).getBlock().toString());
+        // Only log sky access if NOT in startup mode
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-SKY] Can see sky: {}, Has sky access: {}, Block above: {}", 
+                canSeeSky, hasSkyAccess, world.getBlockState(skyPos).getBlock().toString());
+        }
         
         if (!hasSkyAccess) {
             // If blocked from sky, provide minimal energy
             this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
             this.lastLightLevel = 0.0f;
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Blocked from sky, minimal energy: {}", this.currentEnergyProduction);
+            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Blocked from sky, minimal energy: {}", this.currentEnergyProduction);
+            }
             return;
         }
         
@@ -129,8 +149,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         // Get time of day (0-24000, where 0=6AM, 6000=noon, 12000=6PM, 18000=midnight)
         long timeOfDay = world.getTimeOfDay() % 24000;
         
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-MAIN] Sky visible: {}, Sky light level: {}, Time of day: {}", 
-            canSeeSky, skyLightLevel, timeOfDay);
+        // Only log main info if NOT in startup mode
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-MAIN] Sky visible: {}, Sky light level: {}, Time of day: {}", 
+                canSeeSky, skyLightLevel, timeOfDay);
+        }
         
         // Calculate efficiency based on time of day (sinusoidal function)
         float timeEfficiency = calculateSolarTimeEfficiency(timeOfDay);
@@ -138,8 +161,10 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         // Debug time calculation - convert to readable format
         int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
         int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {} ticks ({}:{:02d}), Time efficiency: {:.3f}", 
-            timeOfDay, hours, minutes, timeEfficiency);
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {} ticks ({}:{:02d}), Time efficiency: {:.3f}", 
+                timeOfDay, hours, minutes, timeEfficiency);
+        }
         
         // Calculate efficiency based on weather
         float weatherEfficiency = world.isRaining() ? 0.3f : 1.0f;
@@ -164,9 +189,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         }
         this.lastLightLevel = lightEfficiency;
         
-        // Debug logging
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Sky: {}, Light: {}, Time: {}, TimeEff: {}, WeatherEff: {}, LightEff: {}, TotalEff: {}, Energy: {}", 
-            canSeeSky, skyLightLevel, timeOfDay, timeEfficiency, weatherEfficiency, lightEfficiency, totalEfficiency, this.currentEnergyProduction);
+        // Only log debug info if NOT in startup mode
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Sky: {}, Light: {}, Time: {}, TimeEff: {}, WeatherEff: {}, LightEff: {}, TotalEff: {}, Energy: {}", 
+                canSeeSky, skyLightLevel, timeOfDay, timeEfficiency, weatherEfficiency, lightEfficiency, totalEfficiency, this.currentEnergyProduction);
+        }
         
         // Mark dirty to save the updated state
         markDirty();

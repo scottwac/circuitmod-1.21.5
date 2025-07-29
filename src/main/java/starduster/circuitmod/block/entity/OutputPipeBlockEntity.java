@@ -28,7 +28,7 @@ import java.util.List;
 
 public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     private static final int INVENTORY_SIZE = 1; 
-    private static final int COOLDOWN_TICKS = 2; // Faster transfers for better throughput 
+    private static final int COOLDOWN_TICKS = 1; // Faster throughput for better item flow 
     public static final int ANIMATION_TICKS = 5; 
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
@@ -67,65 +67,82 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
      * Called every tick to update the output pipe's state.
      */
     public static void tick(World world, BlockPos pos, BlockState state, OutputPipeBlockEntity blockEntity) {
-        if (world.isClient) {
+        if (world.isClient()) {
             return;
         }
         
+        // Debug logging control - set to true only when debugging
+        final boolean DEBUG_LOGGING = false;
+        
         // Handle network reconnection after world load
         if (blockEntity.needsNetworkReconnection) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-RECONNECT] Reconnecting output pipe at {} to network after world load", pos);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-RECONNECT] Reconnecting output pipe at {} to network after world load", pos);
+            }
             ItemNetworkManager.connectPipe(world, pos);
             blockEntity.needsNetworkReconnection = false;
         }
         
-        // Check for new unconnected inventories every 10 ticks (similar to power cables)
-        if (world.getTime() % 10 == 0) {
+        // Check for new unconnected inventories every 20 ticks (reduced from 5) for better performance
+        if (world.getTime() % 20 == 0) {
             checkForUnconnectedInventories(world, pos, blockEntity);
         }
         
-        blockEntity.transferCooldown--;
-        blockEntity.lastTickTime = world.getTime();
+        // Monitor inventory changes for closer destinations gaining space - reduced frequency
+        ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
+        if (network != null && world.getTime() % 20 == 0) { // Reduced from 5 to 20 ticks
+            network.monitorInventoryChanges();
+        }
+        
+        // Periodically invalidate route cache to ensure fresh routes - reduced frequency
+        if (network != null && world.getTime() % 40 == 0) { // Reduced from 20 to 40 ticks
+            network.invalidateRouteCache();
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Periodic route cache invalidation at {}", pos);
+            }
+        }
         
         if (!blockEntity.needsCooldown()) {
             boolean didWork = false;
             
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Starting tick at {}, isEmpty: {}", pos, blockEntity.isEmpty());
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Starting tick at {}, isEmpty: {}", pos, blockEntity.isEmpty());
+            }
             
             // First priority: Route any existing item
             if (!blockEntity.isEmpty()) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Has item {}, attempting to route from {}", 
-                    blockEntity.getStack(0).getItem().getName().getString(), pos);
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Has item {}, attempting to route from {}",
+                        blockEntity.getStack(0).getItem().getName().getString(), pos);
+                }
                 didWork = routeItemThroughNetwork(world, pos, blockEntity);
                 
-                if (didWork) {
+                if (didWork && DEBUG_LOGGING && world.getTime() % 200 == 0) {
                     Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully routed item from {}", pos);
-                } else {
+                } else if (!didWork && DEBUG_LOGGING && world.getTime() % 200 == 0) {
                     Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Failed to route item from {}, item remains in pipe", pos);
                 }
             }
             
             // Second priority: Extract new items only if pipe is now empty
             if (blockEntity.isEmpty()) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Pipe is empty, attempting extraction at {}", pos);
-                boolean extracted = extractFromConnectedInventories(world, pos, state, blockEntity);
-                if (extracted) {
-                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully extracted new item at {}", pos);
-                    didWork = true;
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Pipe is empty, attempting extraction at {}", pos);
                 }
+                boolean extracted = extractFromConnectedInventories(world, pos, state, blockEntity);
+                if (extracted && DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] Successfully extracted new item at {}", pos);
+                }
+                didWork = extracted;
             }
-            
-            // Always set cooldown to prevent constant ticking
-            blockEntity.setTransferCooldown(COOLDOWN_TICKS);
             
             if (didWork) {
-                blockEntity.markDirty();
-            }
-        } else {
-            if (!blockEntity.isEmpty()) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] On cooldown, has item {} at {}", 
-                    blockEntity.getStack(0).getItem().getName().getString(), pos);
-            } else {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-TICK] On cooldown, no item at {}", pos);
+                blockEntity.setTransferCooldown(3); // Match faster throughput
             }
         }
     }
@@ -491,6 +508,7 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
                     neighborPos, direction, neighborInventory.getClass().getSimpleName());
                 
                 Direction extractDirection = direction.getOpposite();
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-EXTRACT-FOUND] Extract direction: {} (from pipe perspective)", extractDirection);
                 
                 // First, try to find a full stack to extract
                 int fullStackSlot = findFullStackSlot(neighborInventory, extractDirection);
@@ -746,29 +764,60 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Checking for inventory at {}, block: {}", 
             pos, block.getName().getString());
         
-        BlockEntity blockEntity = world.getBlockEntity(pos);
-        if (blockEntity != null) {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] BlockEntity: {}", blockEntity.getClass().getSimpleName());
+        // Follow the exact pattern from Minecraft hopper code
+        Inventory inventory = getBlockInventoryAt(world, pos, blockState);
+        if (inventory != null) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Found inventory: {} with {} slots", 
+                inventory.getClass().getSimpleName(), inventory.size());
             
-            if (blockEntity instanceof Inventory inventory) {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Found inventory: {} with {} slots", 
-                    inventory.getClass().getSimpleName(), inventory.size());
-                
-                // Log inventory contents for debugging
-                for (int i = 0; i < Math.min(inventory.size(), 5); i++) { // Only log first 5 slots
-                    ItemStack stack = inventory.getStack(i);
-                    if (!stack.isEmpty()) {
-                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Slot {}: {} x{}", 
-                            i, stack.getItem().getName().getString(), stack.getCount());
-                    }
+            // Log inventory contents for debugging
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Logging contents of first 5 slots:");
+            boolean hasItems = false;
+            for (int i = 0; i < Math.min(inventory.size(), 5); i++) { // Only log first 5 slots
+                ItemStack stack = inventory.getStack(i);
+                if (!stack.isEmpty()) {
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Slot {}: {} x{}", 
+                        i, stack.getItem().getName().getString(), stack.getCount());
+                    hasItems = true;
+                } else {
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Slot {}: EMPTY", i);
                 }
-                
-                return inventory;
-            } else {
-                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] BlockEntity does not implement Inventory");
             }
-        } else {
-            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] No BlockEntity found at {}", pos);
+            if (!hasItems) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] No items found in first 5 slots");
+            }
+            
+            return inventory;
+        }
+        
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] No inventory found at {}", pos);
+        return null;
+    }
+    
+    /**
+     * Get block inventory at position - follows Minecraft hopper pattern exactly
+     */
+    @Nullable
+    private static Inventory getBlockInventoryAt(World world, BlockPos pos, BlockState state) {
+        net.minecraft.block.Block block = state.getBlock();
+        
+        // Check if block implements InventoryProvider interface (like chests, shulker boxes)
+        if (block instanceof net.minecraft.block.InventoryProvider) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Block {} implements InventoryProvider", block.getName().getString());
+            return ((net.minecraft.block.InventoryProvider)block).getInventory(state, world, pos);
+        } 
+        // Check if block has entity AND entity implements Inventory
+        else if (state.hasBlockEntity() && world.getBlockEntity(pos) instanceof Inventory inventory) {
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] BlockEntity: {}", inventory.getClass().getSimpleName());
+            
+            // Special case: Handle double chests properly (exactly like Minecraft hopper)
+            if (inventory instanceof net.minecraft.block.entity.ChestBlockEntity && 
+                block instanceof net.minecraft.block.ChestBlock) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-GET-INVENTORY] Handling chest block with special logic");
+                return net.minecraft.block.ChestBlock.getInventory((net.minecraft.block.ChestBlock)block, state, world, pos, true);
+            }
+            
+            return inventory;
         }
         
         return null;
@@ -842,10 +891,16 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
      * Check if an item can be extracted from a specific slot of an inventory.
      */
     private static boolean canExtract(Inventory inventory, ItemStack stack, int slot, Direction side) {
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] Checking extraction for slot {} from {} in direction {}", 
+            slot, inventory.getClass().getSimpleName(), side);
+        
         if (inventory instanceof SidedInventory sidedInventory) {
-            return sidedInventory.canExtract(slot, stack, side);
+            boolean canExtract = sidedInventory.canExtract(slot, stack, side);
+            Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] SidedInventory.canExtract returned: {}", canExtract);
+            return canExtract;
         }
         
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-CAN-EXTRACT] Not a SidedInventory, allowing extraction");
         return true;
     }
     
@@ -861,16 +916,28 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
      * Find the best slot containing a full stack that can be extracted.
      */
     private static int findFullStackSlot(Inventory inventory, Direction extractDirection) {
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Scanning {} slots for full stacks", inventory.size());
+        
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
             
-            if (!stack.isEmpty() && stack.getCount() == stack.getMaxCount()) {
-                if (canExtract(inventory, stack, i, extractDirection)) {
-                    return i;
+            if (!stack.isEmpty()) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Slot {}: {} x{} (max: {})", 
+                    i, stack.getItem().getName().getString(), stack.getCount(), stack.getMaxCount());
+                
+                if (stack.getCount() == stack.getMaxCount()) {
+                    boolean canExtract = canExtract(inventory, stack, i, extractDirection);
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Slot {} is full stack, canExtract: {}", i, canExtract);
+                    
+                    if (canExtract) {
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] Found full stack at slot {}", i);
+                        return i;
+                    }
                 }
             }
         }
         
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-FULL] No full stack found");
         return -1; // No full stack found
     }
     
@@ -878,20 +945,33 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
      * Find the slot with the largest stack that can be extracted.
      */
     private static int findLargestStackSlot(Inventory inventory, Direction extractDirection) {
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Scanning {} slots for largest stacks", inventory.size());
+        
         int bestSlot = -1;
         int largestCount = 0;
         
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
             
-            if (!stack.isEmpty() && stack.getCount() > largestCount) {
-                if (canExtract(inventory, stack, i, extractDirection)) {
-                    bestSlot = i;
-                    largestCount = stack.getCount();
+            if (!stack.isEmpty()) {
+                Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Slot {}: {} x{}", 
+                    i, stack.getItem().getName().getString(), stack.getCount());
+                
+                if (stack.getCount() > largestCount) {
+                    boolean canExtract = canExtract(inventory, stack, i, extractDirection);
+                    Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Slot {} has larger stack ({} > {}), canExtract: {}", 
+                        i, stack.getCount(), largestCount, canExtract);
+                    
+                    if (canExtract) {
+                        bestSlot = i;
+                        largestCount = stack.getCount();
+                        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] New best slot: {} with count {}", i, largestCount);
+                    }
                 }
             }
         }
         
+        Circuitmod.LOGGER.info("[OUTPUT-PIPE-FIND-LARGEST] Best slot found: {} with count {}", bestSlot, largestCount);
         return bestSlot;
     }
     

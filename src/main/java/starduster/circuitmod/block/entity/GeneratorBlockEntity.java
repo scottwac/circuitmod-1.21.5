@@ -25,6 +25,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.Generator;
 import starduster.circuitmod.block.machines.QuarryBlock;
 import starduster.circuitmod.power.EnergyNetwork;
@@ -47,6 +48,7 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
     
     // Power network connection
     private EnergyNetwork network = null;
+    private boolean needsNetworkRefresh = false;
     
     public GeneratorBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.GENERATOR_BLOCK_ENTITY, pos, state);
@@ -99,6 +101,13 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
         nbt.putInt("generator.burn_time", burnTime);
         nbt.putInt("generator.max_burn_time", maxBurnTime);
         nbt.putInt("generator.power_production", powerProduction);
+        
+        // Save network data if we have a network
+        if (network != null) {
+            NbtCompound networkNbt = new NbtCompound();
+            network.writeToNbt(networkNbt);
+            nbt.put("energy_network", networkNbt);
+        }
     }
     
     @Override
@@ -108,10 +117,33 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
         burnTime = nbt.getInt("generator.burn_time").orElse(0);
         maxBurnTime = nbt.getInt("generator.max_burn_time").orElse(0);
         powerProduction = nbt.getInt("generator.power_production").orElse(0);
+        
+        // Load network data
+        if (nbt.contains("energy_network")) {
+            this.network = new EnergyNetwork();
+            NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
+            network.readFromNbt(networkNbt);
+        }
+        this.needsNetworkRefresh = true;
     }
 
     private int soundClock = 0;
     public void tick(World world, BlockPos pos, BlockState state, GeneratorBlockEntity entity) {
+        if (world.isClient()) return;
+        
+        // Handle network refresh
+        if (entity.needsNetworkRefresh) {
+            entity.findAndJoinNetwork();
+            entity.needsNetworkRefresh = false;
+        }
+        
+        // Periodically check if we should be in a network
+        if (world.getTime() % 20 == 0) {  // Check every second
+            if (entity.network == null) {
+                entity.findAndJoinNetwork();
+            }
+        }
+        
         boolean burningBefore = entity.isBurning();
         
         // Decrease burn time
@@ -207,5 +239,49 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
     @Override
     public void setNetwork(EnergyNetwork network) {
         this.network = network;
+    }
+    
+    /**
+     * Finds and joins an energy network by looking for adjacent power connectables.
+     */
+    public void findAndJoinNetwork() {
+        if (world == null || world.isClient()) {
+            return;
+        }
+        
+        boolean foundNetwork = false;
+        for (Direction dir : Direction.values()) {
+            BlockPos neighborPos = pos.offset(dir);
+            BlockEntity be = world.getBlockEntity(neighborPos);
+            if (be instanceof IPowerConnectable) {
+                IPowerConnectable connectable = (IPowerConnectable) be;
+                EnergyNetwork network = connectable.getNetwork();
+                if (network != null && network != this.network) {
+                    if (this.network != null) {
+                        this.network.removeBlock(pos);
+                    }
+                    network.addBlock(pos, this);
+                    foundNetwork = true;
+                    Circuitmod.LOGGER.info("[GENERATOR] Joined network {} at {}", network.getNetworkId(), pos);
+                    break;
+                }
+            }
+        }
+        
+        if (!foundNetwork && (this.network == null)) {
+            EnergyNetwork newNetwork = new EnergyNetwork();
+            newNetwork.addBlock(pos, this);
+            for (Direction dir : Direction.values()) {
+                BlockPos neighborPos = pos.offset(dir);
+                BlockEntity be = world.getBlockEntity(neighborPos);
+                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
+                    IPowerConnectable connectable = (IPowerConnectable) be;
+                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
+                        newNetwork.addBlock(neighborPos, connectable);
+                    }
+                }
+            }
+            Circuitmod.LOGGER.info("[GENERATOR] Created new network {} at {}", newNetwork.getNetworkId(), pos);
+        }
     }
 } 

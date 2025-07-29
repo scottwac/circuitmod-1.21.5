@@ -27,6 +27,9 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
     // Toggle mining button
     private ButtonWidget toggleMiningButton;
     
+    // Reset height button
+    private ButtonWidget resetHeightButton;
+    
     // Text input fields for quarry dimensions
     private TextFieldWidget widthField;
     private TextFieldWidget lengthField;
@@ -153,6 +156,25 @@ public class QuarryScreen extends HandledScreen<QuarryScreenHandler> {
             .build();
             
         addDrawableChild(toggleMiningButton);
+        
+        // Add reset height button at position (18, 70) with size 15x15
+        int resetButtonX = (width - backgroundWidth) / 2 + 18;
+        int resetButtonY = (height - backgroundHeight) / 2 + 70;
+        
+        resetHeightButton = ButtonWidget.builder(
+            Text.literal("Reset Height"),
+            button -> {
+                // Find the quarry position from the client world
+                BlockPos pos = findQuarryPosition();
+                
+                if (!pos.equals(BlockPos.ORIGIN)) {
+                    ClientNetworking.sendQuarryResetHeight(pos);
+                }
+            })
+            .dimensions(resetButtonX, resetButtonY, 60, 15)
+            .build();
+            
+        addDrawableChild(resetHeightButton);
         
         // Add text input fields for quarry dimensions
         int baseX = (width - backgroundWidth) / 2;

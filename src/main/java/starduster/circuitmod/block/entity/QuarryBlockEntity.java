@@ -508,8 +508,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return false;
         }
 
+        // Debug logging control - set to true only when debugging
+        final boolean DEBUG_LOGGING = true;
+
         // --- INSTANTLY FIND NEXT VALID BLOCK TO MINE ---
-        int maxAttempts = 4096; // Prevent infinite loops
+        int maxAttempts = 1024; // Increased to handle reset scenarios better
         int attempts = 0;
         while (attempts < maxAttempts) {
             if (currentMiningPos == null) {
@@ -520,93 +523,71 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
                 currentMiningProgress = 0;
                 currentMiningTicks = 0;
                 totalMiningTicks = 0;
-            }
-            // Skip if it's the quarry itself
-            if (currentMiningPos.equals(pos)) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            BlockState blockState = world.getBlockState(currentMiningPos);
-            // Skip air, water, lava
-            if (blockState.isAir() || blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Skip bedrock or unbreakable
-            if (blockState.getHardness(world, currentMiningPos) < 0) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Skip if the block is a block entity that's part of our network
-            BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
-            if (targetEntity instanceof IPowerConnectable) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Found a valid block to mine
-            break;
-        }
-        if (attempts >= maxAttempts) {
-            // Could not find a valid block to mine
-            return false;
-        }
-
-        // --- ONLY NOW START MINING PROGRESS ---
-        float hardness = world.getBlockState(currentMiningPos).getHardness(world, currentMiningPos);
-        int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
-        this.currentBlockEnergyCost = energyCost;
-
-        if (totalMiningTicks == 0) {
-            totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-        }
-
-        if (this.energyReceived < 1) {
-            return false; // Don't advance position, just wait for more energy
-        }
-
-        int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
-        float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
-        this.energyReceived -= energyToConsume;
-        float progressThisTick = energySpeedMultiplier;
-        currentMiningTicks += (int) progressThisTick;
-        currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
-        currentMiningProgress = Math.min(100, currentMiningProgress);
-
-        if (currentMiningTicks >= totalMiningTicks) {
-            ItemStack minedItem = new ItemStack(world.getBlockState(currentMiningPos).getBlock().asItem());
-            boolean addedToInventory = false;
-            for (int i = 0; i < inventory.size(); i++) {
-                ItemStack stack = inventory.get(i);
-                if (stack.isEmpty()) {
-                    inventory.set(i, minedItem);
-                    addedToInventory = true;
-                    break;
-                } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
-                    stack.increment(1);
-                    addedToInventory = true;
-                    break;
+                
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                    Circuitmod.LOGGER.info("[QUARRY-MINING] Starting to mine at {}", currentMiningPos);
                 }
             }
-            if (addedToInventory) {
-                world.removeBlock(currentMiningPos, false);
+            
+            // Check if the block at currentMiningPos is mineable
+            BlockState blockState = world.getBlockState(currentMiningPos);
+            if (blockState.isAir() || blockState.getBlock() instanceof net.minecraft.block.FluidBlock) {
+                // Block is already mined or is a fluid, move to next
                 advanceToNextBlock();
-                currentMiningPos = null;
-                totalMiningTicks = 0;
-                return true;
+                attempts++;
+                continue;
+            }
+            
+            // Check if we can mine this block
+            if (canMineBlock(blockState)) {
+                // Calculate energy cost for this block based on hardness
+                float hardness = blockState.getBlock().getHardness();
+                int energyCost = Math.max(1, (int)(hardness * 100)); // 100 energy per hardness point
+                
+                // Check if we have enough energy to mine this block
+                if (energyReceived >= energyCost) {
+                    // Mine the block instantly
+                    boolean success = mineBlock(world, currentMiningPos);
+                    if (success) {
+                        // Consume the energy cost
+                        energyReceived -= energyCost;
+                        
+                        // Only log if debug logging is enabled
+                        if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                            Circuitmod.LOGGER.info("[QUARRY-MINING] Successfully mined block at {} (cost: {} energy, remaining: {} energy)", 
+                                currentMiningPos, energyCost, energyReceived);
+                        }
+                        advanceToNextBlock();
+                        return true;
+                    } else {
+                        // Mining failed, try next block
+                        advanceToNextBlock();
+                        attempts++;
+                        continue;
+                    }
+                } else {
+                    // Not enough energy to mine this block yet
+                    // Only log if debug logging is enabled
+                    if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                        Circuitmod.LOGGER.info("[QUARRY-MINING] Not enough energy to mine block at {} (need: {} energy, have: {} energy)", 
+                            currentMiningPos, energyCost, energyReceived);
+                    }
+                    return false; // Wait for more energy
+                }
             } else {
-                // Inventory full, stay at current position
-                return false;
+                // Cannot mine this block, move to next
+                advanceToNextBlock();
+                attempts++;
+                continue;
             }
         }
-        return false; // Still mining, not finished yet
+        
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Reached max attempts, stopping mining");
+        }
+        return false;
     }
     
     // Helper method to advance to the next block
@@ -654,6 +635,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
         }
         
+        // Additional check: if we're still at the quarry position after advancing, skip it
+        if (miningPos.equals(pos)) {
+            // Skip the quarry position entirely
+            advanceToNextPosition(minX, maxX, minZ, maxZ);
+            miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
+        }
+        
         return miningPos;
     }
     
@@ -693,6 +681,63 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             }
         }
         return true; // All slots are occupied
+    }
+    
+    // Check if a block can be mined
+    private boolean canMineBlock(BlockState blockState) {
+        // Skip if it's the quarry itself
+        if (currentMiningPos != null && currentMiningPos.equals(pos)) {
+            return false;
+        }
+        
+        // Skip bedrock or unbreakable blocks
+        if (blockState.getHardness(world, currentMiningPos) < 0) {
+            return false;
+        }
+        
+        // Skip if the block is a block entity that's part of our network
+        BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
+        if (targetEntity instanceof IPowerConnectable) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Mine a block at the specified position
+    private boolean mineBlock(World world, BlockPos miningPos) {
+        BlockState blockState = world.getBlockState(miningPos);
+        ItemStack minedItem;
+        
+        // Special handling for powdered snow - give snowballs instead of powdered snow bucket
+        if (blockState.getBlock() == net.minecraft.block.Blocks.POWDER_SNOW) {
+            minedItem = new ItemStack(net.minecraft.item.Items.SNOWBALL);
+        } else {
+            minedItem = new ItemStack(blockState.getBlock().asItem());
+        }
+        
+        // Check if we have space in inventory
+        boolean addedToInventory = false;
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (stack.isEmpty()) {
+                inventory.set(i, minedItem);
+                addedToInventory = true;
+                break;
+            } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
+                stack.increment(1);
+                addedToInventory = true;
+                break;
+            }
+        }
+        
+        if (addedToInventory) {
+            world.removeBlock(miningPos, false);
+            return true;
+        } else {
+            // Inventory full, cannot mine
+            return false;
+        }
     }
     
     // IEnergyConsumer implementation
@@ -1071,6 +1116,34 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             markDirty();
             // Circuitmod.LOGGER.info("[CLIENT] Updated quarry dimensions from network: {}x{}", width, length);
         }
+    }
+    
+    /**
+     * Reset the quarry to start mining from the top again.
+     * This resets the current mining position and Y level to the starting position.
+     */
+    public void resetHeight() {
+        if (world == null || world.isClient()) {
+            return;
+        }
+        
+        // Reset current mining progress
+        this.currentMiningPos = null;
+        this.currentMiningProgress = 0;
+        this.totalMiningTicks = 0;
+        this.currentMiningTicks = 0;
+        
+        // Reset Y level to the starting height
+        if (this.startPos != null) {
+            this.currentY = this.startPos.getY();
+            
+            // Reset to the starting corner of the mining area
+            this.currentPos = new BlockPos(this.miningAreaMinX, this.startPos.getY(), this.miningAreaMinZ);
+            
+            Circuitmod.LOGGER.info("[QUARRY-RESET] Reset quarry height at {} to start from Y level {} at position {}", pos, this.currentY, this.currentPos);
+        }
+        
+        markDirty();
     }
     
     // NamedScreenHandlerFactory implementation

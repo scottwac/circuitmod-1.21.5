@@ -30,6 +30,14 @@ public class ItemNetwork {
     private long lastRouteUpdate = 0;
     private static final long ROUTE_CACHE_TIMEOUT = 60000; // 1 minute
     
+    // Performance optimizations
+    private final Map<BlockPos, BlockPos> closestPipeCache = new HashMap<>();
+    private long lastClosestPipeCacheClear = 0;
+    private static final long CLOSEST_PIPE_CACHE_TIMEOUT = 30000; // 30 seconds
+    
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
+    
     private final World world;
     
     public ItemNetwork(World world) {
@@ -45,120 +53,86 @@ public class ItemNetwork {
      * Adds a pipe to this network.
      */
     public void addPipe(BlockPos pos) {
-        Circuitmod.LOGGER.info("[NETWORK-ADD] Adding pipe at {} to network {}", pos, networkId);
+        if (pipes.contains(pos)) {
+            return; // Already in network
+        }
         
         pipes.add(pos);
-        Circuitmod.LOGGER.info("[NETWORK-ADD] Network now has {} pipes", pipes.size());
+        ItemNetworkManager.pipeToNetwork.put(pos, this);
+        
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-ADD] Adding pipe at {} to network {}", pos, networkId);
+        }
         
         scanForConnectedInventories(pos);
-        Circuitmod.LOGGER.info("[NETWORK-ADD] After scanning, network has {} connected inventories", connectedInventories.size());
         
         invalidateRouteCache();
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK] Added pipe at {} to network {}", pos, networkId);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING) {
+            Circuitmod.LOGGER.info("[ITEM-NETWORK] Added pipe at {} to network {}", pos, networkId);
+        }
     }
     
     /**
      * Removes a pipe from this network.
      */
     public void removePipe(BlockPos pos) {
-        pipes.remove(pos);
+        if (pipes.remove(pos)) {
+            ItemNetworkManager.pipeToNetwork.remove(pos);
+            
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ITEM-NETWORK] Removed pipe at {} from network {}", pos, networkId);
+            }
+        }
         // Remove any inventories that were only connected through this pipe
         rescanAllInventories();
         invalidateRouteCache();
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK] Removed pipe at {} from network {}", pos, networkId);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING) {
+            Circuitmod.LOGGER.info("[ITEM-NETWORK] Removed pipe at {} from network {}", pos, networkId);
+        }
     }
     
     /**
      * Scans around a pipe position for connected inventories.
      */
     private void scanForConnectedInventories(BlockPos pipePos) {
-        Circuitmod.LOGGER.info("[NETWORK-SCAN] Scanning for inventories around pipe at {}", pipePos);
-        
-        // Determine what type of pipe this is
-        BlockState pipeState = world.getBlockState(pipePos);
-        boolean isOutputPipe = pipeState.getBlock() instanceof starduster.circuitmod.block.OutputPipeBlock;
-        
         for (Direction direction : Direction.values()) {
             BlockPos neighborPos = pipePos.offset(direction);
-            BlockState blockState = world.getBlockState(neighborPos);
-            
-            Circuitmod.LOGGER.info("[NETWORK-SCAN] Checking {} direction from {} to {}", direction, pipePos, neighborPos);
-            Circuitmod.LOGGER.info("[NETWORK-SCAN] Block state: {}", blockState.getBlock().getName().getString());
-            
-            // Skip pipes - we only want inventories
-            if (blockState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
-                Circuitmod.LOGGER.info("[NETWORK-SCAN] Block at {} is a pipe, skipping", neighborPos);
-                continue;
-            }
-            
-            // Use hopper-style inventory detection
-            Inventory inventory = getInventoryAt(world, neighborPos, blockState);
+            BlockState neighborState = world.getBlockState(neighborPos);
+            Inventory inventory = getInventoryAt(world, neighborPos, neighborState);
             
             if (inventory != null) {
-                Circuitmod.LOGGER.info("[NETWORK-SCAN] Found inventory at {}: {}", neighborPos, inventory.getClass().getSimpleName());
-                
-                // Categorize based on pipe type
-                if (isOutputPipe) {
-                    // Output pipes create SOURCE inventories (can extract from)
-                    sourceInventories.put(neighborPos, inventory);
-                    Circuitmod.LOGGER.info("[NETWORK-SCAN] Added {} as SOURCE inventory (adjacent to output pipe)", neighborPos);
-                } else {
-                    // Regular pipes create DESTINATION inventories (can insert to) 
-                    destinationInventories.put(neighborPos, inventory);
-                    Circuitmod.LOGGER.info("[NETWORK-SCAN] Added {} as DESTINATION inventory (adjacent to regular pipe)", neighborPos);
-                }
-                
-                // Also add to the general connected inventories for compatibility
                 connectedInventories.put(neighborPos, inventory);
-                
-                // Track connection direction
                 inventoryConnections.computeIfAbsent(neighborPos, k -> new HashSet<>()).add(direction.getOpposite());
                 
-            } else {
-                Circuitmod.LOGGER.info("[NETWORK-SCAN] No inventory found at {}", neighborPos);
+                // Determine if this is a source or destination based on pipe type
+                BlockState pipeState = world.getBlockState(pipePos);
+                if (pipeState.getBlock() instanceof starduster.circuitmod.block.OutputPipeBlock) {
+                    sourceInventories.put(neighborPos, inventory);
+                } else {
+                    destinationInventories.put(neighborPos, inventory);
+                }
             }
         }
-        
-        Circuitmod.LOGGER.info("[NETWORK-SCAN] Finished scanning around {}: {} sources, {} destinations", 
-            pipePos, sourceInventories.size(), destinationInventories.size());
     }
     
     /**
-     * Gets an inventory at the specified position using the same logic as Minecraft hoppers.
-     * This ensures compatibility with all types of inventories (chests, furnaces, etc.)
+     * Gets an inventory at the specified position, or null if none exists.
      */
     @Nullable
     private static Inventory getInventoryAt(World world, BlockPos pos, BlockState state) {
-        net.minecraft.block.Block block = state.getBlock();
+        if (world.isClient()) {
+            return null;
+        }
         
-        // 1. Check if block implements InventoryProvider interface (like chests, shulker boxes)
-        if (block instanceof net.minecraft.block.InventoryProvider) {
-            Circuitmod.LOGGER.info("[NETWORK-SCAN] Block {} implements InventoryProvider", block.getName().getString());
-            return ((net.minecraft.block.InventoryProvider)block).getInventory(state, world, pos);
-        } 
-        // 2. Check if block has entity AND entity implements Inventory
-        else if (state.hasBlockEntity()) {
-            net.minecraft.block.entity.BlockEntity blockEntity = world.getBlockEntity(pos);
-            Circuitmod.LOGGER.info("[NETWORK-SCAN] Block has entity: {}", 
-                blockEntity != null ? blockEntity.getClass().getSimpleName() : "null");
-            
-            if (blockEntity instanceof Inventory inventory) {
-                // 3. Special case: Handle double chests properly
-                if (inventory instanceof net.minecraft.block.entity.ChestBlockEntity && 
-                    block instanceof net.minecraft.block.ChestBlock) {
-                    Circuitmod.LOGGER.info("[NETWORK-SCAN] Handling chest block with special logic");
-                    return net.minecraft.block.ChestBlock.getInventory((net.minecraft.block.ChestBlock)block, state, world, pos, true);
-                }
-                
-                Circuitmod.LOGGER.info("[NETWORK-SCAN] Block entity is an inventory: {}", inventory.getClass().getSimpleName());
-                return inventory;
-            } else {
-                Circuitmod.LOGGER.info("[NETWORK-SCAN] Block entity is not an inventory");
-            }
-        } else {
-            Circuitmod.LOGGER.info("[NETWORK-SCAN] Block has no block entity");
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof Inventory) {
+            return (Inventory) blockEntity;
         }
         
         return null;
@@ -168,22 +142,22 @@ public class ItemNetwork {
      * Rescans all pipes in the network for connected inventories.
      */
     public void rescanAllInventories() {
-        Circuitmod.LOGGER.info("[NETWORK-RESCAN] Rescanning all inventories for network {}", networkId);
-        
-        // Clear existing inventory data
+        // Clear existing inventory mappings
         connectedInventories.clear();
         sourceInventories.clear();
         destinationInventories.clear();
         inventoryConnections.clear();
         
-        // Rescan each pipe
+        // Rescan all pipes
         for (BlockPos pipePos : pipes) {
-            Circuitmod.LOGGER.info("[NETWORK-RESCAN] Rescanning around pipe at {}", pipePos);
             scanForConnectedInventories(pipePos);
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-RESCAN] Rescan complete. Sources: {}, Destinations: {}", 
-            sourceInventories.size(), destinationInventories.size());
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-RESCAN] Rescan complete. Sources: {}, Destinations: {}", 
+                sourceInventories.size(), destinationInventories.size());
+        }
         
         // Clear route cache since network topology changed
         invalidateRouteCache();
@@ -228,8 +202,11 @@ public class ItemNetwork {
                 Inventory destInventory = destinationInventories.get(destination);
                 int availableSpace = calculateAvailableSpace(destInventory, itemStack);
                 
-                Circuitmod.LOGGER.info("[ROUTE-CREATE] Destination {} has {} available space, path length: {}", 
-                    destination, availableSpace, path.size());
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[ROUTE-CREATE] Destination {} has {} available space, path length: {}", 
+                        destination, availableSpace, path.size());
+                }
                 
                 candidates.add(new RouteCandidate(destination, path, availableSpace, path.size()));
             }
@@ -248,8 +225,11 @@ public class ItemNetwork {
         for (RouteCandidate candidate : candidates) {
             if (candidate.availableSpace > 0) {
                 bestRoute = new ItemRoute(sourcePos, candidate.destination, candidate.path);
-                Circuitmod.LOGGER.info("[ROUTE-CREATE] Selected route: {} -> {} (distance: {}, space: {})", 
-                    sourcePos, candidate.destination, candidate.distance, candidate.availableSpace);
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[ROUTE-CREATE] Selected route: {} -> {} (distance: {}, space: {})", 
+                        sourcePos, candidate.destination, candidate.distance, candidate.availableSpace);
+                }
                 break;
             }
         }
@@ -258,9 +238,15 @@ public class ItemNetwork {
         if (bestRoute != null) {
             routeCache.put(cacheKey, bestRoute);
             lastRouteUpdate = System.currentTimeMillis();
-            Circuitmod.LOGGER.info("[ROUTE-CREATE] Cached route: {}", bestRoute);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ROUTE-CREATE] Cached route: {}", bestRoute);
+            }
         } else {
-            Circuitmod.LOGGER.info("[ROUTE-CREATE] No route found from {} to any destination", sourcePos);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ROUTE-CREATE] No route found from {} to any destination", sourcePos);
+            }
         }
         
         return bestRoute;
@@ -294,8 +280,11 @@ public class ItemNetwork {
     private List<BlockPos> findSourcesWithItem(ItemStack itemStack) {
         List<BlockPos> sources = new ArrayList<>();
         
-        Circuitmod.LOGGER.info("[NETWORK-SOURCES] Finding sources with {} from {} source inventories", 
-            itemStack.getItem().getName().getString(), sourceInventories.size());
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-SOURCES] Finding sources with {} from {} source inventories", 
+                itemStack.getItem().getName().getString(), sourceInventories.size());
+        }
         
         // Only check SOURCE inventories (adjacent to output pipes)
         for (Map.Entry<BlockPos, Inventory> entry : sourceInventories.entrySet()) {
@@ -321,16 +310,22 @@ public class ItemNetwork {
                     ItemStack slotStack = inventory.getStack(slot);
                     if (!slotStack.isEmpty() && ItemStack.areItemsEqual(slotStack, itemStack)) {
                         sources.add(inventoryPos);
-                        Circuitmod.LOGGER.info("[NETWORK-SOURCES] Found source with {}: {}", 
-                            itemStack.getItem().getName().getString(), inventoryPos);
+                        // Only log if debug logging is enabled
+                        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                            Circuitmod.LOGGER.info("[NETWORK-SOURCES] Found source with {}: {}", 
+                                itemStack.getItem().getName().getString(), inventoryPos);
+                        }
                         break; // Found the item, no need to check more slots
                     }
                 }
             }
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-SOURCES] Found {} sources with {}", 
-            sources.size(), itemStack.getItem().getName().getString());
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-SOURCES] Found {} sources with {}", 
+                sources.size(), itemStack.getItem().getName().getString());
+        }
         return sources;
     }
     
@@ -338,13 +333,13 @@ public class ItemNetwork {
      * Finds all destinations that can accept a specific item (excluding specified position).
      */
     public List<BlockPos> findDestinationsForItem(ItemStack itemStack, BlockPos excludeDestination) {
-        Circuitmod.LOGGER.info("[NETWORK-DEST] Finding destinations for {} (excluding {})", 
-            itemStack.getItem().getName().getString(), excludeDestination);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-DEST] Finding destinations for {} (excluding {})", 
+                itemStack.getItem().getName().getString(), excludeDestination);
+        }
         
         List<BlockPos> destinations = new ArrayList<>();
-        
-        Circuitmod.LOGGER.info("[NETWORK-DEST] Checking destination inventories: {}", destinationInventories.size());
-        Circuitmod.LOGGER.info("[NETWORK-DEST] All destination positions: {}", destinationInventories.keySet());
         
         // Only check DESTINATION inventories (adjacent to regular pipes)
         // Never check source inventories (adjacent to output pipes) as destinations
@@ -352,47 +347,42 @@ public class ItemNetwork {
             BlockPos inventoryPos = entry.getKey();
             Inventory inventory = entry.getValue();
             
-            Circuitmod.LOGGER.info("[NETWORK-DEST] Checking destination inventory at {}: {}", inventoryPos, inventory.getClass().getSimpleName());
-            
             // Skip if this is the excluded destination
             if (excludeDestination != null && inventoryPos.equals(excludeDestination)) {
-                Circuitmod.LOGGER.info("[NETWORK-DEST] Skipping excluded destination: {}", inventoryPos);
                 continue;
             }
             
             // Check all possible connection directions for this inventory
             Set<Direction> connectionDirs = inventoryConnections.getOrDefault(inventoryPos, new HashSet<>());
-            Circuitmod.LOGGER.info("[NETWORK-DEST] Connection directions for {}: {}", inventoryPos, connectionDirs);
             
             for (Direction direction : connectionDirs) {
-                Circuitmod.LOGGER.info("[NETWORK-DEST] Testing direction {} for inventory {}", direction, inventoryPos);
-                
                 if (canInsertItem(inventory, itemStack, direction)) {
                     destinations.add(inventoryPos);
-                    Circuitmod.LOGGER.info("[NETWORK-DEST] Can insert {} into {} from direction {}", 
-                        itemStack.getItem().getName().getString(), inventoryPos, direction);
+                    // Only log if debug logging is enabled
+                    if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                        Circuitmod.LOGGER.info("[NETWORK-DEST] Can insert {} into {} from direction {}", 
+                            itemStack.getItem().getName().getString(), inventoryPos, direction);
+                    }
                     break; // Found one valid direction, that's enough
-                } else {
-                    Circuitmod.LOGGER.info("[NETWORK-DEST] Cannot insert {} into {} from direction {}", 
-                        itemStack.getItem().getName().getString(), inventoryPos, direction);
                 }
             }
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-DEST] Found {} destinations for {}", 
-            destinations.size(), itemStack.getItem().getName().getString());
-        Circuitmod.LOGGER.info("[NETWORK-DEST] Destination positions: {}", destinations);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-DEST] Found {} destinations for {}", 
+                destinations.size(), itemStack.getItem().getName().getString());
+        }
         return destinations;
     }
     
     /**
-     * Checks if an inventory has an extractable item of the specified type.
+     * Checks if an inventory has extractable items of the specified type.
      */
     private boolean hasExtractableItem(Inventory inventory, ItemStack targetStack, Direction side) {
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemStack stackInSlot = inventory.getStack(slot);
-            if (ItemStack.areItemsAndComponentsEqual(stackInSlot, targetStack) && !stackInSlot.isEmpty()) {
-                // Check if we can extract from this side (basic implementation)
+            ItemStack slotStack = inventory.getStack(slot);
+            if (!slotStack.isEmpty() && ItemStack.areItemsEqual(slotStack, targetStack)) {
                 return true;
             }
         }
@@ -400,70 +390,54 @@ public class ItemNetwork {
     }
     
     /**
-     * Checks if an inventory can accept the specified item on the given side.
-     * This checks if there's space for AT LEAST ONE item, not necessarily the full stack.
+     * Checks if an inventory can accept the specified item from the specified direction.
      */
     private boolean canInsertItem(Inventory inventory, ItemStack itemStack, Direction side) {
-        // Handle SidedInventory (furnaces, hoppers, etc.)
+        // Check if the inventory can accept items from this side
         if (inventory instanceof net.minecraft.inventory.SidedInventory sidedInventory) {
             int[] availableSlots = sidedInventory.getAvailableSlots(side);
             if (availableSlots.length == 0) {
-                return false; // No slots available on this side
+                return false;
             }
             
+            // Check if any slot can accept the item
             for (int slot : availableSlots) {
-                if (sidedInventory.canInsert(slot, itemStack, side)) {
-                    ItemStack stackInSlot = sidedInventory.getStack(slot);
-                    
-                    if (stackInSlot.isEmpty()) {
-                        return true; // Empty slot available
-                    }
-                    
-                    // Check if same item type and has space for at least one more item
-                    if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
-                        int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
-                        if (stackInSlot.getCount() < maxCount) {
-                            return true; // Can add at least one more item
-                        }
-                    }
+                ItemStack slotStack = sidedInventory.getStack(slot);
+                if (slotStack.isEmpty() || (ItemStack.areItemsEqual(slotStack, itemStack) && slotStack.getCount() < slotStack.getMaxCount())) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            // For regular inventories, check if there's any empty slot or matching slot
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                ItemStack slotStack = inventory.getStack(slot);
+                if (slotStack.isEmpty() || (ItemStack.areItemsEqual(slotStack, itemStack) && slotStack.getCount() < slotStack.getMaxCount())) {
+                    return true;
                 }
             }
             return false;
         }
-        
-        // Handle regular Inventory
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemStack stackInSlot = inventory.getStack(slot);
-            
-            if (stackInSlot.isEmpty()) {
-                return true; // Empty slot available
-            }
-            
-            // Check if same item type and has space for at least one more item
-            if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
-                int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
-                if (stackInSlot.getCount() < maxCount) {
-                    return true; // Can add at least one more item
-                }
-            }
-        }
-        return false;
     }
     
     /**
-     * Finds a path between two positions using the pipe network.
+     * Finds a path between two positions through the pipe network.
      */
     public List<BlockPos> findPath(BlockPos start, BlockPos end) {
-        Circuitmod.LOGGER.info("[PATHFIND] Finding path from {} to {}", start, end);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[PATHFIND] Finding path from {} to {}", start, end);
+        }
         
         // Find closest pipe to start
         BlockPos startPipe = findClosestPipe(start);
         BlockPos endPipe = findClosestPipe(end);
         
-        Circuitmod.LOGGER.info("[PATHFIND] Closest pipes: start={}, end={}", startPipe, endPipe);
-        
         if (startPipe == null || endPipe == null) {
-            Circuitmod.LOGGER.info("[PATHFIND] No path found - missing start or end pipe");
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[PATHFIND] No path found - missing start or end pipe");
+            }
             return null;
         }
         
@@ -474,8 +448,6 @@ public class ItemNetwork {
         
         queue.offer(startPipe);
         visited.add(startPipe);
-        
-        Circuitmod.LOGGER.info("[PATHFIND] Starting BFS from {} to {}", startPipe, endPipe);
         
         while (!queue.isEmpty()) {
             BlockPos current = queue.poll();
@@ -496,7 +468,10 @@ public class ItemNetwork {
                     path.add(0, start); // Add initial source
                 }
                 
-                Circuitmod.LOGGER.info("[PATHFIND] Found path with {} steps: {}", path.size(), path);
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[PATHFIND] Found path with {} steps: {}", path.size(), path);
+                }
                 return path;
             }
             
@@ -511,7 +486,10 @@ public class ItemNetwork {
             }
         }
         
-        Circuitmod.LOGGER.info("[PATHFIND] No path found through pipe network");
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[PATHFIND] No path found through pipe network");
+        }
         return null; // No path found
     }
     
@@ -519,7 +497,17 @@ public class ItemNetwork {
      * Finds the closest pipe to a given position.
      */
     private BlockPos findClosestPipe(BlockPos pos) {
-        Circuitmod.LOGGER.info("[PATHFIND-CLOSEST] Finding closest pipe to {} from {} pipes", pos, pipes.size());
+        // Check cache first
+        if (closestPipeCache.containsKey(pos)) {
+            return closestPipeCache.get(pos);
+        }
+        
+        // Clear cache periodically
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastClosestPipeCacheClear > CLOSEST_PIPE_CACHE_TIMEOUT) {
+            closestPipeCache.clear();
+            lastClosestPipeCacheClear = currentTime;
+        }
         
         BlockPos closest = null;
         double minDistance = Double.MAX_VALUE;
@@ -532,7 +520,11 @@ public class ItemNetwork {
             }
         }
         
-        Circuitmod.LOGGER.info("[PATHFIND-CLOSEST] Closest pipe to {} is {} (distance: {})", pos, closest, minDistance);
+        // Cache the result
+        if (closest != null) {
+            closestPipeCache.put(pos, closest);
+        }
+        
         return closest;
     }
     
@@ -540,6 +532,8 @@ public class ItemNetwork {
      * Debug method to print network topology.
      */
     public void debugNetworkTopology() {
+        if (!DEBUG_LOGGING) return;
+        
         Circuitmod.LOGGER.info("[NETWORK-TOPOLOGY] Network {} contains:", networkId);
         Circuitmod.LOGGER.info("[NETWORK-TOPOLOGY] - Pipes ({}): {}", pipes.size(), pipes);
         Circuitmod.LOGGER.info("[NETWORK-TOPOLOGY] - Source inventories ({}): {}", sourceInventories.size(), sourceInventories.keySet());
@@ -564,7 +558,10 @@ public class ItemNetwork {
     public void invalidateRouteCache() {
         routeCache.clear();
         lastRouteUpdate = System.currentTimeMillis();
-        Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated route cache for network {}", networkId);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated route cache for network {}", networkId);
+        }
     }
     
     /**
@@ -573,8 +570,11 @@ public class ItemNetwork {
     public void invalidateRoutesForItem(ItemStack itemStack) {
         // Remove all cached routes for this item type
         routeCache.entrySet().removeIf(entry -> entry.getKey().contains(itemStack.getItem().toString()));
-        Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated routes for {} in network {}", 
-            itemStack.getItem().getName().getString(), networkId);
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-CACHE] Invalidated routes for {} in network {}", 
+                itemStack.getItem().getName().getString(), networkId);
+        }
     }
     
     /**
@@ -585,7 +585,7 @@ public class ItemNetwork {
     }
     
     /**
-     * Gets all connected inventories.
+     * Gets all connected inventories in this network.
      */
     public Map<BlockPos, Inventory> getConnectedInventories() {
         return new HashMap<>(connectedInventories);
@@ -609,236 +609,167 @@ public class ItemNetwork {
      * Merges another network into this one.
      */
     public void merge(ItemNetwork other) {
-        this.pipes.addAll(other.pipes);
-        this.connectedInventories.putAll(other.connectedInventories);
-        this.inventoryConnections.putAll(other.inventoryConnections);
-        invalidateRouteCache();
+        pipes.addAll(other.pipes);
+        connectedInventories.putAll(other.connectedInventories);
+        sourceInventories.putAll(other.sourceInventories);
+        destinationInventories.putAll(other.destinationInventories);
+        inventoryConnections.putAll(other.inventoryConnections);
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK] Merged network {} into {}", other.networkId, this.networkId);
+        // Update pipe-to-network mapping
+        for (BlockPos pipe : other.pipes) {
+            ItemNetworkManager.pipeToNetwork.put(pipe, this);
+        }
+        
+        invalidateRouteCache();
     }
-
+    
     /**
-     * Finds alternative destinations for an item when the primary destination fails.
-     * Returns destinations sorted by distance (closest first).
+     * Finds alternative destinations when the primary destination fails.
      */
     public List<BlockPos> findAlternativeDestinations(ItemStack itemStack, BlockPos currentPos, BlockPos excludeDestination, BlockPos failedDestination) {
         List<BlockPos> allDestinations = findDestinationsForItem(itemStack, excludeDestination);
         List<BlockPos> alternatives = new ArrayList<>();
         
-        for (BlockPos dest : allDestinations) {
-            if (!dest.equals(failedDestination)) {
-                alternatives.add(dest);
+        for (BlockPos destination : allDestinations) {
+            if (!destination.equals(failedDestination)) {
+                alternatives.add(destination);
             }
         }
-        
-        // Sort by distance from current position (closest first)
-        alternatives.sort((dest1, dest2) -> {
-            double dist1 = Math.sqrt(currentPos.getSquaredDistance(dest1));
-            double dist2 = Math.sqrt(currentPos.getSquaredDistance(dest2));
-            return Double.compare(dist1, dist2);
-        });
         
         return alternatives;
     }
     
     /**
-     * Attempts to find a route to any available destination, trying alternatives if the primary fails.
+     * Finds a route with fallback support for when primary routes fail.
      */
     public ItemRoute findRouteWithFallback(ItemStack itemStack, BlockPos currentPos, BlockPos excludeDestination) {
-        Circuitmod.LOGGER.info("[NETWORK-ROUTE] Finding route for {} from {} (excluding {})", 
-            itemStack.getItem().getName().getString(), currentPos, excludeDestination);
-            
-        // Try the primary route first
-        ItemRoute primaryRoute = findRoute(itemStack, currentPos, excludeDestination);
-        if (primaryRoute != null) {
-            Circuitmod.LOGGER.info("[NETWORK-ROUTE] Found primary route: {} -> {}", 
-                primaryRoute.getSource(), primaryRoute.getDestination());
-            return primaryRoute;
+        // First try to find a normal route
+        ItemRoute route = findRoute(itemStack, currentPos, excludeDestination);
+        if (route != null) {
+            return route;
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-ROUTE] No primary route found, trying alternatives");
-        
-        // If no primary route, try to find any alternative destination
-        List<BlockPos> alternatives = findAlternativeDestinations(itemStack, currentPos, excludeDestination, null);
-        Circuitmod.LOGGER.info("[NETWORK-ROUTE] Found {} alternative destinations", alternatives.size());
-        
-        for (BlockPos altDestination : alternatives) {
-            Circuitmod.LOGGER.info("[NETWORK-ROUTE] Trying alternative destination: {}", altDestination);
-            List<BlockPos> path = findPath(currentPos, altDestination);
+        // If no route found, try to find any destination that can accept this item
+        List<BlockPos> destinations = findDestinationsForItem(itemStack, excludeDestination);
+        if (!destinations.isEmpty()) {
+            // Use the first available destination
+            BlockPos destination = destinations.get(0);
+            List<BlockPos> path = findPath(currentPos, destination);
             if (path != null) {
-                Circuitmod.LOGGER.info("[NETWORK-ROUTE] Found path to alternative: {} steps", path.size());
-                return new ItemRoute(currentPos, altDestination, path);
-            } else {
-                Circuitmod.LOGGER.info("[NETWORK-ROUTE] No path to alternative destination: {}", altDestination);
+                return new ItemRoute(currentPos, destination, path);
             }
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-ROUTE] No route found to any destination");
-        return null; // No route found to any destination
+        return null;
     }
     
     /**
      * Finds a route excluding a specific failed destination.
-     * Used when a transfer attempt fails and we need to find an alternative.
      */
     public ItemRoute findRouteExcludingFailed(ItemStack itemStack, BlockPos currentPos, BlockPos excludeDestination, BlockPos failedDestination) {
-        Circuitmod.LOGGER.info("[NETWORK-FALLBACK] Finding alternative route for {} from {} (excluding {} and failed {})", 
-            itemStack.getItem().getName().getString(), currentPos, excludeDestination, failedDestination);
-        
-        // Find alternative destinations, excluding both the original exclusion and the failed destination
+        // Find alternative destinations
         List<BlockPos> alternatives = findAlternativeDestinations(itemStack, currentPos, excludeDestination, failedDestination);
-        Circuitmod.LOGGER.info("[NETWORK-FALLBACK] Found {} alternative destinations", alternatives.size());
         
-        for (BlockPos altDestination : alternatives) {
-            Circuitmod.LOGGER.info("[NETWORK-FALLBACK] Trying alternative destination: {}", altDestination);
-            List<BlockPos> path = findPath(currentPos, altDestination);
+        // Try to find a route to any alternative destination
+        for (BlockPos destination : alternatives) {
+            List<BlockPos> path = findPath(currentPos, destination);
             if (path != null) {
-                Circuitmod.LOGGER.info("[NETWORK-FALLBACK] Found path to alternative: {} steps", path.size());
-                return new ItemRoute(currentPos, altDestination, path);
-            } else {
-                Circuitmod.LOGGER.info("[NETWORK-FALLBACK] No path to alternative destination: {}", altDestination);
+                // Check if destination has space
+                Inventory destInventory = destinationInventories.get(destination);
+                if (destInventory != null && calculateAvailableSpace(destInventory, itemStack) > 0) {
+                    return new ItemRoute(currentPos, destination, path);
+                }
             }
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-FALLBACK] No alternative route found");
         return null;
     }
-
+    
     /**
      * Forces a complete rescan of all inventories in the network.
-     * Useful for debugging or when blocks are placed after pipes.
      */
     public void forceRescanAllInventories() {
-        Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] Forcing complete rescan of network {}", networkId);
+        // Clear existing mappings
         connectedInventories.clear();
         sourceInventories.clear();
         destinationInventories.clear();
         inventoryConnections.clear();
         
+        // Rescan all pipes
         for (BlockPos pipePos : pipes) {
-            Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] Rescanning around pipe at {}", pipePos);
             scanForConnectedInventories(pipePos);
         }
         
-        Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] Rescan complete. Sources: {}, Destinations: {}", 
-            sourceInventories.size(), destinationInventories.size());
-        Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] - Source inventories: {}", sourceInventories.keySet());
-        Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] - Destination inventories: {}", destinationInventories.keySet());
+        // Clear caches
+        invalidateRouteCache();
+        closestPipeCache.clear();
+        
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[NETWORK-FORCE-RESCAN] Force rescan complete. Sources: {}, Destinations: {}", 
+                sourceInventories.size(), destinationInventories.size());
+        }
     }
     
     /**
-     * Gets all source inventories (adjacent to output pipes).
+     * Gets all source inventories in this network.
      */
     public Map<BlockPos, Inventory> getSourceInventories() {
-        return sourceInventories;
+        return new HashMap<>(sourceInventories);
     }
     
     /**
-     * Gets all destination inventories (adjacent to regular pipes only).
+     * Gets all destination inventories in this network.
      */
     public Map<BlockPos, Inventory> getDestinationInventories() {
-        return destinationInventories;
+        return new HashMap<>(destinationInventories);
     }
-
+    
     /**
-     * Calculates the available space for a specific item in an inventory.
+     * Calculates the available space for an item in an inventory.
      */
     private int calculateAvailableSpace(Inventory inventory, ItemStack itemStack) {
-        int totalSpace = 0;
-        
-        // Handle SidedInventory (furnaces, hoppers, etc.)
-        if (inventory instanceof net.minecraft.inventory.SidedInventory sidedInventory) {
-            // For sided inventories, we need to check all sides
-            for (Direction side : Direction.values()) {
-                int[] availableSlots = sidedInventory.getAvailableSlots(side);
-                for (int slot : availableSlots) {
-                    if (sidedInventory.canInsert(slot, itemStack, side)) {
-                        ItemStack stackInSlot = sidedInventory.getStack(slot);
-                        if (stackInSlot.isEmpty()) {
-                            totalSpace += itemStack.getMaxCount();
-                        } else if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
-                            int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
-                            totalSpace += (maxCount - stackInSlot.getCount());
-                        }
-                    }
-                }
-            }
-        } else {
-            // Handle regular Inventory
-            for (int slot = 0; slot < inventory.size(); slot++) {
-                ItemStack stackInSlot = inventory.getStack(slot);
-                if (stackInSlot.isEmpty()) {
-                    totalSpace += itemStack.getMaxCount();
-                } else if (ItemStack.areItemsAndComponentsEqual(stackInSlot, itemStack)) {
-                    int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
-                    totalSpace += (maxCount - stackInSlot.getCount());
-                }
-            }
+        if (inventory == null) {
+            return 0;
         }
         
-        return totalSpace;
+        int availableSpace = 0;
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            ItemStack slotStack = inventory.getStack(slot);
+            if (slotStack.isEmpty()) {
+                availableSpace += itemStack.getMaxCount();
+            } else if (ItemStack.areItemsEqual(slotStack, itemStack)) {
+                availableSpace += itemStack.getMaxCount() - slotStack.getCount();
+            }
+        }
+        return availableSpace;
     }
-
+    
     /**
-     * Monitors inventory changes and updates routes when space becomes available.
-     * This should be called periodically to check if closer destinations now have space.
+     * Monitors inventory changes to update route cache when needed.
      */
     public void monitorInventoryChanges() {
-        // Check if any destination inventories have changed their available space
-        boolean hasChanges = false;
-        
-        for (Map.Entry<BlockPos, Inventory> entry : destinationInventories.entrySet()) {
-            BlockPos inventoryPos = entry.getKey();
-            Inventory inventory = entry.getValue();
-            
-            // Check if this inventory has any available space for any item type
-            boolean hasSpace = false;
-            for (int slot = 0; slot < inventory.size(); slot++) {
-                ItemStack stackInSlot = inventory.getStack(slot);
-                if (stackInSlot.isEmpty()) {
-                    hasSpace = true;
-                    Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} has empty slot {}", inventoryPos, slot);
-                    break;
-                } else {
-                    // Check if this slot can hold more of the same item
-                    int maxCount = Math.min(stackInSlot.getMaxCount(), inventory.getMaxCountPerStack());
-                    if (stackInSlot.getCount() < maxCount) {
-                        hasSpace = true;
-                        Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} has partial slot {} with {} < {}", 
-                            inventoryPos, slot, stackInSlot.getCount(), maxCount);
-                        break;
-                    }
-                }
-            }
-            
-            if (hasSpace) {
-                // This inventory has space, invalidate routes to force recalculation
-                Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory at {} now has space, invalidating routes", inventoryPos);
-                invalidateRouteCache();
-                hasChanges = true;
-                break; // Only need to find one change to trigger update
-            }
-        }
-        
-        if (hasChanges) {
-            Circuitmod.LOGGER.info("[NETWORK-MONITOR] Inventory changes detected, routes will be recalculated");
+        // This method is called periodically to check for inventory changes
+        // For now, we'll just invalidate the cache periodically to ensure fresh routes
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRouteUpdate > ROUTE_CACHE_TIMEOUT) {
+            invalidateRouteCache();
         }
     }
     
     /**
-     * Checks if a specific destination has space for an item.
+     * Checks if a destination has space for the specified item.
      */
     public boolean destinationHasSpace(BlockPos destination, ItemStack itemStack) {
         Inventory inventory = destinationInventories.get(destination);
         if (inventory == null) {
             return false;
         }
-        
         return calculateAvailableSpace(inventory, itemStack) > 0;
     }
-
+    
     /**
-     * Helper class to store route candidates with their properties.
+     * Helper class for route candidates.
      */
     private static class RouteCandidate {
         final BlockPos destination;

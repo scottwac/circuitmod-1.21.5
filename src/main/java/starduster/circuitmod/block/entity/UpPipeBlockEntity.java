@@ -75,66 +75,67 @@ public class UpPipeBlockEntity extends BlockEntity implements ImplementedInvento
         if (blockEntity.isEmpty()) {
             return false;
         }
-
-        BlockPos abovePos = pos.up();
-        BlockState aboveState = world.getBlockState(abovePos);
+        
         ItemStack currentStack = blockEntity.getStack(0);
-
-        // Try to transfer to a pipe above first
-        if (aboveState.getBlock() instanceof BasePipeBlock && 
-            world.getBlockEntity(abovePos) instanceof Inventory abovePipe) {
-            
+        
+        // Try to transfer to pipe above
+        BlockPos abovePos = pos.up();
+        BlockEntity aboveEntity = world.getBlockEntity(abovePos);
+        
+        if (aboveEntity instanceof ItemPipeBlockEntity abovePipe) {
             if (abovePipe.isEmpty()) {
-                // Transfer the entire stack to the pipe above
-                abovePipe.setStack(0, currentStack.copy());
+                // Transfer the item
+                ItemStack transferredItem = blockEntity.removeStack(0);
+                abovePipe.setStack(0, transferredItem);
+                
+                // Set animation and direction info
+                abovePipe.lastInputDirection = Direction.DOWN;
+                abovePipe.transferCooldown = COOLDOWN_TICKS;
                 abovePipe.markDirty();
                 
-                // Set input direction for the receiving pipe
-                if (abovePipe instanceof ItemPipeBlockEntity targetItemPipe) {
-                    targetItemPipe.lastInputDirection = Direction.DOWN;
-                    targetItemPipe.transferCooldown = COOLDOWN_TICKS;
-                } else if (abovePipe instanceof SortingPipeBlockEntity targetSortingPipe) {
-                    targetSortingPipe.setLastInputDirection(Direction.DOWN);
-                    targetSortingPipe.setTransferCooldown(COOLDOWN_TICKS);
-                } else if (abovePipe instanceof OutputPipeBlockEntity targetOutputPipe) {
-                    targetOutputPipe.lastInputDirection = Direction.DOWN;
-                }
-                
-                // Send animation to clients
-                if (world instanceof ServerWorld serverWorld) {
-                    blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, abovePos);
-                }
-                
+                // Clear source pipe
                 blockEntity.setStack(0, ItemStack.EMPTY);
                 blockEntity.markDirty();
                 
-                Circuitmod.LOGGER.info("[UP-PIPE-TRANSFER] Transferred to pipe above at {}", abovePos);
-                return true;
-            }
-        }
-        
-        // Try to transfer to an inventory above
-        Inventory aboveInventory = getInventoryAt(world, abovePos);
-        if (aboveInventory != null) {
-            // Skip if it's a pipe (already handled above)
-            if (aboveState.getBlock() instanceof BasePipeBlock) {
-                return false;
-            }
-            
-            ItemStack remaining = transferToInventory(blockEntity, aboveInventory, currentStack.copy(), Direction.DOWN);
-            
-            if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
-                // Successfully transferred at least part of the item
-                blockEntity.setStack(0, remaining);
-                blockEntity.markDirty();
-                
-                // Send animation to clients
+                // Send animation
                 if (world instanceof ServerWorld serverWorld) {
                     blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, abovePos);
                 }
                 
-                Circuitmod.LOGGER.info("[UP-PIPE-TRANSFER] Transferred to inventory above at {}", abovePos);
+                // Only log occasionally to prevent spam
+                if (world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[UP-PIPE-TRANSFER] Transferred to pipe above at {}", abovePos);
+                }
+                
                 return true;
+            }
+        } else {
+            // Try to transfer to inventory above
+            Inventory aboveInventory = getInventoryAt(world, abovePos);
+            if (aboveInventory != null) {
+                Direction transferDirection = Direction.DOWN;
+                
+                // Try to insert the FULL stack
+                ItemStack stackToInsert = currentStack.copy();
+                ItemStack remaining = transferToInventory(blockEntity, aboveInventory, stackToInsert, transferDirection);
+                
+                if (remaining.isEmpty() || remaining.getCount() < currentStack.getCount()) {
+                    // Successfully transferred at least part of the stack
+                    blockEntity.setStack(0, remaining);
+                    blockEntity.markDirty();
+                    
+                    // Send animation for item leaving the pipe
+                    if (world instanceof ServerWorld serverWorld) {
+                        blockEntity.sendAnimationIfAllowed(serverWorld, currentStack, pos, abovePos);
+                    }
+                    
+                    // Only log occasionally to prevent spam
+                    if (world.getTime() % 200 == 0) {
+                        Circuitmod.LOGGER.info("[UP-PIPE-TRANSFER] Transferred to inventory above at {}", abovePos);
+                    }
+                    
+                    return true;
+                }
             }
         }
         

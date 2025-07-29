@@ -47,21 +47,21 @@ public class SortingPipeBlock extends BasePipeBlock {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        // Connect to item network
-        if (!world.isClient && world.getBlockEntity(pos) instanceof SortingPipeBlockEntity blockEntity) {
-            blockEntity.onPlaced();
-            
-            // Force a network rescan to ensure proper connectivity after rebuilding
-            Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Sorting pipe placed at {}, forcing network rescan", pos);
-            starduster.circuitmod.item.network.ItemNetwork network = starduster.circuitmod.item.network.ItemNetworkManager.getNetworkForPipe(pos);
-            if (network != null) {
-                network.forceRescanAllInventories();
+        if (!world.isClient()) {
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Sorting pipe placed at {}, forcing network rescan", pos);
             }
             
-            // Schedule an immediate tick to ensure the pipe starts processing
+            // Force a network rescan to include this new pipe
+            ItemNetworkManager.connectPipe(world, pos);
+            
+            // Schedule an immediate tick to ensure the pipe connects properly
             if (world instanceof ServerWorld serverWorld) {
-                serverWorld.scheduleBlockTick(pos, this, 1);
-                Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Scheduled immediate tick for sorting pipe at {}", pos);
+                // Only log occasionally to prevent spam
+                if (world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Scheduled immediate tick for sorting pipe at {}", pos);
+                }
             }
         }
     }

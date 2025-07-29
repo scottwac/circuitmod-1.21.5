@@ -158,17 +158,23 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                         // Check if the neighbor's network is already merged (prevent infinite loops)
                         String neighborNetworkId = neighborNetwork.getNetworkId();
                         if (neighborNetworkId.startsWith("MERGED-")) {
-                            Circuitmod.LOGGER.info("Found neighbor with already merged network at " + neighborPos + 
-                                                  " (Network ID: " + neighborNetworkId + "), skipping merge");
+                            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                                Circuitmod.LOGGER.info("Found neighbor with already merged network at " + neighborPos + 
+                                                      " (Network ID: " + neighborNetworkId + "), skipping merge");
+                            }
                             continue;
                         }
                         
                         // Found multiple networks, they need to be merged
-                        Circuitmod.LOGGER.info("Found multiple networks, merging");
+                        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                            Circuitmod.LOGGER.info("Found multiple networks, merging");
+                        }
                         existingNetwork.mergeWith(neighborNetwork);
                     }
                 } else {
-                    Circuitmod.LOGGER.info("Neighbor has no network yet");
+                    if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                        Circuitmod.LOGGER.info("Neighbor has no network yet");
+                    }
                 }
             }
         }
@@ -177,13 +183,17 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Join existing network
             existingNetwork.addBlock(pos, this);
             this.network = existingNetwork;
-            Circuitmod.LOGGER.info("Cable at " + pos + " joined existing network with " + existingNetwork.getSize() + " blocks");
+            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                Circuitmod.LOGGER.info("Cable at " + pos + " joined existing network with " + existingNetwork.getSize() + " blocks");
+            }
             
             // Also add any neighbors that don't have a network yet
             for (Map.Entry<BlockPos, IPowerConnectable> entry : connectableNeighbors.entrySet()) {
                 IPowerConnectable connectable = entry.getValue();
                 if (connectable.getNetwork() == null) {
-                    Circuitmod.LOGGER.info("Adding previously unconnected neighbor at " + entry.getKey() + " to existing network");
+                    if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                        Circuitmod.LOGGER.info("Adding previously unconnected neighbor at " + entry.getKey() + " to existing network");
+                    }
                     existingNetwork.addBlock(entry.getKey(), connectable);
                 }
             }
@@ -191,11 +201,15 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Create new network
             this.network = new EnergyNetwork();
             this.network.addBlock(pos, this);
-            Circuitmod.LOGGER.info("Cable at " + pos + " created new network");
+            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                Circuitmod.LOGGER.info("Cable at " + pos + " created new network");
+            }
             
             // Add all the connectable neighbors to our new network
             for (Map.Entry<BlockPos, IPowerConnectable> entry : connectableNeighbors.entrySet()) {
-                Circuitmod.LOGGER.info("Adding neighbor at " + entry.getKey() + " to new network");
+                if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                    Circuitmod.LOGGER.info("Adding neighbor at " + entry.getKey() + " to new network");
+                }
                 this.network.addBlock(entry.getKey(), entry.getValue());
             }
         }
@@ -222,14 +236,18 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                     // Check if the neighbor's network is already merged (prevent infinite loops)
                     String neighborNetworkId = neighborNetwork.getNetworkId();
                     if (neighborNetworkId.startsWith("MERGED-")) {
-                        Circuitmod.LOGGER.debug("Cable at " + pos + " found neighbor with already merged network at " + neighborPos + 
-                                              " (Network ID: " + neighborNetworkId + "), skipping merge");
+                        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                            Circuitmod.LOGGER.debug("Cable at " + pos + " found neighbor with already merged network at " + neighborPos + 
+                                                  " (Network ID: " + neighborNetworkId + "), skipping merge");
+                        }
                         continue;
                     }
                     
                     // Found different network, merge them
                     network.mergeWith(neighborNetwork);
-                    Circuitmod.LOGGER.debug("Merged networks at " + pos);
+                    if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                        Circuitmod.LOGGER.debug("Merged networks at " + pos);
+                    }
                 }
             }
         }
@@ -521,5 +539,49 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 }
             }
         }
+    }
+
+    /**
+     * Performs recovery operations for this cable if it's in an inconsistent state.
+     * This is called during world loading to recover from crashes.
+     * 
+     * @return true if recovery was performed, false if the cable is healthy
+     */
+    public boolean performRecovery() {
+        if (world == null) return false;
+        
+        boolean wasRecovered = false;
+        
+        // Check if our network reference is valid
+        if (network != null) {
+            // Check if the network is in a valid state
+            if (!network.isActive()) {
+                if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                    Circuitmod.LOGGER.warn("Cable at {} has inactive network {}, clearing reference", pos, network.getNetworkId());
+                }
+                network = null;
+                wasRecovered = true;
+            } else {
+                // Check if we're still in the network's connected blocks
+                if (!network.getConnectedBlockPositions().contains(pos)) {
+                    if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                        Circuitmod.LOGGER.warn("Cable at {} not found in network {}, clearing reference", pos, network.getNetworkId());
+                    }
+                    network = null;
+                    wasRecovered = true;
+                }
+            }
+        }
+        
+        // If we don't have a network, try to join one
+        if (network == null) {
+            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+                Circuitmod.LOGGER.info("Cable at {} has no network, attempting to join or create one", pos);
+            }
+            joinExistingNetworkOrCreateNew();
+            wasRecovered = true;
+        }
+        
+        return wasRecovered;
     }
 } 

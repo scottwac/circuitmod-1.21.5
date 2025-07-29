@@ -61,15 +61,21 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
 
     public SortingPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SORTING_PIPE, pos, state);
-        Circuitmod.LOGGER.info("[SORTING-PIPE-CONSTRUCTOR] Created sorting pipe block entity at {}", pos);
+        // Only log occasionally to prevent spam
+        if (world != null && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-CONSTRUCTOR] Created sorting pipe block entity at {}", pos);
+        }
     }
     
     /**
      * Called when the pipe is placed to connect to the item network.
      */
     public void onPlaced() {
-        if (world != null && !world.isClient) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Connecting sorting pipe to network at {}", pos);
+        if (world != null && !world.isClient()) {
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Connecting sorting pipe to network at {}", pos);
+            }
             
             // Schedule the connection for the next tick to ensure block entity is fully initialized
             world.getServer().execute(() -> {
@@ -78,7 +84,10 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                 // Verify connection
                 ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
                 if (network != null) {
-                    Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Successfully connected to network {}", network.getNetworkId());
+                    // Only log occasionally to prevent spam
+                    if (world.getTime() % 200 == 0) {
+                        Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Successfully connected to network {}", network.getNetworkId());
+                    }
                 } else {
                     Circuitmod.LOGGER.error("[SORTING-PIPE-PLACE] FAILED to connect to network!");
                 }
@@ -96,47 +105,66 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
     }
 
     public static void tick(World world, BlockPos pos, BlockState state, SortingPipeBlockEntity blockEntity) {
-        Circuitmod.LOGGER.info("[SORTING-PIPE-TICK-START] Tick called for sorting pipe at {}", pos);
-        
-        if (world.isClient) {
+        if (world.isClient()) {
             return;
         }
         
-        // Check if pipe is in a network
+        // Debug logging control - set to true only when debugging
+        final boolean DEBUG_LOGGING = false;
+        
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK-START] Tick called for sorting pipe at {}", pos);
+        }
+        
+        // Check if we're in a network, if not try to reconnect
         ItemNetwork currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
         if (currentNetwork == null) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Pipe at {} not in network, attempting to reconnect", pos);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Pipe at {} not in network, attempting to reconnect", pos);
+            }
             ItemNetworkManager.connectPipe(world, pos);
             currentNetwork = ItemNetworkManager.getNetworkForPipe(pos);
-            if (currentNetwork != null) {
+            if (currentNetwork != null && DEBUG_LOGGING && world.getTime() % 200 == 0) {
                 Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Successfully reconnected to network {}", currentNetwork.getNetworkId());
             }
         }
-
-        // sourceExclusion timeout mechanism removed - no longer needed
-
-        // Log every 20 ticks (1 second) to verify ticking
-        if (world.getTime() % 20 == 0) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Sorting pipe at {} is ticking, has item: {}, in network: {}", 
-                pos, !blockEntity.isEmpty(), currentNetwork != null);
+        
+        // Only proceed with item processing if we have an item to process
+        if (blockEntity.getStack(0).isEmpty()) {
+            return;
+        }
+        
+        // Only log if debug logging is enabled
+        if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+            Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Sorting pipe at {} is ticking, has item: {}, in network: {}",
+                pos, blockEntity.getStack(0).getItem().getName().getString(), 
+                currentNetwork != null ? currentNetwork.getNetworkId() : "NO NETWORK");
         }
 
-        // Check for new unconnected inventories every 5 ticks (was 10) for faster discovery
-        if (world.getTime() % 5 == 0) {
+        // Check for new unconnected inventories every 20 ticks (reduced from 5) for better performance
+        if (world.getTime() % 20 == 0) {
             checkForUnconnectedInventories(world, pos, blockEntity);
         }
         
         // Force network refresh if item has been stuck for too long
         ItemNetwork network = ItemNetworkManager.getNetworkForPipe(pos);
         if (network != null && blockEntity.transferCooldown <= -60) { // Been stuck for 3+ seconds
-            Circuitmod.LOGGER.info("[SORTING-PIPE-FORCE-REFRESH] Item stuck for too long, forcing network refresh at {}", pos);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-FORCE-REFRESH] Item stuck for too long, forcing network refresh at {}", pos);
+            }
             network.forceRescanAllInventories();
             blockEntity.transferCooldown = 0; // Reset cooldown to try again
         }
         
-        // TEMPORARY DEBUG: Force refresh every 50 ticks (2.5 seconds) to catch new chests and space changes
-        if (network != null && world.getTime() % 50 == 0) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+        // TEMPORARY DEBUG: Force refresh every 100 ticks (5 seconds) to catch new chests and space changes - reduced frequency
+        if (network != null && world.getTime() % 100 == 0) { // Reduced from 50 to 100 ticks
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+            }
             network.forceRescanAllInventories();
             network.monitorInventoryChanges(); // Monitor for space changes in closer destinations
         }
@@ -144,15 +172,16 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         // Decrease transfer cooldown
         if (blockEntity.transferCooldown > 0) {
             blockEntity.transferCooldown--;
-            if (!blockEntity.isEmpty()) {
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0 && !blockEntity.isEmpty()) {
                 Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] On cooldown, has item {} at {}", 
                     blockEntity.getStack(0).getItem().getName().getString(), pos);
             }
             return;
         }
 
-        // Log start of tick
-        if (!blockEntity.isEmpty()) {
+        // Log start of tick - only occasionally
+        if (!blockEntity.isEmpty() && DEBUG_LOGGING && world.getTime() % 200 == 0) {
             Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Processing item {} at {}", 
                 blockEntity.getStack(0).getItem().getName().getString(), pos);
         }
@@ -164,20 +193,37 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         
         // Process items in the pipe
         if (!blockEntity.isEmpty()) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Attempting to route {} from {}", 
-                blockEntity.getStack(0).getItem().getName().getString(), pos);
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Attempting to route {} from {}", 
+                    blockEntity.getStack(0).getItem().getName().getString(), pos);
+            }
             
-            // TEMPORARY DEBUG: Force refresh every 100 ticks (5 seconds) to catch new chests
-            if (network != null && world.getTime() % 100 == 0) {
-                Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+            // TEMPORARY DEBUG: Force refresh every 200 ticks (10 seconds) to catch new chests - reduced frequency
+            if (network != null && world.getTime() % 200 == 0) { // Reduced from 100 to 200 ticks
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 400 == 0) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-DEBUG] Forcing periodic network refresh at {}", pos);
+                }
                 network.forceRescanAllInventories();
             }
             
-            if (routeItemThroughNetwork(world, pos, blockEntity)) {
-                blockEntity.transferCooldown = 3; // Match faster throughput (was 8, now 3)
-                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Successfully routed item from {}", pos);
+            // Try to route the item through the network
+            boolean didWork = routeItemThroughNetwork(world, pos, blockEntity);
+            
+            if (didWork) {
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Successfully routed item from {}", pos);
+                }
+                blockEntity.setTransferCooldown(3); // Match faster throughput
             } else {
-                Circuitmod.LOGGER.info("[SORTING-PIPE-ROUTING] Failed to route item from {}", pos);
+                // Item couldn't be routed, increment stuck counter
+                blockEntity.transferCooldown--;
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 200 == 0) {
+                    Circuitmod.LOGGER.info("[SORTING-PIPE-TICK] Failed to route item from {}, item remains in pipe", pos);
+                }
             }
         }
     }
@@ -579,7 +625,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
             
             // Set animation and direction info
             targetPipe.lastInputDirection = transferDirection;
-            targetPipe.setTransferCooldown(3);
+            targetPipe.setTransferCooldown(1);
             targetPipe.markDirty();
             
             // Clear source pipe
@@ -614,7 +660,7 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
             
             // Set animation and direction info
             targetSortingPipe.setLastInputDirection(transferDirection);
-            targetSortingPipe.setTransferCooldown(3);
+            targetSortingPipe.setTransferCooldown(1);
             targetSortingPipe.markDirty();
             
             // Clear source pipe
@@ -769,13 +815,13 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
                         Direction direction = getDirectionTowards(fromPos, toPos);
                         if (direction != null) {
                             itemPipe.lastInputDirection = direction.getOpposite();
-                            itemPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
+                            itemPipe.setTransferCooldown(1); // Faster throughput for better item flow
                         }
                     } else if (targetPipe instanceof SortingPipeBlockEntity sortingPipe) {
                         Direction direction = getDirectionTowards(fromPos, toPos);
                         if (direction != null) {
                             sortingPipe.setLastInputDirection(direction.getOpposite());
-                            sortingPipe.setTransferCooldown(3); // Improved throughput (was 8, now 3)
+                            sortingPipe.setTransferCooldown(1); // Faster throughput for better item flow
                         }
                     }
                     

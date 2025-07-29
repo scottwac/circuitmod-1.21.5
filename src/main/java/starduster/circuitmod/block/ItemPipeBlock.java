@@ -66,16 +66,14 @@ public class ItemPipeBlock extends BasePipeBlock {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        // Connect to item network
-        if (!world.isClient && world.getBlockEntity(pos) instanceof ItemPipeBlockEntity blockEntity) {
-            blockEntity.onPlaced();
-            
-            // Force a network rescan to ensure proper connectivity after rebuilding
-            Circuitmod.LOGGER.info("[PIPE-PLACE] Pipe placed at {}, forcing network rescan", pos);
-            ItemNetwork network = blockEntity.getNetwork();
-            if (network != null) {
-                network.forceRescanAllInventories();
+        if (!world.isClient()) {
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[PIPE-PLACE] Pipe placed at {}, forcing network rescan", pos);
             }
+            
+            // Force a network rescan to include this new pipe
+            ItemNetworkManager.connectPipe(world, pos);
         }
     }
     

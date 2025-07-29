@@ -71,8 +71,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.GENERATOR);
 				entries.add(ModBlocks.SOLAR_PANEL);
 				entries.add(ModBlocks.TESLA_COIL);
-				            entries.add(ModBlocks.DRILL_BLOCK);
-            entries.add(ModBlocks.LASER_MINING_DRILL_BLOCK);
+				entries.add(ModBlocks.DRILL_BLOCK);
+				entries.add(ModBlocks.LASER_MINING_DRILL_BLOCK);
 				entries.add(ModBlocks.QUARRY_BLOCK);
 				entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
 				entries.add(ModBlocks.BLUEPRINT_DESK);
@@ -87,7 +87,7 @@ public class Circuitmod implements ModInitializer {
 
 				// Add ingots and materials
 				entries.add(ModItems.BLOOM);
-
+				
 				// Add ores
 				entries.add(ModBlocks.BAUXITE_ORE);
 				entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE);
@@ -139,7 +139,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModItems.STEEL_AXE);
 				entries.add(ModItems.STEEL_HOE);
 				entries.add(ModItems.STEEL_SWORD);
-
+				
 				// Add blank blueprint item
 				entries.add(ModItems.BLANK_BLUEPRINT);
 
@@ -183,10 +183,25 @@ public class Circuitmod implements ModInitializer {
 		
 		// starduster.circuitmod.worldgen.ModTreeGeneration.generateTrees();
 		
-		
 		// Initialize commands
 		starduster.circuitmod.command.ModCommands.initialize();
-
+		
+		// Disable startup mode after initialization to reduce logging spam
+		starduster.circuitmod.power.EnergyNetwork.setStartupMode(false);
+		
+		// Register world load event for recovery
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.LOAD.register((server, world) -> {
+			// Perform recovery after a short delay to ensure all blocks are loaded
+			server.execute(() -> {
+				try {
+					Circuitmod.LOGGER.info("Performing automatic energy network recovery for world: " + world.getRegistryKey().getValue());
+					starduster.circuitmod.power.EnergyNetwork.performGlobalRecovery(world);
+				} catch (Exception e) {
+					Circuitmod.LOGGER.error("Error during automatic energy network recovery", e);
+				}
+			});
+		});
+		
 		// Register server-side networking handlers
 		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ToggleMiningPayload.ID, (payload, context) -> {
 			var machinePos = payload.machinePos();
@@ -230,6 +245,18 @@ public class Circuitmod implements ModInitializer {
 					
 					// Send sync packet back to the client
 					ModNetworking.sendQuarryDimensionsSync(context.player(), width, length, quarryPos);
+				}
+			});
+		});
+		
+		// Register quarry reset height handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.QuarryResetHeightPayload.ID, (payload, context) -> {
+			var quarryPos = payload.quarryPos();
+			context.server().execute(() -> {
+				// Handle on the server thread
+				if (context.player().getWorld().getBlockEntity(quarryPos) instanceof QuarryBlockEntity quarry) {
+					quarry.resetHeight();
+					LOGGER.info("[SERVER] Reset quarry height at " + quarryPos + " by player " + context.player().getName().getString());
 				}
 			});
 		});
@@ -311,7 +338,7 @@ public class Circuitmod implements ModInitializer {
 			});
 		});
 		
-
+		
 		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

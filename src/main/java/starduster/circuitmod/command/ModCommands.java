@@ -2,14 +2,18 @@ package starduster.circuitmod.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.item.network.ItemNetworkManager;
 import starduster.circuitmod.item.network.ItemNetwork;
+import starduster.circuitmod.power.EnergyNetwork;
+import net.minecraft.server.world.ServerWorld;
 
 import starduster.circuitmod.Circuitmod;
 
@@ -24,6 +28,8 @@ public class ModCommands {
                 .executes(ModCommands::refreshNetworks))
             .then(CommandManager.literal("network-stats")
                 .executes(ModCommands::networkStats))
+            .then(CommandManager.literal("recover-energy-networks")
+                .executes(ModCommands::recoverEnergyNetworks))
         );
     }
 
@@ -48,6 +54,23 @@ public class ModCommands {
         String stats = ItemNetworkManager.getNetworkStats();
         Circuitmod.LOGGER.info("[COMMAND] Network stats: {}", stats);
         source.sendMessage(Text.literal(stats));
+        
+        return 1;
+    }
+
+    /**
+     * Command to recover energy networks after a crash.
+     */
+    private static int recoverEnergyNetworks(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        ServerCommandSource source = context.getSource();
+        ServerWorld world = source.getWorld();
+        
+        source.sendMessage(Text.literal("Starting energy network recovery...").formatted(Formatting.YELLOW));
+        
+        // Perform global recovery
+        starduster.circuitmod.power.EnergyNetwork.performGlobalRecovery(world);
+        
+        source.sendMessage(Text.literal("Energy network recovery complete!").formatted(Formatting.GREEN));
         
         return 1;
     }

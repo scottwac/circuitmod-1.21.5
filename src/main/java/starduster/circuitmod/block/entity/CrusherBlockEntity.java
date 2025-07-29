@@ -155,8 +155,11 @@ public class CrusherBlockEntity extends BlockEntity implements NamedScreenHandle
         boolean wasRunning = state.get(CrusherBlock.RUNNING);
         boolean isRunning = hasRecipe() && energyReceived > 0;
 
+        // Debug logging control - set to true only when debugging
+        final boolean DEBUG_LOGGING = false;
+        
         // DEBUG LOGGING
-        if (world != null && !world.isClient() && world.getTime() % 20 == 0) {
+        if (DEBUG_LOGGING && world != null && !world.isClient() && world.getTime() % 20 == 0) {
             Circuitmod.LOGGER.info("[CRUSHER-DEBUG] At {}: hasRecipe={}, energyReceived={}, progress={}/{}", pos, hasRecipe(), energyReceived, progress, maxProgress);
         }
         
@@ -164,14 +167,14 @@ public class CrusherBlockEntity extends BlockEntity implements NamedScreenHandle
             increaseCrushProgress();
             markDirty(world, pos, state);
             if(hasCrushingFinished()) {
-                if (world != null && !world.isClient()) {
+                if (DEBUG_LOGGING && world != null && !world.isClient()) {
                     Circuitmod.LOGGER.info("[CRUSHER-DEBUG] At {}: Crafting item!", pos);
                 }
                 craftItem();
                 resetProgress();
             }
         } else {
-            if (progress != 0 && world != null && !world.isClient()) {
+            if (progress != 0 && DEBUG_LOGGING && world != null && !world.isClient()) {
                 Circuitmod.LOGGER.info("[CRUSHER-DEBUG] At {}: Resetting progress.", pos);
             }
             resetProgress();

@@ -7,6 +7,12 @@ import starduster.circuitmod.Circuitmod;
 import java.util.*;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntity;
+import starduster.circuitmod.block.entity.ItemPipeBlockEntity;
+import starduster.circuitmod.block.entity.SortingPipeBlockEntity;
+import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
+import starduster.circuitmod.block.entity.UpPipeBlockEntity;
+import java.util.List;
 
 /**
  * Global manager for all item networks in the world.
@@ -14,7 +20,7 @@ import net.minecraft.block.Block;
  */
 public class ItemNetworkManager {
     private static final Map<String, ItemNetwork> networks = new HashMap<>();
-    private static final Map<BlockPos, ItemNetwork> pipeToNetwork = new HashMap<>();
+    public static final Map<BlockPos, ItemNetwork> pipeToNetwork = new HashMap<>();
     
     /**
      * Creates a new item network.
@@ -61,41 +67,53 @@ public class ItemNetworkManager {
     }
     
     /**
-     * Connects a pipe to an item network, creating or joining networks as needed.
+     * Connects a pipe to an existing network or creates a new one.
      */
     public static void connectPipe(World world, BlockPos pipePos) {
         if (world.isClient()) {
             return;
         }
         
-        BlockState pipeState = world.getBlockState(pipePos);
-        net.minecraft.block.Block pipeBlock = pipeState.getBlock();
+        // Get the pipe block entity
+        BlockEntity pipeBlock = world.getBlockEntity(pipePos);
+        if (!(pipeBlock instanceof ItemPipeBlockEntity || pipeBlock instanceof SortingPipeBlockEntity || 
+              pipeBlock instanceof OutputPipeBlockEntity || pipeBlock instanceof UpPipeBlockEntity)) {
+            return;
+        }
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Attempting to connect pipe at {} to network (block: {})", pipePos, pipeBlock.getName().getString());
-        
-        // Find existing networks this pipe can connect to
+        // Find all connectable networks around this pipe
         Set<ItemNetwork> connectableNetworks = findConnectableNetworks(world, pipePos);
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Found {} connectable networks for pipe at {}", connectableNetworks.size(), pipePos);
-        
         if (connectableNetworks.isEmpty()) {
-            // No existing networks, create a new one
+            // No existing networks found, create a new one
             ItemNetwork newNetwork = createNetwork(world);
             newNetwork.addPipe(pipePos);
             pipeToNetwork.put(pipePos, newNetwork);
-            Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Created new item network {} for pipe at {}", 
-                newNetwork.getNetworkId(), pipePos);
+            
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Created new item network {} for pipe at {}",
+                    newNetwork.getNetworkId(), pipePos);
+            }
         } else if (connectableNetworks.size() == 1) {
-            // Connect to the existing network
+            // Found exactly one network, join it
             ItemNetwork network = connectableNetworks.iterator().next();
             network.addPipe(pipePos);
             pipeToNetwork.put(pipePos, network);
-            Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Connected pipe at {} to existing network {}", 
-                pipePos, network.getNetworkId());
+            
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Connected pipe at {} to existing network {}",
+                    pipePos, network.getNetworkId());
+            }
         } else {
-            // Multiple networks, need to merge them
-            Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Merging {} networks for pipe at {}", connectableNetworks.size(), pipePos);
+            // Found multiple networks, merge them
             mergeNetworks(connectableNetworks, pipePos);
+            
+            // Only log occasionally to prevent spam
+            if (world.getTime() % 200 == 0) {
+                Circuitmod.LOGGER.info("[ITEM-NETWORK-CONNECT] Merging {} networks for pipe at {}", connectableNetworks.size(), pipePos);
+            }
         }
     }
     
@@ -138,36 +156,21 @@ public class ItemNetworkManager {
     private static Set<ItemNetwork> findConnectableNetworks(World world, BlockPos pipePos) {
         Set<ItemNetwork> connectableNetworks = new HashSet<>();
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Checking for connectable networks around pipe at {}", pipePos);
-        
         // Check all adjacent positions for other pipes
         for (net.minecraft.util.math.Direction dir : net.minecraft.util.math.Direction.values()) {
             BlockPos neighborPos = pipePos.offset(dir);
             BlockState neighborState = world.getBlockState(neighborPos);
             Block neighborBlock = neighborState.getBlock();
             
-            Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Checking {} at {}: block={}, isBasePipeBlock={}", 
-                dir, neighborPos, neighborBlock.getName().getString(), 
-                neighborBlock instanceof starduster.circuitmod.block.BasePipeBlock);
-            
             // Check if there's another pipe that can connect (any pipe type)
             if (neighborBlock instanceof starduster.circuitmod.block.BasePipeBlock) {
-                Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Found pipe at {} in direction {}", neighborPos, dir);
                 ItemNetwork neighborNetwork = pipeToNetwork.get(neighborPos);
                 if (neighborNetwork != null) {
                     connectableNetworks.add(neighborNetwork);
-                    Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Found connectable network {} at {}", 
-                        neighborNetwork.getNetworkId(), neighborPos);
-                } else {
-                    Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Pipe at {} has no network", neighborPos);
                 }
-            } else {
-                Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] No pipe at {} in direction {} (block: {})", 
-                    neighborPos, dir, neighborBlock.getName().getString());
             }
         }
         
-        Circuitmod.LOGGER.info("[ITEM-NETWORK-FIND] Found {} connectable networks for pipe at {}", connectableNetworks.size(), pipePos);
         return connectableNetworks;
     }
     
