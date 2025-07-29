@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.BasePipeBlock;
 import starduster.circuitmod.item.network.ItemNetworkManager;
+import starduster.circuitmod.item.network.ItemNetwork;
 import starduster.circuitmod.network.PipeNetworkAnimator;
 
 /**
@@ -87,6 +88,11 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                 }
             }
         }
+    }
+    
+
+    public Direction getMovementDirection() {
+        return this.movementDirection;
     }
     
     /**
@@ -266,6 +272,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         return true;
     }
     
+    
     /**
      * Find the best direction using pathfinding that looks ahead for inventories.
      */
@@ -286,6 +293,12 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         return bestDirection;
+    }
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
+    public int getTransferCooldown() {
+        return this.transferCooldown;
     }
     
     /**

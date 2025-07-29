@@ -207,14 +207,7 @@ public final class ModBlocks {
             .sounds(BlockSoundGroup.GLASS)
     );
 
-    public static final Block UP_PIPE = register(
-        "up_pipe",
-        UpPipeBlock::new,
-        Block.Settings.create()
-            .strength(0.3f, 0.3f)
-            .nonOpaque()
-            .sounds(BlockSoundGroup.GLASS)
-    );
+    
 
     // Register power cable block
     public static final Block POWER_CABLE = register(

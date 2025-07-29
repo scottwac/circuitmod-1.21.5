@@ -15,13 +15,14 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
 import starduster.circuitmod.item.network.ItemNetworkManager;
 import net.minecraft.text.Text;
 import net.minecraft.inventory.Inventory;
-import starduster.circuitmod.item.network.ItemNetwork;
 import java.util.Map;
+import starduster.circuitmod.item.network.ItemNetwork;
 
 public class OutputPipeBlock extends BasePipeBlock {
     public static final MapCodec<OutputPipeBlock> CODEC = createCodec(OutputPipeBlock::new);
@@ -44,9 +45,17 @@ public class OutputPipeBlock extends BasePipeBlock {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        // Connect to item network
-        if (!world.isClient && world.getBlockEntity(pos) instanceof OutputPipeBlockEntity blockEntity) {
-            blockEntity.onPlaced();
+        if (!world.isClient()) {
+            // Connect to pipe network
+            ItemNetworkManager.connectPipe(world, pos);
+            
+            // Notify the block entity that it was placed
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof OutputPipeBlockEntity outputPipe) {
+                outputPipe.onPlaced();
+            }
+            
+            Circuitmod.LOGGER.debug("[OUTPUT-PIPE-PLACE] Output pipe placed at {}", pos);
         }
     }
     
@@ -71,16 +80,8 @@ public class OutputPipeBlock extends BasePipeBlock {
         }
         
         return validateTicker(type, ModBlockEntities.OUTPUT_PIPE, (tickWorld, pos, tickState, blockEntity) -> {
-            OutputPipeBlockEntity.tick(tickWorld, pos, tickState, blockEntity);
+            OutputPipeBlockEntity.tick(tickWorld, pos, tickState, (OutputPipeBlockEntity) blockEntity);
         });
-    }
-
-    @Override
-    protected void handleScheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random, BlockEntity blockEntity) {
-        // Force an immediate tick of the output pipe
-        if (blockEntity instanceof OutputPipeBlockEntity outputPipe) {
-            OutputPipeBlockEntity.tick(world, pos, state, outputPipe);
-        }
     }
 
     @Override
@@ -91,8 +92,8 @@ public class OutputPipeBlock extends BasePipeBlock {
                 // Display output pipe and network info when right-clicked
                 player.sendMessage(Text.literal("§6Output Pipe Status:"), false);
                 
-                if (pipe.getNetwork() != null) {
-                    ItemNetwork network = pipe.getNetwork();
+                ItemNetwork network = pipe.getNetwork();
+                if (network != null) {
                     player.sendMessage(Text.literal("§7Network ID: §9" + network.getNetworkId()), false);
                     player.sendMessage(Text.literal("§7Connected to network with §9" + network.getSize() + "§7 pipes"), false);
                     
@@ -102,17 +103,18 @@ public class OutputPipeBlock extends BasePipeBlock {
                     
                     if (!connectedInventories.isEmpty()) {
                         player.sendMessage(Text.literal("§7Inventory positions:"), false);
+                        int count = 0;
                         for (BlockPos invPos : connectedInventories.keySet()) {
+                            if (count >= 3) { // Limit display to avoid spam
+                                player.sendMessage(Text.literal("§7  ... and " + (connectedInventories.size() - 3) + " more"), false);
+                                break;
+                            }
                             Inventory inv = connectedInventories.get(invPos);
                             String invType = inv.getClass().getSimpleName();
                             player.sendMessage(Text.literal("§7  §9" + invPos + "§7 (" + invType + ")"), false);
+                            count++;
                         }
                     }
-                    
-                    // Show source and destination counts
-                    Map<BlockPos, Inventory> sourceInventories = network.getSourceInventories();
-                    Map<BlockPos, Inventory> destinationInventories = network.getDestinationInventories();
-                    player.sendMessage(Text.literal("§7Sources: §9" + sourceInventories.size() + "§7, Destinations: §9" + destinationInventories.size()), false);
                     
                     // Show current pipe state
                     if (!pipe.isEmpty()) {
@@ -125,16 +127,26 @@ public class OutputPipeBlock extends BasePipeBlock {
                     // Show transfer cooldown
                     player.sendMessage(Text.literal("§7Transfer cooldown: §9" + pipe.getTransferCooldown()), false);
                     
-                    // Show redstone power status
-                    boolean isPowered = world.getReceivedRedstonePower(pos) > 0;
-                    String powerStatus = isPowered ? "§aPowered" : "§cUnpowered";
-                    player.sendMessage(Text.literal("§7Redstone power: " + powerStatus), false);
+                    // Show output-specific info
+                    player.sendMessage(Text.literal("§7Function: §9Extracts from adjacent inventories"), false);
+                    player.sendMessage(Text.literal("§7Extract rate: §9Every 20 ticks (1 second)"), false);
                     
                 } else {
                     player.sendMessage(Text.literal("§cNot connected to any network!"), false);
+                    player.sendMessage(Text.literal("§7Try breaking and replacing the pipe"), false);
                 }
             }
         }
         return ActionResult.SUCCESS;
     }
-} 
+
+    @Override
+    protected void handleScheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random, BlockEntity blockEntity) {
+        // Let the normal tick system handle pipe ticking
+        // The hop-by-hop system doesn't need forced scheduled ticks
+        if (blockEntity instanceof OutputPipeBlockEntity outputPipe) {
+            Circuitmod.LOGGER.debug("[OUTPUT-PIPE-SCHEDULED-TICK] Scheduled tick for output pipe at {}", pos);
+            // The normal tick method will be called by the ticker - no need to force it
+        }
+    }
+}

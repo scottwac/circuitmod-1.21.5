@@ -156,12 +156,7 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(SortingPipeBlockEntity::new, ModBlocks.SORTING_PIPE).build()
     );
 
-    // Add up pipe block entity
-    public static final BlockEntityType<UpPipeBlockEntity> UP_PIPE = Registry.register(
-        Registries.BLOCK_ENTITY_TYPE,
-        Identifier.of(Circuitmod.MOD_ID, "up_pipe"),
-        FabricBlockEntityTypeBuilder.create(UpPipeBlockEntity::new, ModBlocks.UP_PIPE).build()
-    );
+    
 
     // Add nuke block entity
     public static final BlockEntityType<NukeBlockEntity> NUKE_BLOCK_ENTITY = Registry.register(

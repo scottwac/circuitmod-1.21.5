@@ -48,21 +48,16 @@ public class SortingPipeBlock extends BasePipeBlock {
         super.onPlaced(world, pos, state, placer, itemStack);
         
         if (!world.isClient()) {
-            // Only log occasionally to prevent spam
-            if (world.getTime() % 200 == 0) {
-                Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Sorting pipe placed at {}, forcing network rescan", pos);
-            }
-            
-            // Force a network rescan to include this new pipe
+            // Connect to pipe network
             ItemNetworkManager.connectPipe(world, pos);
             
-            // Schedule an immediate tick to ensure the pipe connects properly
-            if (world instanceof ServerWorld serverWorld) {
-                // Only log occasionally to prevent spam
-                if (world.getTime() % 200 == 0) {
-                    Circuitmod.LOGGER.info("[SORTING-PIPE-PLACE] Scheduled immediate tick for sorting pipe at {}", pos);
-                }
+            // Notify the block entity that it was placed
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof SortingPipeBlockEntity sortingPipe) {
+                sortingPipe.onPlaced();
             }
+            
+            Circuitmod.LOGGER.debug("[SORTING-PIPE-PLACE] Sorting pipe placed at {}", pos);
         }
     }
     
@@ -117,8 +112,8 @@ public class SortingPipeBlock extends BasePipeBlock {
                     // Display sorting pipe and network info when right-clicked
                     player.sendMessage(Text.literal("§6Sorting Pipe Status:"), false);
                     
-                    if (pipe.getNetwork() != null) {
-                        ItemNetwork network = pipe.getNetwork();
+                    ItemNetwork network = pipe.getNetwork();
+                    if (network != null) {
                         player.sendMessage(Text.literal("§7Network ID: §9" + network.getNetworkId()), false);
                         player.sendMessage(Text.literal("§7Connected to network with §9" + network.getSize() + "§7 pipes"), false);
                         
@@ -128,17 +123,18 @@ public class SortingPipeBlock extends BasePipeBlock {
                         
                         if (!connectedInventories.isEmpty()) {
                             player.sendMessage(Text.literal("§7Inventory positions:"), false);
+                            int count = 0;
                             for (BlockPos invPos : connectedInventories.keySet()) {
+                                if (count >= 3) { // Limit display to avoid spam
+                                    player.sendMessage(Text.literal("§7  ... and " + (connectedInventories.size() - 3) + " more"), false);
+                                    break;
+                                }
                                 Inventory inv = connectedInventories.get(invPos);
                                 String invType = inv.getClass().getSimpleName();
                                 player.sendMessage(Text.literal("§7  §9" + invPos + "§7 (" + invType + ")"), false);
+                                count++;
                             }
                         }
-                        
-                        // Show source and destination counts
-                        Map<BlockPos, Inventory> sourceInventories = network.getSourceInventories();
-                        Map<BlockPos, Inventory> destinationInventories = network.getDestinationInventories();
-                        player.sendMessage(Text.literal("§7Sources: §9" + sourceInventories.size() + "§7, Destinations: §9" + destinationInventories.size()), false);
                         
                         // Show current pipe state
                         if (!pipe.isEmpty()) {
@@ -152,19 +148,28 @@ public class SortingPipeBlock extends BasePipeBlock {
                         player.sendMessage(Text.literal("§7Transfer cooldown: §9" + pipe.getTransferCooldown()), false);
                         
                         // Show filter information
-                        player.sendMessage(Text.literal("§7Filter slots:"), false);
+                        boolean hasFilters = false;
                         for (int i = 0; i < 6; i++) {
                             ItemStack filterStack = pipe.getFilterStack(i);
                             if (!filterStack.isEmpty()) {
+                                if (!hasFilters) {
+                                    player.sendMessage(Text.literal("§7Active filters:"), false);
+                                    hasFilters = true;
+                                }
                                 Direction dir = SortingPipeBlockEntity.DIRECTION_ORDER[i];
                                 player.sendMessage(Text.literal("§7  §9" + dir + "§7: " + filterStack.getItem().getName().getString()), false);
                             }
+                        }
+                        
+                        if (!hasFilters) {
+                            player.sendMessage(Text.literal("§7No filters configured - items can go any direction"), false);
                         }
                         
                         player.sendMessage(Text.literal("§7Right-click again within 3 seconds to open GUI"), false);
                         
                     } else {
                         player.sendMessage(Text.literal("§cNot connected to any network!"), false);
+                        player.sendMessage(Text.literal("§7Try breaking and replacing the pipe"), false);
                         player.sendMessage(Text.literal("§7Right-click again within 3 seconds to open GUI"), false);
                     }
                 }
@@ -178,13 +183,11 @@ public class SortingPipeBlock extends BasePipeBlock {
 
     @Override
     protected void handleScheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random, BlockEntity blockEntity) {
-        // Force an immediate tick of the sorting pipe
+        // Let the normal tick system handle pipe ticking
+        // The hop-by-hop system doesn't need forced scheduled ticks
         if (blockEntity instanceof SortingPipeBlockEntity sortingPipe) {
-            Circuitmod.LOGGER.info("[SORTING-PIPE-SCHEDULED-TICK] Forcing scheduled tick for sorting pipe at {}", pos);
-            SortingPipeBlockEntity.tick(world, pos, state, sortingPipe);
-            
-            // Schedule the next tick to ensure continuous processing
-            world.scheduleBlockTick(pos, this, 5); // Tick every 5 ticks (4 times per second)
+            Circuitmod.LOGGER.debug("[SORTING-PIPE-SCHEDULED-TICK] Scheduled tick for sorting pipe at {}", pos);
+            // The normal tick method will be called by the ticker - no need to force it
         }
     }
-} 
+}

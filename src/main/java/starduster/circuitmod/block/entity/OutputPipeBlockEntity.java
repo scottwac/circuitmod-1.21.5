@@ -12,6 +12,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import starduster.circuitmod.item.network.ItemNetwork;
 
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -76,6 +77,14 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         if (didWork) {
             blockEntity.markDirty();
         }
+    }
+
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
+    
+    public int getTransferCooldown() {
+        return this.pushCooldown;
     }
     
     /**

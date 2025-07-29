@@ -32,6 +32,9 @@ import starduster.circuitmod.util.ImplementedInventory;
 import java.util.ArrayList;
 import java.util.List;
 
+
+// You also need to add this import at the top of your file if it's not already there:
+import starduster.circuitmod.item.network.ItemNetwork;
 /**
  * SortingPipe - Routes items based on directional filters.
  * Items matching a filter go in that direction, others go to any unfiltered direction.
@@ -60,10 +63,15 @@ public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHa
         Direction.UP,     // Slot 4
         Direction.DOWN    // Slot 5
     };
+    public ItemNetwork getNetwork() {
+        return ItemNetworkManager.getNetworkForPipe(pos);
+    }
 
     public SortingPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SORTING_PIPE, pos, state);
     }
+    
+    
     
     public void onPlaced() {
         if (world != null && !world.isClient()) {
