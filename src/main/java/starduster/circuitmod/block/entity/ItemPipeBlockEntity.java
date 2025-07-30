@@ -20,15 +20,34 @@ import starduster.circuitmod.item.network.ItemNetworkManager;
 import starduster.circuitmod.item.network.ItemNetwork;
 import starduster.circuitmod.network.PipeNetworkAnimator;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
+
 /**
  * ItemPipe - Transports items hop-by-hop towards inventories.
  * Uses smart pathfinding to avoid getting stuck and prefers shorter paths to inventories.
  */
 public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
+    
+    /**
+     * Result of pathfinding evaluation containing both score and path
+     */
+    private static class PathResult {
+        final int score;
+        final List<BlockPos> path;
+        
+        PathResult(int score, List<BlockPos> path) {
+            this.score = score;
+            this.path = new ArrayList<>(path);
+        }
+    }
     private static final int INVENTORY_SIZE = 1;
-    private static final int COOLDOWN_TICKS = 8; // Move every 8 ticks (good balance of speed/performance)
-    private static final int MAX_PATHFIND_DEPTH = 5; // How far ahead to look for inventories
+    private static final int COOLDOWN_TICKS = 2; // Move every 2 ticks (much faster movement)
+    private static final int MAX_PATHFIND_DEPTH = 12; // Increased depth for better pathfinding
     private static final int STUCK_TIMEOUT = 100; // Ticks before considering an item stuck
+    private static final int DIRECTION_CHANGE_THRESHOLD = 20; // Ticks before allowing direction change
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     private int transferCooldown = 0;
@@ -37,6 +56,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     @Nullable private Direction movementDirection = null; // Which way this item is traveling
     @Nullable private BlockPos sourcePosition = null; // Where this item came from (prevent backflow)
     private int stuckTimer = 0; // How long the item has been unable to move
+    private int directionChangeTimer = 0; // Timer for allowing direction changes
     
     public ItemPipeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ITEM_PIPE, pos, state);
@@ -64,6 +84,9 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         
         blockEntity.transferCooldown--;
         if (blockEntity.transferCooldown > 0) return;
+        
+        // Increment direction change timer
+        blockEntity.directionChangeTimer++;
         
         ItemStack currentItem = blockEntity.getStack(0);
         
@@ -93,18 +116,22 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     /**
      * Try to move the current item towards a destination.
      * Priority order:
-     * 1. Continue in movement direction if it leads to an inventory
+     * 1. Continue in movement direction if it leads to an inventory (if direction change timer allows)
      * 2. Try adjacent inventories for direct delivery
-     * 3. Find best direction using pathfinding
+     * 3. Find best direction using improved pathfinding
      * 4. Try any available direction as fallback
      */
     private boolean tryMoveItem(World world, BlockPos pos, ItemStack item) {
-        // Step 1: If we have a movement direction, try to continue in that direction
-        if (movementDirection != null) {
+        // Step 1: If we have a movement direction and haven't been stuck too long, try to continue
+        if (movementDirection != null && directionChangeTimer < DIRECTION_CHANGE_THRESHOLD) {
             BlockPos nextPos = pos.offset(movementDirection);
             
             // Try to deliver directly to inventory in movement direction
             if (tryInsertIntoInventory(world, nextPos, item)) {
+                // Start animation AFTER successful delivery
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                }
                 removeStack(0); // Item successfully delivered
                 resetMovementState();
                 return true;
@@ -112,6 +139,10 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             // Try to pass to next pipe in movement direction
             if (tryPassToPipe(world, nextPos, item, movementDirection)) {
+                // Start animation AFTER successful transfer
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                }
                 removeStack(0); // Item moved to next pipe
                 resetMovementState();
                 return true;
@@ -125,32 +156,44 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             
             BlockPos targetPos = pos.offset(direction);
             if (tryInsertIntoInventory(world, targetPos, item)) {
+                // Start animation AFTER successful delivery
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, targetPos);
+                }
                 removeStack(0); // Item successfully delivered
                 resetMovementState();
                 return true;
             }
         }
         
-        // Step 3: Use pathfinding to find the best direction
+        // Step 3: Use improved pathfinding to find the best direction - NO ANIMATION HERE
         Direction bestDirection = findBestDirectionWithPathfinding(world, pos, item);
         if (bestDirection != null) {
             BlockPos nextPos = pos.offset(bestDirection);
             if (tryPassToPipe(world, nextPos, item, bestDirection)) {
+                // Start animation AFTER successful transfer
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                }
                 removeStack(0); // Item moved to next pipe
                 resetMovementState();
                 return true;
             }
         }
         
-        // Step 4: Try any available direction as absolute fallback
-        for (Direction direction : Direction.values()) {
-            if (isSourceDirection(pos, direction)) continue;
-            
-            BlockPos nextPos = pos.offset(direction);
-            if (tryPassToPipe(world, nextPos, item, direction)) {
-                removeStack(0);
-                resetMovementState();
-                return true;
+        // Step 4: If stuck for a while, allow more aggressive movement including backwards
+        if (stuckTimer > 10) {
+            for (Direction direction : Direction.values()) {
+                BlockPos nextPos = pos.offset(direction);
+                if (tryPassToPipe(world, nextPos, item, direction)) {
+                    // Start animation AFTER successful transfer
+                    if (world instanceof ServerWorld serverWorld) {
+                        PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                    }
+                    removeStack(0);
+                    resetMovementState();
+                    return true;
+                }
             }
         }
         
@@ -159,16 +202,20 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
     
     /**
      * Emergency method to unstick items that have been stuck too long.
-     * Tries more aggressive methods like ignoring source exclusion.
+     * Tries more aggressive methods like ignoring source exclusion and forcing movement.
      */
     private boolean emergencyUnstuck(World world, BlockPos pos, ItemStack item) {
-        Circuitmod.LOGGER.info("[EMERGENCY-UNSTUCK] Attempting to unstuck item {} at {}", 
+        Circuitmod.LOGGER.info("[EMERGENCY-UNSTUCK] Attempting to unstick item {} at {}", 
             item.getItem().getName().getString(), pos);
         
-        // Try to move to any adjacent pipe, even ignoring source exclusion
+        // First, try to move to any adjacent pipe, ignoring all restrictions
         for (Direction direction : Direction.values()) {
             BlockPos nextPos = pos.offset(direction);
             if (tryPassToPipe(world, nextPos, item, direction)) {
+                // Start animation AFTER successful transfer
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                }
                 removeStack(0);
                 resetMovementState();
                 Circuitmod.LOGGER.info("[EMERGENCY-UNSTUCK] Successfully unstuck item to {}", nextPos);
@@ -176,7 +223,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             }
         }
         
-        // Last resort: try to dump item into any adjacent inventory, even if full
+        // Try to dump item into any adjacent inventory, even if full
         for (Direction direction : Direction.values()) {
             BlockPos targetPos = pos.offset(direction);
             if (!(world.getBlockState(targetPos).getBlock() instanceof BasePipeBlock)) {
@@ -185,6 +232,13 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
                     // Try to insert even a partial amount
                     ItemStack remaining = insertIntoInventory(inventory, item.copy());
                     if (remaining.getCount() < item.getCount()) {
+                        // Animate the portion that was delivered
+                        if (world instanceof ServerWorld serverWorld) {
+                            ItemStack deliveredPortion = item.copy();
+                            deliveredPortion.setCount(item.getCount() - remaining.getCount());
+                            PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, deliveredPortion, pos, targetPos);
+                        }
+                        
                         setStack(0, remaining);
                         inventory.markDirty();
                         Circuitmod.LOGGER.info("[EMERGENCY-UNSTUCK] Partially delivered item to inventory at {}", targetPos);
@@ -194,6 +248,28 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             }
         }
         
+        // Last resort: force movement to any adjacent pipe, even if it's full
+        for (Direction direction : Direction.values()) {
+            BlockPos nextPos = pos.offset(direction);
+            BlockEntity targetEntity = world.getBlockEntity(nextPos);
+            if (targetEntity instanceof Inventory targetPipe) {
+                // Start animation before forcing since we know we're moving it
+                if (world instanceof ServerWorld serverWorld) {
+                    PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, pos, nextPos);
+                }
+                
+                // Force the item into the target pipe, even if it's full
+                targetPipe.setStack(0, item.copy());
+                removeStack(0);
+                resetMovementState();
+                targetPipe.markDirty();
+                Circuitmod.LOGGER.info("[EMERGENCY-UNSTUCK] Forced item into pipe at {}", nextPos);
+                return true;
+            }
+        }
+        
+        Circuitmod.LOGGER.error("[EMERGENCY-UNSTUCK] Failed to unstick item {} at {}", 
+            item.getItem().getName().getString(), pos);
         return false;
     }
     
@@ -216,11 +292,6 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         ItemStack remaining = insertIntoInventory(inventory, item.copy());
         if (remaining.isEmpty()) {
             inventory.markDirty();
-            
-            // Send animation for successful delivery
-            if (world instanceof ServerWorld serverWorld) {
-                PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, this.pos, pos);
-            }
             
             Circuitmod.LOGGER.debug("[ITEM-PIPE] Delivered {} to inventory at {}", 
                 item.getItem().getName().getString(), pos);
@@ -258,18 +329,13 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         
         targetPipe.markDirty();
         
-        // Send animation for pipe-to-pipe transfer
-        if (world instanceof ServerWorld serverWorld) {
-            PipeNetworkAnimator.sendPipeToPipeAnimation(serverWorld, item, this.pos, pos);
-        }
-        
         Circuitmod.LOGGER.debug("[ITEM-PIPE] Passed {} to pipe at {}", 
             item.getItem().getName().getString(), pos);
         return true;
     }
     
     /**
-     * Find the best direction using pathfinding that looks ahead for inventories.
+     * Find the best direction using improved pathfinding - NO ANIMATIONS HERE, just pathfinding.
      */
     private Direction findBestDirectionWithPathfinding(World world, BlockPos pos, ItemStack item) {
         Direction bestDirection = null;
@@ -279,24 +345,31 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             if (isSourceDirection(pos, direction)) continue; // Don't go backwards
             
             BlockPos nextPos = pos.offset(direction);
-            int score = evaluatePathScore(world, nextPos, item, direction, 0);
+            PathResult result = evaluatePathScoreImproved(world, nextPos, item, direction, 0, new HashSet<>(), new ArrayList<>());
             
-            if (score > bestScore) {
-                bestScore = score;
+            if (result.score > bestScore) {
+                bestScore = result.score;
                 bestDirection = direction;
             }
         }
+        
+        // NOTE: Removed continuous path animation - we only animate actual hops now
         
         return bestDirection;
     }
     
     /**
-     * Recursively evaluate a path to determine its score.
-     * Higher scores indicate better paths (shorter distance to available inventory).
+     * Improved pathfinding that explores multiple branches simultaneously.
+     * Uses a visited set to prevent infinite loops and explores all possible paths.
      */
-    private int evaluatePathScore(World world, BlockPos pos, ItemStack item, Direction direction, int depth) {
-        if (depth >= MAX_PATHFIND_DEPTH) return 0;
+    private PathResult evaluatePathScoreImproved(World world, BlockPos pos, ItemStack item, Direction direction, int depth, Set<BlockPos> visited, List<BlockPos> currentPath) {
+        if (depth >= MAX_PATHFIND_DEPTH || visited.contains(pos)) {
+            return new PathResult(0, currentPath);
+        }
         
+        visited.add(pos);
+        List<BlockPos> path = new ArrayList<>(currentPath);
+        path.add(pos);
         BlockState state = world.getBlockState(pos);
         
         // Found an inventory - score based on distance and availability
@@ -304,34 +377,41 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
             Inventory inventory = getInventoryAt(world, pos);
             if (inventory != null) {
                 if (hasSpaceForItem(inventory, item)) {
-                    return 100 - (depth * 10); // Closer inventories get much higher scores
+                    visited.remove(pos); // Remove from visited for other paths
+                    return new PathResult(200 - (depth * 15), path); // Higher base score for better pathfinding
                 } else {
-                    return 1; // Inventory with no space gets minimal score
+                    visited.remove(pos);
+                    return new PathResult(5, path); // Inventory with no space gets minimal score
                 }
             }
-            return -10; // Not an inventory - negative score
+            visited.remove(pos);
+            return new PathResult(-20, path); // Not an inventory - negative score
         }
         
-        // Found a pipe - continue evaluating if it's empty
+        // Found a pipe - explore all possible directions from this pipe
         BlockEntity pipeEntity = world.getBlockEntity(pos);
         if (pipeEntity instanceof Inventory pipe && pipe.isEmpty()) {
-            // Continue in the same direction and also try branching
-            int continueScore = evaluatePathScore(world, pos.offset(direction), item, direction, depth + 1);
+            int bestScore = -1;
+            List<BlockPos> bestPath = new ArrayList<>(path);
             
-            // Also try other directions from this pipe (branching)
-            int bestBranchScore = 0;
-            for (Direction branchDir : Direction.values()) {
-                if (branchDir == direction.getOpposite()) continue; // Don't go backwards
+            // Explore all directions from this pipe (full branching)
+            for (Direction exploreDir : Direction.values()) {
+                if (exploreDir == direction.getOpposite()) continue; // Don't go backwards
                 
-                BlockPos branchPos = pos.offset(branchDir);
-                int branchScore = evaluatePathScore(world, branchPos, item, branchDir, depth + 1);
-                bestBranchScore = Math.max(bestBranchScore, branchScore);
+                BlockPos explorePos = pos.offset(exploreDir);
+                PathResult result = evaluatePathScoreImproved(world, explorePos, item, exploreDir, depth + 1, visited, path);
+                if (result.score > bestScore) {
+                    bestScore = result.score;
+                    bestPath = result.path;
+                }
             }
             
-            return Math.max(continueScore, bestBranchScore) - 1; // Subtract 1 for each step
+            visited.remove(pos); // Remove from visited for other paths
+            return new PathResult(bestScore > 0 ? bestScore - 2 : bestScore, bestPath); // Subtract 2 for each pipe hop
         }
         
-        return -5; // Blocked pipe or invalid path
+        visited.remove(pos);
+        return new PathResult(-10, path); // Blocked pipe or invalid path
     }
     
     /**
@@ -428,6 +508,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         movementDirection = null;
         sourcePosition = null;
         stuckTimer = 0;
+        directionChangeTimer = 0;
     }
     
     // Setters for external control
@@ -514,6 +595,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         Inventories.writeNbt(nbt, inventory, registries);
         nbt.putInt("transfer_cooldown", transferCooldown);
         nbt.putInt("stuck_timer", stuckTimer);
+        nbt.putInt("direction_change_timer", directionChangeTimer);
         
         if (movementDirection != null) {
             nbt.putInt("movement_direction", movementDirection.ordinal());
@@ -532,6 +614,7 @@ public class ItemPipeBlockEntity extends BlockEntity implements Inventory {
         Inventories.readNbt(nbt, inventory, registries);
         transferCooldown = nbt.getInt("transfer_cooldown").orElse(0);
         stuckTimer = nbt.getInt("stuck_timer").orElse(0);
+        directionChangeTimer = nbt.getInt("direction_change_timer").orElse(0);
         
         if (nbt.contains("movement_direction")) {
             int ordinal = nbt.getInt("movement_direction").orElse(-1);

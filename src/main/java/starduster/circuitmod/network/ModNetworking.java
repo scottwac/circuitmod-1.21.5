@@ -30,6 +30,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playS2C().register(MiningEnabledStatusPayload.ID, MiningEnabledStatusPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(QuarryDimensionsSyncPayload.ID, QuarryDimensionsSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ItemMovePayload.ID, ItemMovePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ContinuousPathAnimationPayload.ID, ContinuousPathAnimationPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillMiningProgressPayload.ID, DrillMiningProgressPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillMiningEnabledPayload.ID, DrillMiningEnabledPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DrillDimensionsSyncPayload.ID, DrillDimensionsSyncPayload.CODEC);
@@ -116,6 +117,23 @@ public class ModNetworking {
             player.getName().getString() + ": " + stack.getItem().getName().getString() + " from " + from + " to " + to);
             
         ItemMovePayload payload = new ItemMovePayload(stack, from, to, startTick, durationTicks);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Send a continuous path animation to a player
+     * 
+     * @param player The player to send the animation to
+     * @param stack The item stack being moved
+     * @param path The complete path the item will follow
+     * @param startTick The server tick when the animation starts
+     * @param durationTicks The total duration of the animation in ticks
+     */
+    public static void sendContinuousPathAnimation(ServerPlayerEntity player, ItemStack stack, List<BlockPos> path, long startTick, int durationTicks) {
+        Circuitmod.LOGGER.info("[SERVER] Sending continuous path animation to player " + 
+            player.getName().getString() + ": " + stack.getItem().getName().getString() + " with " + path.size() + " waypoints");
+            
+        ContinuousPathAnimationPayload payload = new ContinuousPathAnimationPayload(stack, path, startTick, durationTicks);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
     
@@ -601,6 +619,39 @@ public class ModNetworking {
             PacketCodecs.LONG, ItemMovePayload::startTick,
             PacketCodecs.INTEGER, ItemMovePayload::durationTicks,
             ItemMovePayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    public record ContinuousPathAnimationPayload(ItemStack stack, List<BlockPos> path, long startTick, int durationTicks) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<ContinuousPathAnimationPayload> ID = 
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "continuous_path_animation"));
+        
+        // Use RegistryByteBuf for ItemStack serialization with proper registry lookup
+        private static final PacketCodec<RegistryByteBuf, ItemStack> ITEM_STACK_CODEC = new PacketCodec<RegistryByteBuf, ItemStack>() {
+            @Override
+            public ItemStack decode(RegistryByteBuf buf) {
+                return ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
+            }
+            
+            @Override
+            public void encode(RegistryByteBuf buf, ItemStack stack) {
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, stack);
+            }
+        };
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<RegistryByteBuf, ContinuousPathAnimationPayload> CODEC = PacketCodec.tuple(
+            ITEM_STACK_CODEC, ContinuousPathAnimationPayload::stack,
+            PacketCodecs.collection(ArrayList::new, BlockPos.PACKET_CODEC), ContinuousPathAnimationPayload::path,
+            PacketCodecs.LONG, ContinuousPathAnimationPayload::startTick,
+            PacketCodecs.INTEGER, ContinuousPathAnimationPayload::durationTicks,
+            ContinuousPathAnimationPayload::new
         );
         
         @Override

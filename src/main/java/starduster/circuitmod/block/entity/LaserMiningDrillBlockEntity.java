@@ -585,8 +585,9 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
                 totalMiningTicks = 0;
                 return true;
             } else {
-                // Inventory full, stay at current position
-                return false;
+                // Inventory full - don't mine the block, pause position advancement and re-attempt later
+                Circuitmod.LOGGER.info("[LASER-MINING-DRILL-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
+                return false; // Don't advance position, re-attempt the same block later
             }
         }
         return false; // Still mining, not finished yet

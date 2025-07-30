@@ -19,6 +19,7 @@ import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 import net.minecraft.item.ItemStack;
 import java.util.Map;
 import java.util.List;
+import java.util.ArrayList;
 
 public class ClientNetworking {
     /**
@@ -244,6 +245,23 @@ public class ClientNetworking {
                 ClientNetworkAnimator.addAnimation(stack, from, to, serverStartTick, durationTicks);
                 Circuitmod.LOGGER.info("[CLIENT] Received item move animation: {} from {} to {} (server start: {})", 
                     stack.getItem().getName().getString(), from, to, serverStartTick);
+            });
+        });
+        
+        // Register handler for continuous path animations
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ContinuousPathAnimationPayload.ID, (payload, context) -> {
+            // Extract data from the payload and create a copy to ensure isolation
+            ItemStack stack = payload.stack().copy();
+            List<BlockPos> path = new ArrayList<>(payload.path());
+            long serverStartTick = payload.startTick();
+            int durationTicks = payload.durationTicks();
+            
+            // Process on the game thread
+            context.client().execute(() -> {
+                // Use server timing for perfect synchronization with actual transfers
+                ClientNetworkAnimator.addContinuousPathAnimation(stack, path, serverStartTick, durationTicks);
+                Circuitmod.LOGGER.info("[CLIENT] Received continuous path animation: {} with {} waypoints (server start: {})", 
+                    stack.getItem().getName().getString(), path.size(), serverStartTick);
             });
         });
         

@@ -8,11 +8,12 @@ import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.Circuitmod;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
- * Simplified animator for hop-by-hop item movement.
- * Each animation represents one hop from pipe to pipe or pipe to inventory.
- * Prevents duplicate animations for the same item movement.
+ * Enhanced animator for continuous item movement through pipe networks.
+ * Updated to work with hop-by-hop system while maintaining backwards compatibility.
  */
 public class PipeNetworkAnimator {
     
@@ -20,8 +21,59 @@ public class PipeNetworkAnimator {
     private static final ConcurrentHashMap<String, Long> recentAnimations = new ConcurrentHashMap<>();
     private static final long ANIMATION_COOLDOWN = 3; // Minimum ticks between same animation
     
+    // Track item paths for continuous animations (deprecated but kept for compatibility)
+    private static final ConcurrentHashMap<String, ItemPath> activePaths = new ConcurrentHashMap<>();
+    
     /**
-     * Send an item move animation for a single hop.
+     * Represents a complete item path through the pipe network
+     */
+    public static class ItemPath {
+        public final ItemStack item;
+        public final List<BlockPos> waypoints;
+        public final long startTime;
+        public final int totalDuration;
+        
+        public ItemPath(ItemStack item, List<BlockPos> waypoints, long startTime, int totalDuration) {
+            this.item = item;
+            this.waypoints = new ArrayList<>(waypoints);
+            this.startTime = startTime;
+            this.totalDuration = totalDuration;
+        }
+    }
+    
+    /**
+     * DEPRECATED: Start tracking a new item path for continuous animation.
+     * This method is kept for backwards compatibility but converted to hop-by-hop.
+     */
+    @Deprecated
+    public static void startItemPath(ServerWorld world, ItemStack stack, BlockPos startPos, List<BlockPos> path) {
+        if (world == null || stack == null || stack.isEmpty() || path == null || path.size() < 2) {
+            return;
+        }
+        
+        Circuitmod.LOGGER.warn("[ANIMATOR] startItemPath is deprecated in hop-by-hop system. " +
+            "Converting to single hop animation. Path size: {}", path.size());
+        
+        // Convert to simple hop animation for the first segment only
+        sendMoveAnimation(world, stack, path.get(0), path.get(1), 8);
+    }
+    
+    /**
+     * DEPRECATED: Send a continuous animation that follows the complete item path.
+     * Kept for backwards compatibility but not recommended for hop-by-hop system.
+     */
+    @Deprecated
+    private static void sendContinuousPathAnimation(ServerWorld world, ItemStack stack, List<BlockPos> path, long startTime, int duration) {
+        Circuitmod.LOGGER.warn("[ANIMATOR] sendContinuousPathAnimation is deprecated - use sendMoveAnimation for individual hops");
+        
+        // Convert to hop-by-hop animations
+        if (path.size() >= 2) {
+            sendMoveAnimation(world, stack, path.get(0), path.get(1), 8);
+        }
+    }
+    
+    /**
+     * Send an item move animation for a single hop - PRIMARY METHOD for hop-by-hop system.
      * Includes duplicate prevention to avoid multiple animations for the same movement.
      * 
      * @param world The server world
@@ -68,11 +120,23 @@ public class PipeNetworkAnimator {
         Circuitmod.LOGGER.debug("[ANIMATOR] Animating {} from {} to {} (duration: {} ticks, tick: {})",
             stack.getItem().getName().getString(), from, to, durationTicks, startTick);
         
-        // Send to all players tracking the source position
+        // Send to ClientNetworkAnimator directly for integrated servers
+        try {
+            ClientNetworkAnimator.addAnimation(stack, from, to, startTick, durationTicks);
+            Circuitmod.LOGGER.debug("[ANIMATOR] Added animation to ClientNetworkAnimator");
+        } catch (Exception e) {
+            Circuitmod.LOGGER.debug("[ANIMATOR] Could not directly add to ClientNetworkAnimator (dedicated server): {}", e.getMessage());
+        }
+        
+        // TODO: For dedicated servers, you would send packets to clients here
+        // For now, we'll just use the direct approach for integrated servers
+        
+        /*
+        // Send to all players tracking the source position (for dedicated servers)
         int playerCount = 0;
         for (ServerPlayerEntity player : PlayerLookup.tracking(world, from)) {
             try {
-                ModNetworking.sendItemMoveAnimation(player, stack, from, to, startTick, durationTicks);
+                // ModNetworking.sendItemMoveAnimation(player, stack, from, to, startTick, durationTicks);
                 playerCount++;
             } catch (Exception e) {
                 Circuitmod.LOGGER.error("[ANIMATOR] Failed to send animation to player {}: {}", 
@@ -83,6 +147,7 @@ public class PipeNetworkAnimator {
         if (playerCount > 0) {
             Circuitmod.LOGGER.debug("[ANIMATOR] Sent animation to {} players", playerCount);
         }
+        */
     }
     
     /**
@@ -91,6 +156,10 @@ public class PipeNetworkAnimator {
     private static void cleanupOldAnimations(long currentTime) {
         recentAnimations.entrySet().removeIf(entry -> 
             (currentTime - entry.getValue()) > 200); // Remove entries older than 10 seconds
+        
+        // Also clean up old paths
+        activePaths.entrySet().removeIf(entry -> 
+            (currentTime - entry.getValue().startTime) > 200);
     }
     
     /**
@@ -112,6 +181,15 @@ public class PipeNetworkAnimator {
      */
     public static void clearAnimationTracking() {
         recentAnimations.clear();
+        activePaths.clear();
+        
+        // Also clear client animations
+        try {
+            ClientNetworkAnimator.clearAllAnimations();
+        } catch (Exception e) {
+            Circuitmod.LOGGER.debug("[ANIMATOR] Could not clear ClientNetworkAnimator (dedicated server): {}", e.getMessage());
+        }
+        
         Circuitmod.LOGGER.debug("[ANIMATOR] Cleared all animation tracking");
     }
 }

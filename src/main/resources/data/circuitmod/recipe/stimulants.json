@@ -2,15 +2,11 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "minecraft:cake"
-    },
-    {
-      "item": "minecraft:tnt"
-    }
+    "minecraft:cake",
+    "minecraft:tnt"
   ],
   "result": {
-    "count": 2,
+    "count": 4,
     "id": "circuitmod:stimulants"
   }
 } 

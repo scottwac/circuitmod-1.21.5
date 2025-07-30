@@ -1,22 +1,17 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
+  "key": {
+    "R": "minecraft:redstone",
+    "D": "minecraft:diamond",
+    "S": "circuitmod:steel_ingot",
+    "G": "minecraft:gold_ingot"
+  },
   "pattern": [
     " R ",
-    " S ",
+    "SDS ",
     " G "
   ],
-  "key": {
-    "R": {
-      "item": "minecraft:redstone"
-    },
-    "S": {
-      "item": "circuitmod:steel_ingot"
-    },
-    "G": {
-      "item": "minecraft:gold_ingot"
-    }
-  },
   "result": {
     "count": 1,
     "id": "circuitmod:pulse_stick"

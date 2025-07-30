@@ -600,8 +600,9 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                 totalMiningTicks = 0;
                 return true;
             } else {
-                // Inventory full, stay at current position
-                return false;
+                // Inventory full - don't mine the block, pause position advancement and re-attempt later
+                Circuitmod.LOGGER.info("[DRILL-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
+                return false; // Don't advance position, re-attempt the same block later
             }
         }
         return false; // Still mining, not finished yet

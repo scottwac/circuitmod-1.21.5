@@ -3,6 +3,7 @@ package starduster.circuitmod.block.entity;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.FluidBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.entity.player.PlayerEntity;
@@ -45,6 +46,8 @@ import starduster.circuitmod.sound.ModSounds;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.QuarryData>, IEnergyConsumer {
     // Energy properties
@@ -77,6 +80,14 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     private int miningAreaMaxX;
     private int miningAreaMinZ;
     private int miningAreaMaxZ;
+    
+    // Track recently mined positions to prevent getting stuck on fluid-created blocks
+    private final Set<BlockPos> recentlyMinedPositions = new HashSet<>();
+    private static final int RECENTLY_MINED_TIMEOUT = 20; // Skip recently mined positions for 20 ticks (1 second)
+    private int recentlyMinedCleanupCounter = 0;
+    
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = true;
     
     // Networking properties
     private int packetCooldown = 0; // Cooldown to avoid sending too many packets
@@ -298,6 +309,16 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             world.setBlockState(pos, world.getBlockState(pos).with(QuarryBlock.RUNNING, false), Block.NOTIFY_ALL);
             soundClock = 160;
         }
+        
+        // Condense inventory every 20 ticks (once per second) to prevent scattered items
+        if (world.getTime() % 20 == 0) {
+            blockEntity.condenseInventory();
+        }
+        
+        // Clean up recently mined positions every 20 ticks to prevent memory buildup
+        if (world.getTime() % 20 == 0) {
+            blockEntity.recentlyMinedPositions.clear();
+        }
 
 
         // Handle network refresh with retry logic for world reload scenarios
@@ -509,86 +530,174 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return false;
         }
 
-        // Debug logging control - set to true only when debugging
-        final boolean DEBUG_LOGGING = true;
-
-        // --- INSTANTLY FIND NEXT VALID BLOCK TO MINE ---
-        int maxAttempts = 1024; // Increased to handle reset scenarios better
-        int attempts = 0;
-        while (attempts < maxAttempts) {
+        // Get the next mining position
+        if (currentMiningPos == null) {
+            currentMiningPos = getNextMiningPos();
             if (currentMiningPos == null) {
-                currentMiningPos = getNextMiningPos();
-                if (currentMiningPos == null) {
-                    return false;
-                }
-                currentMiningProgress = 0;
-                currentMiningTicks = 0;
-                totalMiningTicks = 0;
-                
-                // Only log if debug logging is enabled
+                // No more positions to mine - quarry has completed its area
                 if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
-                    Circuitmod.LOGGER.info("[QUARRY-MINING] Starting to mine at {}", currentMiningPos);
+                    Circuitmod.LOGGER.info("[QUARRY-MINING] No more positions to mine - quarry completed");
                 }
+                return false;
             }
+            currentMiningProgress = 0;
+            currentMiningTicks = 0;
+            totalMiningTicks = 0;
             
-            // Check if the block at currentMiningPos is mineable
-            BlockState blockState = world.getBlockState(currentMiningPos);
-            if (blockState.isAir() || blockState.getBlock() instanceof net.minecraft.block.FluidBlock) {
-                // Block is already mined or is a fluid, move to next
-                advanceToNextBlock();
-                attempts++;
-                continue;
-            }
-            
-            // Check if we can mine this block
-            if (canMineBlock(blockState)) {
-                // Calculate energy cost for this block based on hardness
-                float hardness = blockState.getBlock().getHardness();
-                int energyCost = Math.max(1, (int)(hardness * 100)); // 100 energy per hardness point
-                
-                // Check if we have enough energy to mine this block
-                if (energyReceived >= energyCost) {
-                    // Mine the block instantly
-                    boolean success = mineBlock(world, currentMiningPos);
-                    if (success) {
-                        // Consume the energy cost
-                        energyReceived -= energyCost;
-                        
-                        // Only log if debug logging is enabled
-                        if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
-                            Circuitmod.LOGGER.info("[QUARRY-MINING] Successfully mined block at {} (cost: {} energy, remaining: {} energy)", 
-                                currentMiningPos, energyCost, energyReceived);
-                        }
-                        advanceToNextBlock();
-                        return true;
-                    } else {
-                        // Mining failed, try next block
-                        advanceToNextBlock();
-                        attempts++;
-                        continue;
-                    }
-                } else {
-                    // Not enough energy to mine this block yet
-                    // Only log if debug logging is enabled
-                    if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
-                        Circuitmod.LOGGER.info("[QUARRY-MINING] Not enough energy to mine block at {} (need: {} energy, have: {} energy)", 
-                            currentMiningPos, energyCost, energyReceived);
-                    }
-                    return false; // Wait for more energy
-                }
-            } else {
-                // Cannot mine this block, move to next
-                advanceToNextBlock();
-                attempts++;
-                continue;
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                Circuitmod.LOGGER.info("[QUARRY-MINING] Starting to mine at {}", currentMiningPos);
             }
         }
         
-        // Only log if debug logging is enabled
-        if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
-            Circuitmod.LOGGER.info("[QUARRY-MINING] Reached max attempts, stopping mining");
+        // Proactively find the next mineable block
+        BlockPos mineablePos = findNextMineableBlock(world);
+        if (mineablePos == null) {
+            // No mineable blocks found in the entire area
+            if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                Circuitmod.LOGGER.info("[QUARRY-MINING] No mineable blocks found in area - quarry completed");
+            }
+            return false;
         }
-        return false;
+        
+        // Update currentMiningPos to the mineable position we found
+        currentMiningPos = mineablePos;
+        
+        // Check if we can mine this block
+        BlockState blockState = world.getBlockState(currentMiningPos);
+        
+        // Calculate energy cost for this block based on hardness
+        float hardness = blockState.getBlock().getHardness();
+        int energyCost = Math.max(1, (int)(hardness * 100)); // 100 energy per hardness point
+        
+        // Check if we have enough energy to mine this block
+        if (energyReceived >= energyCost) {
+            // Mine the block instantly
+            boolean success = mineBlock(world, currentMiningPos);
+            if (success) {
+                // Consume the energy cost
+                energyReceived -= energyCost;
+                
+                // Only log if debug logging is enabled
+                if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                    Circuitmod.LOGGER.info("[QUARRY-MINING] Successfully mined block at {} (cost: {} energy, remaining: {} energy)", 
+                        currentMiningPos, energyCost, energyReceived);
+                }
+                advanceToNextBlock();
+                return true;
+            } else {
+                // Mining failed (likely inventory full), try next block
+                advanceToNextBlock();
+                return mineNextBlock(world); // Recursively try the next block
+            }
+        } else {
+            // Not enough energy to mine this block yet
+            // Only log if debug logging is enabled
+            if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                Circuitmod.LOGGER.info("[QUARRY-MINING] Not enough energy to mine block at {} (need: {} energy, have: {} energy)", 
+                    currentMiningPos, energyCost, energyReceived);
+            }
+            return false; // Wait for more energy
+        }
+    }
+    
+    /**
+     * Proactively finds the next mineable block in the mining area.
+     * This method searches ahead to find a block that can actually be mined,
+     * skipping air, fluids, and unmineable blocks.
+     */
+    private BlockPos findNextMineableBlock(World world) {
+        if (currentPos == null || startPos == null || facingDirection == null) {
+            return null;
+        }
+        
+        // Use the stored mining area bounds
+        int minX = this.miningAreaMinX;
+        int maxX = this.miningAreaMaxX;
+        int minZ = this.miningAreaMinZ;
+        int maxZ = this.miningAreaMaxZ;
+        
+        // Check if we've reached the minimum Y level (bedrock level)
+        if (currentY < -64) {
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Reached minimum Y level ({}), quarry completed", currentY);
+            return null; // Quarry has completed mining the entire area
+        }
+        
+        // Start from the current position and search for a mineable block
+        BlockPos searchPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
+        int searchX = searchPos.getX();
+        int searchZ = searchPos.getZ();
+        int searchY = currentY;
+        
+        // Search through the entire mining area
+        while (searchY >= -64) {
+            while (searchZ <= maxZ) {
+                while (searchX <= maxX) {
+                    searchPos = new BlockPos(searchX, searchY, searchZ);
+                    
+                    // Skip the quarry position itself
+                    if (searchPos.equals(pos)) {
+                        searchX++;
+                        continue;
+                    }
+                    
+                    // Check if this position is within the mining area
+                    if (!isPositionInArea(searchPos, minX, maxX, minZ, maxZ)) {
+                        searchX++;
+                        continue;
+                    }
+                    
+                    // Check if the position has been recently mined
+                    if (recentlyMinedPositions.contains(searchPos)) {
+                        if (DEBUG_LOGGING && world.getTime() % 20 == 0) {
+                            Circuitmod.LOGGER.info("[QUARRY-MINING] Skipping recently mined position at {}", searchPos);
+                        }
+                        searchX++;
+                        continue;
+                    }
+
+                    // Check the block at this position
+                    BlockState blockState = world.getBlockState(searchPos);
+                    
+                    // Skip air blocks
+                    if (blockState.isAir()) {
+                        searchX++;
+                        continue;
+                    }
+                    
+                    // Handle fluid blocks (water, lava, etc.)
+                    if (blockState.getBlock() instanceof FluidBlock) {
+                        // Remove water and lava blocks
+                        removeFluidBlocks(world, searchPos);
+                        searchX++;
+                        continue;
+                    }
+                    
+                    // Check if we can mine this block
+                    if (canMineBlock(blockState)) {
+                        // Found a mineable block!
+                        return searchPos;
+                    }
+                    
+                    // Cannot mine this block, try next position
+                    searchX++;
+                }
+                
+                // Move to next Z row
+                searchX = minX;
+                searchZ++;
+            }
+            
+            // Move to next Y level
+            searchZ = minZ;
+            searchY--;
+            
+            // Log when we move down to a new layer
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Completed layer at Y={}, moving down to Y={}", searchY + 1, searchY);
+        }
+        
+        // No mineable blocks found in the entire area
+        return null;
     }
     
     // Helper method to advance to the next block
@@ -611,14 +720,21 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             return null;
         }
         
-        // Create the position at the current Y level
-        BlockPos miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
-        
         // Use the stored mining area bounds instead of recalculating
         int minX = this.miningAreaMinX;
         int maxX = this.miningAreaMaxX;
         int minZ = this.miningAreaMinZ;
         int maxZ = this.miningAreaMaxZ;
+        
+        // Check if we've reached the minimum Y level (bedrock level)
+        // Bedrock is typically at Y=0, but we'll use Y=-64 for safety
+        if (currentY < -64) {
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Reached minimum Y level ({}), quarry completed", currentY);
+            return null; // Quarry has completed mining the entire area
+        }
+        
+        // Create the position at the current Y level
+        BlockPos miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
         
         // Check if the current position is somehow equal to the quarry
         if (miningPos.equals(pos)) {
@@ -643,6 +759,12 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             miningPos = new BlockPos(currentPos.getX(), currentY, currentPos.getZ());
         }
         
+        // Final check: if we've advanced past the mining area bounds, we're done
+        if (currentPos.getX() > maxX || currentPos.getZ() > maxZ) {
+            Circuitmod.LOGGER.info("[QUARRY-MINING] Advanced past mining area bounds, quarry completed");
+            return null; // Quarry has completed mining the entire area
+        }
+        
         return miningPos;
     }
     
@@ -664,6 +786,9 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             if (nextZ > maxZ) {
                 nextZ = minZ;
                 nextY--; // Decrement Y to move down one level
+                
+                // Log when we move down to a new layer
+                Circuitmod.LOGGER.info("[QUARRY-MINING] Completed layer at Y={}, moving down to Y={}", currentY, nextY);
             }
         }
         
@@ -682,6 +807,106 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
             }
         }
         return true; // All slots are occupied
+    }
+    
+    /**
+     * Condenses the inventory by combining multiple slots with the same item type.
+     * This prevents the inventory from filling up with scattered items.
+     */
+    private void condenseInventory() {
+        boolean inventoryChanged = false;
+        
+        // First pass: try to combine items into existing stacks
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack currentStack = inventory.get(i);
+            if (currentStack.isEmpty()) continue;
+            
+            // Try to add this stack to any existing stack of the same type
+            for (int j = 0; j < inventory.size(); j++) {
+                if (i == j) continue; // Don't combine with itself
+                
+                ItemStack targetStack = inventory.get(j);
+                if (targetStack.isEmpty()) continue;
+                
+                // Check if we can combine these stacks
+                if (ItemStack.areItemsEqual(currentStack, targetStack)) {
+                    int maxCount = Math.min(currentStack.getMaxCount(), getMaxCountPerStack());
+                    int spaceInTarget = maxCount - targetStack.getCount();
+                    
+                    if (spaceInTarget > 0) {
+                        int transferAmount = Math.min(spaceInTarget, currentStack.getCount());
+                        targetStack.increment(transferAmount);
+                        currentStack.decrement(transferAmount);
+                        
+                        // Update the inventory
+                        inventory.set(j, targetStack);
+                        if (currentStack.isEmpty()) {
+                            inventory.set(i, ItemStack.EMPTY);
+                        } else {
+                            inventory.set(i, currentStack);
+                        }
+                        
+                        inventoryChanged = true;
+                        
+                        // If we've moved all items from current stack, break
+                        if (currentStack.isEmpty()) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Second pass: move items to fill empty slots at the beginning
+        if (inventoryChanged) {
+            compactInventory();
+        }
+    }
+    
+    /**
+     * Compacts the inventory by moving all non-empty stacks to the front,
+     * leaving empty slots at the end.
+     */
+    private void compactInventory() {
+        int writeIndex = 0;
+        
+        // Move all non-empty stacks to the front
+        for (int readIndex = 0; readIndex < inventory.size(); readIndex++) {
+            ItemStack stack = inventory.get(readIndex);
+            if (!stack.isEmpty()) {
+                if (readIndex != writeIndex) {
+                    inventory.set(writeIndex, stack);
+                    inventory.set(readIndex, ItemStack.EMPTY);
+                }
+                writeIndex++;
+            }
+        }
+    }
+    
+    /**
+     * Removes water and lava source or flowing blocks encountered in the mining area.
+     * This method is called when the quarry encounters fluid blocks during mining.
+     */
+    private void removeFluidBlocks(World world, BlockPos miningPos) {
+        BlockState blockState = world.getBlockState(miningPos);
+        
+        // Check if this is a water block (source or flowing)
+        if (blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.BUBBLE_COLUMN) {
+            // Remove the water block without adding it to inventory
+            world.removeBlock(miningPos, false);
+            
+            // Log the water removal for debugging
+            Circuitmod.LOGGER.info("[QUARRY-FLUID] Removed water block at {}", miningPos);
+        }
+        
+        // Check if this is a lava block (source or flowing)
+        if (blockState.getBlock() == Blocks.LAVA) {
+            // Remove the lava block without adding it to inventory
+            world.removeBlock(miningPos, false);
+            
+            // Log the lava removal for debugging
+            Circuitmod.LOGGER.info("[QUARRY-FLUID] Removed lava block at {}", miningPos);
+        }
     }
     
     // Check if a block can be mined
@@ -758,11 +983,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         if (addedToInventory) {
             world.removeBlock(miningPos, false);
+            // Add this position to recently mined to prevent getting stuck on fluid-created blocks
+            recentlyMinedPositions.add(miningPos);
             return true;
         } else {
-            // Inventory full, cannot mine
-            Circuitmod.LOGGER.info("[QUARRY-MINE] Inventory full, cannot mine {}", minedItem.getItem().getName().getString());
-            return false;
+            // Inventory full - don't mine the block, pause position advancement and re-attempt later
+            Circuitmod.LOGGER.info("[QUARRY-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
+            return false; // Don't advance position, re-attempt the same block later
         }
     }
     

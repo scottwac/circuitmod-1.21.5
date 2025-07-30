@@ -9,8 +9,8 @@ import starduster.circuitmod.Circuitmod;
 import java.util.*;
 
 /**
- * Simplified ItemNetwork - Just tracks connected pipes and inventories.
- * No complex routing logic - pipes handle their own movement decisions.
+ * ItemNetwork - Just tracks connected pipes and inventories.
+ * No routing logic - pipes handle their own movement decisions.
  */
 public class ItemNetwork {
     private final String networkId;

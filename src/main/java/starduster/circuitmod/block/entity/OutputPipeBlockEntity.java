@@ -26,8 +26,8 @@ import starduster.circuitmod.network.PipeNetworkAnimator;
  */
 public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
     private static final int INVENTORY_SIZE = 1;
-    private static final int EXTRACT_COOLDOWN_TICKS = 20; // Extract every second
-    private static final int PUSH_COOLDOWN_TICKS = 5; // Try to push every 5 ticks
+    private static final int EXTRACT_COOLDOWN_TICKS = 4; // Extract every 4 ticks (much faster)
+    private static final int PUSH_COOLDOWN_TICKS = 2; // Try to push every 2 ticks (much faster)
     
     private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
     private int extractCooldown = 0;
@@ -108,6 +108,8 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
         }
         
         if (bestDirection != null && bestTarget != null) {
+            BlockPos targetPos = pos.offset(bestDirection);
+            
             // Transfer the item
             ItemStack itemToTransfer = removeStack(0);
             ((Inventory) bestTarget).setStack(0, itemToTransfer);
@@ -124,14 +126,14 @@ public class OutputPipeBlockEntity extends BlockEntity implements Inventory {
             
             bestTarget.markDirty();
             
-            // Send animation
+            // Start animation AFTER successful transfer using PipeNetworkAnimator
             if (world instanceof ServerWorld serverWorld) {
-                PipeNetworkAnimator.sendExtractionAnimation(serverWorld, itemToTransfer, 
-                    pos, pos.offset(bestDirection));
+                PipeNetworkAnimator.sendExtractionAnimation(serverWorld, itemToTransfer, pos, targetPos);
             }
             
+            
             Circuitmod.LOGGER.debug("[OUTPUT-PIPE] Pushed {} to pipe at {}", 
-                itemToTransfer.getItem().getName().getString(), pos.offset(bestDirection));
+                itemToTransfer.getItem().getName().getString(), targetPos);
             return true;
         }
         

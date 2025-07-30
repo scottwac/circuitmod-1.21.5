@@ -27,12 +27,11 @@ public class StimulantsItem extends Item {
             // 4x jump boost (Jump Boost IV should be enough for 4x jump height)
             user.addStatusEffect(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 6000, 3)); // 5 minutes, Jump Boost IV
             
-           
             // Haste for faster mining/attacking
             user.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, 6000, 1)); // 5 minutes, Haste II
             
-            // Optional: Add some negative effects for balance
-            user.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 1200, 1)); // 1 minute of hunger
+            // Hunger effect for the entire duration of other effects (5 minutes)
+            user.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 6000, 1)); // 5 minutes of hunger
         }
         
         return super.finishUsing(stack, world, user);
