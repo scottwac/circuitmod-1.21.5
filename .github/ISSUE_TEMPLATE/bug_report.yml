@@ -1,0 +1,56 @@
+name: Report a bug
+description: "Report something breaking."
+labels: [ "type: bug" ]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: >
+        Please describe the issue in as much detail you can. List steps to reproduce, what happened, and what you would expect to happen. Include screenshots and or video if possible/applicable. 
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Log
+      description: >
+        Please upload your game logs to help us debug the issue. Upload your \"latest.log\" file (Found in your minecraft directory \"/logs\" folder) to https://mclo.gs/ and paste the link below.
+        Do **not** directly paste the contents of the file here.
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Game Version
+      description: >
+        What version of Minecraft are you running? [e.g. 1.21.5]
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Mod Version
+      description: >
+        What version of the Mod are you running? [e.g. a1.2.3]
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional Mods
+      description: >
+        What other mods do you have installed? If using the official alpha testing modpack, list that and additional mods you have installed.
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: >
+       Add any other context, notes, or comments about the problem here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "Thank you for helping us improve the mod!"
