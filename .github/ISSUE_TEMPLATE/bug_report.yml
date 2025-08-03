@@ -1,6 +1,6 @@
 name: Report a bug
 description: "Report something breaking."
-labels: [ "type: bug" ]
+labels: [ "bug" ]
 body:
   - type: textarea
     attributes:
