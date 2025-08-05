@@ -1,0 +1,31 @@
+name: Suggest ideas
+description: "Suggest ideas for future versions of the mod!"
+labels: [ "suggestion" ]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: >
+        Describe your idea below. Be as in-depth as you want, but the deeper the better. Include images and or references if possible/applicable. 
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Integration
+      description: >
+       What systems would this idea work with [e.g. Power Production, Logistics, Oil, Nuclear, ect]? How would this idea interact with other existing features and systems?
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: Name suggestion?????
+      description: >
+        Ii you have a suggestion for the mod\'s name, please list it below!
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "Thank you for helping us improve the mod!"

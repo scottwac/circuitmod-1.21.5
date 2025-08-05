@@ -1,0 +1,40 @@
+name: Give feedback
+description: "Give feedback on existing features."
+labels: [ "feedback" ]
+body:
+  - type: textarea
+    attributes:
+      label: Description
+      description: >
+        Describe your feedback below. If you expect something to have different behavior than it does, descibe current observed behavior and expected behavior.
+        Any other types of feedback are welcome as well. Please be as in-depth as possible. Include screenshots and or images if applicable. 
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Game Version
+      description: >
+        What version of Minecraft are you running? [e.g. 1.21.5]
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Mod Version
+      description: >
+        What version of the Mod are you running? [e.g. a1.2.3]
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: >
+       Add any other context, notes, or comments about the feedback here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "Thank you for helping us improve the mod!"
