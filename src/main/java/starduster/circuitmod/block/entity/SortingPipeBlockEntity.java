@@ -43,7 +43,7 @@ import java.util.Set;
 public class SortingPipeBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory {
     
     // Debug logging control - set to true only when debugging
-    private static final boolean DEBUG_LOGGING = true;
+    private static final boolean DEBUG_LOGGING = false;
 
     
     /**

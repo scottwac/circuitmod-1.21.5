@@ -13,6 +13,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.server.world.ServerWorld;
 
 /**
  * Manages a network of energy producers, consumers, and cables.
@@ -495,13 +496,18 @@ public class EnergyNetwork {
             // Check if the block's network reference is consistent
             IPowerConnectable currentConnectable = (IPowerConnectable) blockEntity;
             EnergyNetwork blockNetwork = currentConnectable.getNetwork();
-            if (blockNetwork != this) {
-                // Block's network reference is inconsistent
-                invalidPositions.add(pos);
-                wasRepaired = true;
-                if (DEBUG_LOGGING && !startupMode) {
-                    Circuitmod.LOGGER.warn("Found inconsistent network reference at {} in network {}, removing", pos, networkId);
+            if (blockNetwork != this && blockNetwork != null) {
+                // Block's network reference is inconsistent - try to fix it first
+                Circuitmod.LOGGER.info("Found inconsistent network reference at {} in network {}, attempting to fix", pos, networkId);
+                currentConnectable.setNetwork(this);
+                // Give it a tick to update
+                if (world instanceof ServerWorld) {
+                    ((ServerWorld) world).scheduleBlockTick(pos, world.getBlockState(pos).getBlock(), 1);
                 }
+            } else if (blockNetwork == null) {
+                // Block has no network reference - fix it
+                Circuitmod.LOGGER.info("Found block with null network reference at {} in network {}, fixing", pos, networkId);
+                currentConnectable.setNetwork(this);
             }
         }
         
