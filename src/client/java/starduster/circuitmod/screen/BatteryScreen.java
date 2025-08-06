@@ -113,7 +113,7 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
         leftY += leftYStep;
 
         // Current energy
-        double storedKJ = storedEnergy / 1000.0;
+        double storedKJ = storedEnergy; // Already in kJ
         drawScaledText(context, String.format("Current Energy: %.1f kJ", storedKJ), colX, leftY, ENERGY_COLOR);
         leftY += leftYStep;
 
@@ -123,10 +123,12 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
         leftY += leftYStep;
 
         // Max charge/discharge rates
-        drawScaledText(context, "Max Charge Rate: " + handler.getMaxChargeRate() + " energy/tick", colX, leftY, INFO_COLOR);
+        double chargeRateKJ = handler.getMaxChargeRateKJ();
+        drawScaledText(context, String.format("Max Charge Rate: %.1f kJ/tick", chargeRateKJ), colX, leftY, INFO_COLOR);
         leftY += leftYStep;
 
-        drawScaledText(context, "Max Discharge Rate: " + handler.getMaxDischargeRate() + " energy/tick", colX, leftY, INFO_COLOR);
+        double dischargeRateKJ = handler.getMaxDischargeRateKJ();
+        drawScaledText(context, String.format("Max Discharge Rate: %.1f kJ/tick", dischargeRateKJ), colX, leftY, INFO_COLOR);
         leftY += leftYStep;
 
     }
@@ -148,24 +150,23 @@ public class BatteryScreen extends HandledScreen<BatteryScreenHandler> {
             int networkStored = handler.getNetworkStoredEnergy();
             int networkMax = handler.getNetworkMaxStorage();
             String networkEnergyText;
-            if (networkStored < 10000 && networkMax < 10000) {
-                networkEnergyText = "Network energy: " + networkStored + " / " + networkMax;
-            } else {
-                double netStoredKJ = networkStored / 1000.0;
-                double netMaxKJ = networkMax / 1000.0;
-                networkEnergyText = String.format("Network energy: %.1f kJ / %.1f kJ", netStoredKJ, netMaxKJ);
-            }
+            // Values are already in kJ, so we can always display them as kJ
+            networkEnergyText = String.format("Network energy: %.1f kJ / %.1f kJ", (double)networkStored, (double)networkMax);
             drawScaledText(context, networkEnergyText, colX, leftY, NETWORK_COLOR);
             leftY += leftYStep;
 
             int lastProduced = handler.getNetworkLastProduced();
             int lastConsumed = handler.getNetworkLastConsumed();
-            drawScaledText(context, "Last tick: +" + lastProduced + " prod, -" + lastConsumed + " cons", colX, leftY, NETWORK_COLOR);
+            double lastProducedKJ = handler.getNetworkLastProducedKJ();
+            double lastConsumedKJ = handler.getNetworkLastConsumedKJ();
+            drawScaledText(context, String.format("Last tick: +%.1f prod, -%.1f cons", lastProducedKJ, lastConsumedKJ), colX, leftY, NETWORK_COLOR);
             leftY += leftYStep;
 
             int lastStored = handler.getNetworkLastStored();
             int lastDrawn = handler.getNetworkLastDrawn();
-            drawScaledText(context, "Batt. activity: +" + lastStored + " stored, -" + lastDrawn + " drawn", colX, leftY, NETWORK_COLOR);
+            double lastStoredKJ = handler.getNetworkLastStoredKJ();
+            double lastDrawnKJ = handler.getNetworkLastDrawnKJ();
+            drawScaledText(context, String.format("Batt. activity: +%.1f stored, -%.1f drawn", lastStoredKJ, lastDrawnKJ), colX, leftY, NETWORK_COLOR);
             leftY += leftYStep;
         } else {
             drawScaledText(context, "Not connected to any network!", colX, leftY, ERROR_COLOR);

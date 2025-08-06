@@ -149,8 +149,38 @@ public class BatteryScreenHandler extends ScreenHandler {
         if (this.blockEntity != null) {
             return this.blockEntity.getMaxCapacityKJ();
         } else {
-            return this.propertyDelegate.get(MAX_CAPACITY_INDEX) / 1000.0;
+            return this.propertyDelegate.get(MAX_CAPACITY_INDEX); // Already in kJ
         }
+    }
+    
+    // Get max charge rate in kJ/tick for display
+    public double getMaxChargeRateKJ() {
+        return this.propertyDelegate.get(MAX_CHARGE_RATE_INDEX); // Already in kJ
+    }
+    
+    // Get max discharge rate in kJ/tick for display
+    public double getMaxDischargeRateKJ() {
+        return this.propertyDelegate.get(MAX_DISCHARGE_RATE_INDEX); // Already in kJ
+    }
+    
+    // Get network last produced in kJ for display
+    public double getNetworkLastProducedKJ() {
+        return this.propertyDelegate.get(NETWORK_LAST_PRODUCED_INDEX); // Already in kJ
+    }
+    
+    // Get network last consumed in kJ for display
+    public double getNetworkLastConsumedKJ() {
+        return this.propertyDelegate.get(NETWORK_LAST_CONSUMED_INDEX); // Already in kJ
+    }
+    
+    // Get network last stored in kJ for display
+    public double getNetworkLastStoredKJ() {
+        return this.propertyDelegate.get(NETWORK_LAST_STORED_INDEX); // Already in kJ
+    }
+    
+    // Get network last drawn in kJ for display
+    public double getNetworkLastDrawnKJ() {
+        return this.propertyDelegate.get(NETWORK_LAST_DRAWN_INDEX); // Already in kJ
     }
     
     // Get block position (for client-side networking)

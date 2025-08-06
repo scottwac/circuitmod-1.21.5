@@ -78,21 +78,21 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, N
                     default: return 0;
                 }
             } else {
-                // Return server-side values
+                // Return server-side values scaled down to prevent overflow
                 switch (index) {
-                    case 0: return storedEnergy;
-                    case 1: return maxCapacity;
-                    case 2: return maxChargeRate;
-                    case 3: return maxDischargeRate;
+                    case 0: return storedEnergy / 1000;    // now 0…100
+                    case 1: return maxCapacity / 1000;     // now 0…100
+                    case 2: return maxChargeRate / 1000;   // now 0…100
+                    case 3: return maxDischargeRate / 1000; // now 0…100
                     case 4: return canCharge ? 1 : 0;
                     case 5: return canDischarge ? 1 : 0;
                     case 6: return network != null ? network.getSize() : 0;
-                    case 7: return network != null ? network.getStoredEnergy() : 0;
-                    case 8: return network != null ? network.getMaxStorage() : 0;
-                    case 9: return network != null ? network.getLastTickEnergyProduced() : 0;
-                    case 10: return network != null ? network.getLastTickEnergyConsumed() : 0;
-                    case 11: return network != null ? network.getLastTickEnergyStoredInBatteries() : 0;
-                    case 12: return network != null ? network.getLastTickEnergyDrawnFromBatteries() : 0;
+                    case 7: return network != null ? network.getStoredEnergy() / 1000 : 0;
+                    case 8: return network != null ? network.getMaxStorage() / 1000 : 0;
+                    case 9: return network != null ? network.getLastTickEnergyProduced() / 1000 : 0;
+                    case 10: return network != null ? network.getLastTickEnergyConsumed() / 1000 : 0;
+                    case 11: return network != null ? network.getLastTickEnergyStoredInBatteries() / 1000 : 0;
+                    case 12: return network != null ? network.getLastTickEnergyDrawnFromBatteries() / 1000 : 0;
                     default: return 0;
                 }
             }
@@ -105,16 +105,16 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, N
             if (world != null && world.isClient()) {
                 switch (index) {
                     case 0: 
-                        clientStoredEnergy = value; 
+                        clientStoredEnergy = value; // Already scaled by server
                         break;
                     case 1: 
-                        clientMaxCapacity = value; 
+                        clientMaxCapacity = value; // Already scaled by server
                         break;
                     case 2: 
-                        clientMaxChargeRate = value; 
+                        clientMaxChargeRate = value; // Already scaled by server
                         break;
                     case 3: 
-                        clientMaxDischargeRate = value; 
+                        clientMaxDischargeRate = value; // Already scaled by server
                         break;
                     case 4: 
                         clientCanCharge = value == 1; 
@@ -126,22 +126,22 @@ public class BatteryBlockEntity extends BlockEntity implements IEnergyStorage, N
                         clientNetworkSize = value; 
                         break;
                     case 7: 
-                        clientNetworkStoredEnergy = value; 
+                        clientNetworkStoredEnergy = value; // Already scaled by server
                         break;
                     case 8: 
-                        clientNetworkMaxStorage = value; 
+                        clientNetworkMaxStorage = value; // Already scaled by server
                         break;
                     case 9: 
-                        clientNetworkLastProduced = value; 
+                        clientNetworkLastProduced = value; // Already scaled by server
                         break;
                     case 10: 
-                        clientNetworkLastConsumed = value; 
+                        clientNetworkLastConsumed = value; // Already scaled by server
                         break;
                     case 11: 
-                        clientNetworkLastStored = value; 
+                        clientNetworkLastStored = value; // Already scaled by server
                         break;
                     case 12: 
-                        clientNetworkLastDrawn = value; 
+                        clientNetworkLastDrawn = value; // Already scaled by server
                         break;
                 }
             }
