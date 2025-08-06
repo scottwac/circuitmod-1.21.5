@@ -49,17 +49,17 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
     private int energyReceived = 0; // Energy received this tick
+    private int accumulatedEnergy = 0; // Energy accumulated for current block
     private EnergyNetwork network;
     
     // Mining properties
     private int currentBlockEnergyCost = 1; // Energy cost for the current block being mined
     private boolean miningEnabled = false; // Whether mining is enabled or disabled
+    private boolean inventoryFullPause = false; // Whether we're paused due to full inventory
     
     // Mining progress tracking
     private BlockPos currentMiningPos = null; // Current block being mined
     private int currentMiningProgress = 0; // Progress on current block (0-100)
-    private int totalMiningTicks = 0; // Total ticks needed to mine current block
-    private int currentMiningTicks = 0; // Current ticks spent mining
     
     // Area properties - for horizontal mining with fixed depth
     private BlockPos startPos; // Starting corner of the mining area
@@ -85,7 +85,9 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
     private static final int MINING_ENABLED_INDEX = 1;
-    private static final int PROPERTY_COUNT = 2;
+    private static final int ACCUMULATED_ENERGY_INDEX = 2;
+    private static final int CURRENT_BLOCK_COST_INDEX = 3;
+    private static final int PROPERTY_COUNT = 4;
     
     // Inventory with custom size (12 slots - 3x4 grid)
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
@@ -99,8 +101,11 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                     return energyReceived;
                 case MINING_ENABLED_INDEX:
                     return miningEnabled ? 1 : 0;
+                case ACCUMULATED_ENERGY_INDEX:
+                    return accumulatedEnergy;
+                case CURRENT_BLOCK_COST_INDEX:
+                    return currentBlockEnergyCost;
                 default:
-
                     return 0;
             }
         }
@@ -117,6 +122,12 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                         miningEnabled = newMiningEnabled;
                         markDirty();
                     }
+                    break;
+                case ACCUMULATED_ENERGY_INDEX:
+                    accumulatedEnergy = value;
+                    break;
+                case CURRENT_BLOCK_COST_INDEX:
+                    currentBlockEnergyCost = value;
                     break;
             }
         }
@@ -165,8 +176,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             nbt.putInt("current_mining_z", currentMiningPos.getZ());
         }
         nbt.putInt("current_mining_progress", this.currentMiningProgress);
-        nbt.putInt("total_mining_ticks", this.totalMiningTicks);
-        nbt.putInt("current_mining_ticks", this.currentMiningTicks);
+        nbt.putInt("accumulated_energy", this.accumulatedEnergy);
+        nbt.putBoolean("inventory_full_pause", this.inventoryFullPause);
         
         // Save mining area data
         if (startPos != null) {
@@ -227,8 +238,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             this.currentMiningPos = new BlockPos(x, y, z);
         }
         this.currentMiningProgress = nbt.getInt("current_mining_progress").orElse(0);
-        this.totalMiningTicks = nbt.getInt("total_mining_ticks").orElse(0);
-        this.currentMiningTicks = nbt.getInt("current_mining_ticks").orElse(0);
+        this.accumulatedEnergy = nbt.getInt("accumulated_energy").orElse(0);
+        this.inventoryFullPause = nbt.getBoolean("inventory_full_pause").orElse(false);
         
         // Load mining area data
         if (nbt.contains("start_x")) {
@@ -298,6 +309,11 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             blockEntity.soundClock = 160;
         }
 
+        // Condense inventory every 20 ticks (once per second) to prevent scattered items
+        if (world.getTime() % 20 == 0) {
+            blockEntity.condenseInventory();
+        }
+
         // Handle network refresh with retry logic for world reload scenarios
         if (blockEntity.needsNetworkRefresh) {
             boolean networkFound = blockEntity.findAndJoinNetwork();
@@ -339,20 +355,19 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             // Circuitmod.LOGGER.info("[DRILL-TICK] Energy received: " + blockEntity.energyReceived + ", network: " + networkInfo);
         }
         
-        // Process mining operations based on energy available and if mining is enabled
-        if (blockEntity.energyReceived > 0 && blockEntity.miningEnabled) {
-            // Try to mine the current block (this will handle gradual mining)
+        // Process mining operations if mining is enabled
+        if (blockEntity.miningEnabled) {
+            // Try to mine the current block
             boolean mined = blockEntity.mineNextBlock(world);
             
             if (mined) {
                 needsSync = true;
             }
         } else {
-            // No energy received or mining is disabled
+            // Mining is disabled
             needsSync = true;
             
             // If mining is enabled but we're not receiving power, try to refresh network connection
-            // This helps with world reload scenarios where network connections might be lost
             if (blockEntity.miningEnabled && blockEntity.energyReceived == 0 && blockEntity.network == null) {
                 if (world.getTime() % 40 == 0) { // Try every 2 seconds
                     Circuitmod.LOGGER.info("[DRILL-NETWORK-RETRY] Mining enabled but no power at " + pos + ", attempting network refresh");
@@ -500,112 +515,68 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             return false;
         }
         
-        // Debug: Log current mining state
-        // if (currentMiningPos != null) {
-        //     Circuitmod.LOGGER.info("[DRILL-MINING-DEBUG] Current mining position: " + currentMiningPos);
-        //     Circuitmod.LOGGER.info("[DRILL-MINING-DEBUG] Mining progress: " + currentMiningProgress + "%");
-        // }
-
-        // --- INSTANTLY FIND NEXT VALID BLOCK TO MINE ---
-        int maxAttempts = 4096; // Prevent infinite loops
-        int attempts = 0;
-        while (attempts < maxAttempts) {
+        // If we're paused due to full inventory, check if we have space now
+        if (inventoryFullPause) {
+            if (!isInventoryFull()) {
+                inventoryFullPause = false;
+                Circuitmod.LOGGER.info("[DRILL-MINING] Inventory space available, resuming mining");
+            } else {
+                // Still full, can't mine
+                return false;
+            }
+        }
+        
+        // Get current mining position
+        if (currentMiningPos == null) {
+            currentMiningPos = getNextMiningPos();
             if (currentMiningPos == null) {
-                currentMiningPos = getNextMiningPos();
-                if (currentMiningPos == null) {
-                    return false;
-                }
-                currentMiningProgress = 0;
-                currentMiningTicks = 0;
-                totalMiningTicks = 0;
+                // No more blocks to mine
+                return false;
             }
-            // Skip if it's the drill itself, a safe zone block
-            if (currentMiningPos.equals(pos) || isInSafeZone(currentMiningPos)) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
+            
+            // Calculate energy cost for this new block
             BlockState blockState = world.getBlockState(currentMiningPos);
-            // Skip air, water, lava
-            if (blockState.isAir() || blockState.getBlock() == Blocks.WATER || blockState.getBlock() == Blocks.LAVA) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Skip bedrock or unbreakable
-            if (blockState.getHardness(world, currentMiningPos) < 0) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Skip if the block is a block entity that's part of our network
-            BlockEntity targetEntity = world.getBlockEntity(currentMiningPos);
-            if (targetEntity instanceof IPowerConnectable) {
-                advanceToNextBlock();
-                currentMiningPos = null;
-                attempts++;
-                continue;
-            }
-            // Found a valid block to mine
-            break;
+            float hardness = blockState.getBlock().getHardness();
+            currentBlockEnergyCost = Math.max(1, (int)(hardness * 100)); // 100 energy per hardness point
+            accumulatedEnergy = 0; // Reset accumulated energy for new block
+            currentMiningProgress = 0;
+            
+            Circuitmod.LOGGER.info("[DRILL-MINING] Starting new block at {} with cost {} energy", currentMiningPos, currentBlockEnergyCost);
         }
-        if (attempts >= maxAttempts) {
-            // Could not find a valid block to mine
-            return false;
+        
+        // Accumulate energy from this tick
+        if (energyReceived > 0) {
+            accumulatedEnergy += energyReceived;
+            
+            // Calculate mining progress as percentage
+            currentMiningProgress = Math.min(100, (accumulatedEnergy * 100) / currentBlockEnergyCost);
         }
-
-        // --- ONLY NOW START MINING PROGRESS ---
-        float hardness = world.getBlockState(currentMiningPos).getHardness(world, currentMiningPos);
-        int energyCost = Math.max(1, (int)(hardness * 2.0f) + 1);
-        this.currentBlockEnergyCost = energyCost;
-
-        if (totalMiningTicks == 0) {
-            totalMiningTicks = Math.max(10, (int)(hardness * 20.0f));
-        }
-
-        if (this.energyReceived < 1) {
-            return false; // Don't advance position, just wait for more energy
-        }
-
-        int energyToConsume = Math.min(this.energyReceived, MAX_ENERGY_DEMAND);
-        float energySpeedMultiplier = (float) Math.sqrt(energyToConsume);
-        this.energyReceived -= energyToConsume;
-        float progressThisTick = energySpeedMultiplier;
-        currentMiningTicks += (int) progressThisTick;
-        currentMiningProgress = (currentMiningTicks * 100) / totalMiningTicks;
-        currentMiningProgress = Math.min(100, currentMiningProgress);
-
-        if (currentMiningTicks >= totalMiningTicks) {
-            ItemStack minedItem = new ItemStack(world.getBlockState(currentMiningPos).getBlock().asItem());
-            boolean addedToInventory = false;
-            for (int i = 0; i < inventory.size(); i++) {
-                ItemStack stack = inventory.get(i);
-                if (stack.isEmpty()) {
-                    inventory.set(i, minedItem);
-                    addedToInventory = true;
-                    break;
-                } else if (ItemStack.areItemsEqual(stack, minedItem) && stack.getCount() < stack.getMaxCount()) {
-                    stack.increment(1);
-                    addedToInventory = true;
-                    break;
-                }
-            }
-            if (addedToInventory) {
-                world.removeBlock(currentMiningPos, false);
-                advanceToNextBlock();
+        
+        // Check if we have enough energy to mine this block
+        if (accumulatedEnergy >= currentBlockEnergyCost) {
+            // Try to mine the block
+            boolean success = mineBlock(world, currentMiningPos);
+            
+            if (success) {
+                Circuitmod.LOGGER.info("[DRILL-MINING] Successfully mined block at {}", currentMiningPos);
+                
+                // Reset for next block
                 currentMiningPos = null;
-                totalMiningTicks = 0;
+                accumulatedEnergy = 0;
+                currentMiningProgress = 0;
+                currentBlockEnergyCost = 1;
+                
                 return true;
             } else {
-                // Inventory full - don't mine the block, pause position advancement and re-attempt later
-                Circuitmod.LOGGER.info("[DRILL-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
-                return false; // Don't advance position, re-attempt the same block later
+                // Mining failed (inventory full) - pause and wait
+                inventoryFullPause = true;
+                Circuitmod.LOGGER.info("[DRILL-MINING] Mining failed at {} (inventory full) - pausing", currentMiningPos);
+                return false;
             }
         }
-        return false; // Still mining, not finished yet
+        
+        // Not enough energy yet, continue accumulating
+        return false;
     }
 
     /**
@@ -614,7 +585,6 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     private void advanceToNextBlock() {
         currentMiningPos = null;
         currentMiningProgress = 0;
-        currentMiningTicks = 0;
         advanceToNextPosition(miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth);
     }
 
@@ -753,6 +723,114 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         
         return false; // Not in safe zone, can mine
     }
+    
+    /**
+     * Mine a block at the specified position using quarry-like logic
+     */
+    private boolean mineBlock(World world, BlockPos miningPos) {
+        BlockState blockState = world.getBlockState(miningPos);
+        BlockEntity blockEntity = world.getBlockEntity(miningPos);
+        
+        // Get the drops as if mined by a player with an unenchanted tool
+        List<ItemStack> drops = Block.getDroppedStacks(
+            blockState, 
+            (ServerWorld) world, 
+            miningPos, 
+            blockEntity,
+            null, // No player entity
+            ItemStack.EMPTY // No tool (as if mined by hand)
+        );
+        
+        // Special handling for blocks that need a specific tool
+        if (blockState.isToolRequired()) {
+            // Create a mock pickaxe for calculating drops
+            ItemStack mockPickaxe = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
+            drops = Block.getDroppedStacks(
+                blockState, 
+                (ServerWorld) world, 
+                miningPos, 
+                blockEntity,
+                null, // No player entity
+                mockPickaxe // netherite pickaxe
+            );
+        }
+        
+        // Check if we have space in inventory for all drops
+        boolean canAddAll = true;
+        for (ItemStack drop : drops) {
+            if (!drop.isEmpty() && !canAddToInventory(drop)) {
+                canAddAll = false;
+                break;
+            }
+        }
+        
+        if (!canAddAll) {
+            // Inventory doesn't have space for all drops
+            return false;
+        }
+        
+        // Add all drops to inventory
+        for (ItemStack drop : drops) {
+            if (!drop.isEmpty()) {
+                addToInventory(drop.copy());
+            }
+        }
+        
+        // Remove the block
+        world.removeBlock(miningPos, false);
+        
+        return true;
+    }
+    
+    /**
+     * Helper method to check if an item can be added to inventory
+     */
+    private boolean canAddToInventory(ItemStack itemToAdd) {
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (stack.isEmpty()) {
+                return true; // Found empty slot
+            } else if (ItemStack.areItemsEqual(stack, itemToAdd)) {
+                int maxStack = Math.min(stack.getMaxCount(), getMaxCountPerStack());
+                if (stack.getCount() + itemToAdd.getCount() <= maxStack) {
+                    return true; // Can fit in existing stack
+                }
+            }
+        }
+        return false; // No space available
+    }
+    
+    /**
+     * Helper method to add an item to inventory
+     */
+    private void addToInventory(ItemStack itemToAdd) {
+        // First try to add to existing stacks
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (!stack.isEmpty() && ItemStack.areItemsEqual(stack, itemToAdd)) {
+                int maxStack = Math.min(stack.getMaxCount(), getMaxCountPerStack());
+                int spaceAvailable = maxStack - stack.getCount();
+                if (spaceAvailable > 0) {
+                    int toAdd = Math.min(spaceAvailable, itemToAdd.getCount());
+                    stack.increment(toAdd);
+                    itemToAdd.decrement(toAdd);
+                    
+                    if (itemToAdd.isEmpty()) {
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // Then add to empty slots
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.get(i);
+            if (stack.isEmpty()) {
+                inventory.set(i, itemToAdd.copy());
+                return;
+            }
+        }
+    }
 
 
 
@@ -766,6 +844,80 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             }
         }
         return true;
+    }
+    
+    /**
+     * Condenses the inventory by combining multiple slots with the same item type.
+     * This prevents the inventory from filling up with scattered items.
+     */
+    private void condenseInventory() {
+        boolean inventoryChanged = false;
+        
+        // First pass: try to combine items into existing stacks
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack currentStack = inventory.get(i);
+            if (currentStack.isEmpty()) continue;
+            
+            // Try to add this stack to any existing stack of the same type
+            for (int j = 0; j < inventory.size(); j++) {
+                if (i == j) continue; // Don't combine with itself
+                
+                ItemStack targetStack = inventory.get(j);
+                if (targetStack.isEmpty()) continue;
+                
+                // Check if we can combine these stacks
+                if (ItemStack.areItemsEqual(currentStack, targetStack)) {
+                    int maxCount = Math.min(currentStack.getMaxCount(), getMaxCountPerStack());
+                    int spaceInTarget = maxCount - targetStack.getCount();
+                    
+                    if (spaceInTarget > 0) {
+                        int transferAmount = Math.min(spaceInTarget, currentStack.getCount());
+                        targetStack.increment(transferAmount);
+                        currentStack.decrement(transferAmount);
+                        
+                        // Update the inventory
+                        inventory.set(j, targetStack);
+                        if (currentStack.isEmpty()) {
+                            inventory.set(i, ItemStack.EMPTY);
+                        } else {
+                            inventory.set(i, currentStack);
+                        }
+                        
+                        inventoryChanged = true;
+                        
+                        // If we've moved all items from current stack, break
+                        if (currentStack.isEmpty()) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Second pass: move items to fill empty slots at the beginning
+        if (inventoryChanged) {
+            compactInventory();
+        }
+    }
+    
+    /**
+     * Compacts the inventory by moving all non-empty stacks to the front,
+     * leaving empty slots at the end.
+     */
+    private void compactInventory() {
+        int writeIndex = 0;
+        
+        // Move all non-empty stacks to the front
+        for (int readIndex = 0; readIndex < inventory.size(); readIndex++) {
+            ItemStack stack = inventory.get(readIndex);
+            if (!stack.isEmpty()) {
+                if (readIndex != writeIndex) {
+                    inventory.set(writeIndex, stack);
+                    inventory.set(readIndex, ItemStack.EMPTY);
+                }
+                writeIndex++;
+            }
+        }
     }
 
     // IEnergyConsumer implementation
@@ -932,12 +1084,12 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         return currentMiningProgress;
     }
     
-    public int getTotalMiningTicks() {
-        return totalMiningTicks;
+    public int getAccumulatedEnergy() {
+        return accumulatedEnergy;
     }
     
-    public int getCurrentMiningTicks() {
-        return currentMiningTicks;
+    public int getCurrentBlockEnergyCost() {
+        return currentBlockEnergyCost;
     }
     
     public void setMiningEnabled(boolean enabled) {
@@ -989,8 +1141,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             // Reset current mining position to start from the beginning of the new area
             this.currentMiningPos = null;
             this.currentMiningProgress = 0;
-            this.totalMiningTicks = 0;
-            this.currentMiningTicks = 0;
+            this.accumulatedEnergy = 0;
+            this.currentBlockEnergyCost = 1;
             
             markDirty();
             

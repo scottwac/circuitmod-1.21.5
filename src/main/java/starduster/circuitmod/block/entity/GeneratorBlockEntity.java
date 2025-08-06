@@ -9,6 +9,7 @@ import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.FuelRegistry;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
@@ -195,7 +196,13 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
             if (fuelTime > 0) {
                 this.burnTime = fuelTime;
                 this.maxBurnTime = fuelTime;
-                this.removeStack(FUEL_SLOT, 1);
+                
+                // Handle lava buckets specially - return empty bucket instead of consuming it
+                if (fuelStack.isOf(Items.LAVA_BUCKET)) {
+                    this.setStack(FUEL_SLOT, new ItemStack(Items.BUCKET));
+                } else {
+                    this.removeStack(FUEL_SLOT, 1);
+                }
             }
         }
     }

@@ -83,15 +83,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     
     // Track recently mined positions to prevent getting stuck on fluid-created blocks
     private final Set<BlockPos> recentlyMinedPositions = new HashSet<>();
-    private static final int RECENTLY_MINED_TIMEOUT = 20; // Skip recently mined positions for 20 ticks (1 second)
-    private int recentlyMinedCleanupCounter = 0;
+    
     
     // Debug logging control - set to true only when debugging
     private static final boolean DEBUG_LOGGING = true;
     
     // Networking properties
     private int packetCooldown = 0; // Cooldown to avoid sending too many packets
-    private static final int PACKET_COOLDOWN_MAX = 10; // Only send packets every 10 ticks max (0.5 seconds)
     
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
