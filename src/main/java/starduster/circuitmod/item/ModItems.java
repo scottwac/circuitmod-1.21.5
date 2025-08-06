@@ -75,6 +75,8 @@ public final class ModItems {
 
 
 
+
+
     // Registration helper
     public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {
         final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod", path));

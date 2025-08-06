@@ -149,6 +149,8 @@ public class Circuitmod implements ModInitializer {
 				
 				// Add movement items  
 				entries.add(ModItems.PULSE_STICK);
+				
+
 
 				// Add more mod items here as they are created
 			})

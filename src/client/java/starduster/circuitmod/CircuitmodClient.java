@@ -3,7 +3,16 @@ package starduster.circuitmod;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.minecraft.client.render.DimensionEffects;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
@@ -33,6 +42,11 @@ import starduster.circuitmod.screen.SortingPipeScreen;
 import starduster.circuitmod.entity.ModEntityTypes;
 
 public class CircuitmodClient implements ClientModInitializer {
+	
+	private static final Identifier NO_MOON_ID = Identifier.of("circuitmod", "no_moon");
+	private static final RegistryKey<World> DIM_KEY = 
+		RegistryKey.of(RegistryKeys.WORLD, Identifier.of("circuitmod", "circuit_dimension"));
+	
 	@Override
 	public void onInitializeClient() {
 		Circuitmod.LOGGER.info("[CLIENT] Initializing CircuitmodClient");
@@ -88,5 +102,35 @@ public class CircuitmodClient implements ClientModInitializer {
 		});
 		
 		Circuitmod.LOGGER.info("[CLIENT] CircuitmodClient initialization complete");
+		
+		// Register no-moon dimension effects
+		DimensionRenderingRegistry.registerDimensionEffects(NO_MOON_ID,
+			new DimensionEffects(
+				192,                     // cloud height (unused – clouds are disabled)
+				false,                   // alternate skybox     (we provide our own)
+				DimensionEffects.SkyType.NORMAL,
+				false, false)            // darkened / end-sky flags
+		{
+
+			/* --- totally black sky colour --- */
+			@Override
+			public int getSkyColor(float skyAngle) {          // Yarn-mapped name
+				return 0x000000;                              // #000000
+			}
+
+			/* --- keep fog black too --- */
+			@Override
+			public Vec3d adjustFogColor(Vec3d color, float sunHeight) {
+				return Vec3d.ZERO;
+			}
+
+			@Override
+			public boolean useThickFog(int camX, int camY) {
+				return false;
+			}
+		});
+		
+		// Disable clouds just for our dimension
+		DimensionRenderingRegistry.registerCloudRenderer(DIM_KEY, context -> {/* no-op: draw nothing */});
 	}
 }

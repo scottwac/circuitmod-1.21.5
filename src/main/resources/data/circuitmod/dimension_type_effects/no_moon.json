@@ -1,0 +1,7 @@
+{
+  "sky_type": "normal",
+  "cloud_level": 192,
+  "has_ground": true,
+  "force_bright_lightmap": false,
+  "constant_ambient_light": false
+} 
