@@ -174,6 +174,9 @@ public class Circuitmod implements ModInitializer {
 		starduster.circuitmod.item.PulseStickHandler.initialize();
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		
+		// Initialize dimension and portal registration
+		ModPortals.register();
+		
 		// Initialize world generation
 		starduster.circuitmod.worldgen.ModOreGeneration.generateOres();
 		

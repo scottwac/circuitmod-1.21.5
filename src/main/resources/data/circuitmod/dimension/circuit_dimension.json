@@ -1,0 +1,11 @@
+{
+  "type": "circuitmod:circuit_dimension",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "circuitmod:circuit_no_water",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "circuitmod:circuit_dimension_biome"
+    }
+  }
+}

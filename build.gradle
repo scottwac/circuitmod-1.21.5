@@ -23,6 +23,8 @@ repositories {
 		name = "Modrinth"
 		url = "https://api.modrinth.com/maven"
 	}
+	
+
 }
 
 loom {
