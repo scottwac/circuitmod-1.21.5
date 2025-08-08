@@ -1,6 +1,5 @@
 package starduster.circuitmod.mixin;
 
-import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
@@ -26,8 +25,8 @@ public class CircuitDimensionDamageMixin {
         PlayerEntity player = (PlayerEntity) (Object) this;
         World world = player.getWorld();
         
-        // Check if player is in the circuit dimension
-        if (world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "circuit_dimension"))) {
+        // Check if player is in the moon dimension
+        if (world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "moon"))) {
             // Check if player has a conduit in their offhand
             ItemStack offHand = player.getStackInHand(Hand.OFF_HAND);
             boolean hasConduit = offHand.getItem() == Items.CONDUIT;
@@ -51,7 +50,7 @@ public class CircuitDimensionDamageMixin {
                 damageTimer = 0;
             }
         } else {
-            // Reset timer if not in circuit dimension
+            // Reset timer if not in moon dimension
             damageTimer = 0;
         }
     }

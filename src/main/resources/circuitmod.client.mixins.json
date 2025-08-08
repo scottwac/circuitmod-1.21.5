@@ -3,6 +3,8 @@
     "package": "starduster.circuitmod.mixin.client",
     "compatibilityLevel": "JAVA_21",
     "client": [
+        "ExampleClientMixin",
+        "SkyRenderingNoMoonMixin"
     ],
     "injectors": {
         "defaultRequire": 1

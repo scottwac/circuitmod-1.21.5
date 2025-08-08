@@ -7,6 +7,6 @@ public class ModPortals {
         Circuitmod.LOGGER.info("Portal registration initialized for circuit dimension");
         
         // For now, players can use commands to access the dimension:
-        // /execute in circuitmod:circuit_dimension run tp ~ ~ ~
+// /execute in circuitmod:moon run tp ~ ~ ~
     }
 } 

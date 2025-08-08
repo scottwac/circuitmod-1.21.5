@@ -5,7 +5,8 @@
 	"mixins": [
 		"ExampleMixin",
 		"PlayerFallDamageMixin",
-		"CircuitDimensionDamageMixin"
+		"CircuitDimensionDamageMixin",
+		"MoonGravityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
