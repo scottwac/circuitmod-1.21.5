@@ -83,7 +83,7 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.OUTPUT_PIPE);
 				entries.add(ModBlocks.SORTING_PIPE);
 				entries.add(ModBlocks.REACTOR_BLOCK);
-				entries.add(ModBlocks.NUKE);
+                entries.add(ModBlocks.NUKE);
 
 				// Add ingots and materials
 				entries.add(ModItems.BLOOM);
@@ -132,7 +132,8 @@ public class Circuitmod implements ModInitializer {
 				entries.add(ModBlocks.MEGA_CREATIVE_GENERATOR); // Add mega creative generator to creative tab
 				entries.add(ModBlocks.CREATIVE_CONSUMER); // Add creative consumer to creative tab
 
-				entries.add(ModBlocks.STEEL_BLOCK);
+                entries.add(ModBlocks.STEEL_BLOCK);
+                entries.add(ModBlocks.LAUNCH_PAD);
 
 				entries.add(ModItems.STEEL_SHOVEL);
 				entries.add(ModItems.STEEL_PICKAXE);

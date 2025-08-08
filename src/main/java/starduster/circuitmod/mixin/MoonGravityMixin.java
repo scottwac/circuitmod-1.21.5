@@ -4,6 +4,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import starduster.circuitmod.util.LaunchPadController;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -42,6 +43,11 @@ public abstract class MoonGravityMixin {
 
         // Fully override gravity by disabling vanilla gravity and applying our own
         player.setNoGravity(true);
+
+        // If a launch pad is boosting this player, do not add downward acceleration so they continue ascending smoothly
+        if (LaunchPadController.isBoosting(player)) {
+            return;
+        }
 
         Vec3d velocity = player.getVelocity();
         // Apply reduced gravity every tick (even on ground) to match vanilla behavior

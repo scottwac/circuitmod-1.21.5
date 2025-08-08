@@ -79,6 +79,7 @@
   "block.circuitmod.creative_generator": "Creative Generator",
   "block.circuitmod.creative_consumer": "Creative Consumer",
   "block.circuitmod.mega_creative_generator": "Mega Creative Generator",
+  "block.circuitmod.launch_pad": "Launch Pad",
 
   "itemgroup.circuitmod.main": "Circuit Mod",
   "block.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",

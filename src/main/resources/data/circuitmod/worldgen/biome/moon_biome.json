@@ -49,13 +49,12 @@
     [],
     [
       "minecraft:ore_coal_upper",
-      "minecraft:ore_iron_upper",
-      "minecraft:ore_gold",
       "minecraft:ore_redstone",
-      "minecraft:ore_diamond",
       "minecraft:ore_copper",
-      "circuitmod:techno_jungle_ores",
-      "circuitmod:uranium_ore"
+      "circuitmod:iron_ore_moon",
+      "circuitmod:gold_ore_moon",
+      "circuitmod:diamond_ore_moon",
+      "circuitmod:uranium_ore_moon"
     ],
     [
       "circuitmod:copper_pile",

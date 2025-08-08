@@ -1,0 +1,17 @@
+{
+  "feature": "circuitmod:gold_ore_moon",
+  "placement": [
+    { "type": "minecraft:count", "count": 200 },
+    { "type": "minecraft:in_square" },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:trapezoid",
+        "min_inclusive": { "above_bottom": -64 },
+        "max_inclusive": { "absolute": 72 }
+      }
+    },
+    { "type": "minecraft:biome" }
+  ]
+}
+

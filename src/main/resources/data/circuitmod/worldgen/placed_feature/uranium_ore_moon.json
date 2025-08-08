@@ -1,0 +1,17 @@
+{
+  "feature": "circuitmod:uranium_ore",
+  "placement": [
+    { "type": "minecraft:count", "count": 160 },
+    { "type": "minecraft:in_square" },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:trapezoid",
+        "min_inclusive": { "above_bottom": -96 },
+        "max_inclusive": { "above_bottom": 96 }
+      }
+    },
+    { "type": "minecraft:biome" }
+  ]
+}
+

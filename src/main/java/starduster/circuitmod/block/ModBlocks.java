@@ -322,6 +322,15 @@ public final class ModBlocks {
                     .strength(5.0F, 6.0F)
     );
 
+    public static final Block LAUNCH_PAD = register(
+            "launch_pad",
+            LaunchPadBlock::new,
+            AbstractBlock.Settings.create()
+                    .strength(2.0f, 3.0f)
+                    .sounds(BlockSoundGroup.COPPER)
+                    .requiresTool()
+    );
+
 
 
 
