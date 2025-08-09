@@ -104,5 +104,11 @@
   "sounds.circuitmod.laser_beam": "Laser Beam",
   
   "biome.circuitmod.techno_jungle": "Techno Jungle",
-  "generator.circuitmod.techno_world": "Techno World"
+  "generator.circuitmod.techno_world": "Techno World",
+  "advancements.circuitmod.root.title": "Circuit Breaker",
+  "advancements.circuitmod.root.description": "Get your hands on some Circuitmod tech.",
+  "advancements.circuitmod.steel_axe_hit.title": "Axe to Grind",
+  "advancements.circuitmod.steel_axe_hit.description": "hits harder than diamond, but still chad complains",
+  "advancements.circuitmod.steel_upgrade_tools.title": "Upgrade: Steel Tools",
+  "advancements.circuitmod.steel_upgrade_tools.description": "Craft or obtain your first steel tool."
 }

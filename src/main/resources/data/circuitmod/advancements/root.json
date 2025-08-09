@@ -1,0 +1,119 @@
+{
+  "display": {
+    "icon": { "id": "circuitmod:launch_pad", "count": 1 },
+    "title": { "translate": "advancements.circuitmod.root.title" },
+    "description": { "translate": "advancements.circuitmod.root.description" },
+    "background": "minecraft:textures/block/copper_block.png",
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "have_launch_pad": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:launch_pad" } ] }
+    },
+    "have_pulse_stick": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:pulse_stick" } ] }
+    },
+    "have_steel_block": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:steel_block" } ] }
+    },
+    "have_quarry": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:quarry_block" } ] }
+    },
+    "have_drill": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:drill_block" } ] }
+    },
+    "have_laser_drill": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:laser_mining_drill_block" } ] }
+    },
+    "have_constructor": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:constructor_block" } ] }
+    },
+    "have_fluid_tank": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:fluid_tank" } ] }
+    },
+    "have_bloomery": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:bloomery" } ] }
+    },
+    "have_electric_furnace": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:electric_furnace" } ] }
+    },
+    "have_xp_generator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:xp_generator" } ] }
+    },
+    "have_crusher": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:crusher" } ] }
+    },
+    "have_tesla_coil": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:tesla_coil" } ] }
+    },
+    "have_generator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:generator" } ] }
+    },
+    "have_solar_panel": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:solar_panel" } ] }
+    },
+    "have_reactor": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:reactor_block" } ] }
+    },
+    "have_battery": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:battery" } ] }
+    },
+    "have_mass_fabricator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:mass_fabricator" } ] }
+    },
+    "have_creative_generator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:creative_generator" } ] }
+    },
+    "have_creative_consumer": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": "circuitmod:creative_consumer" } ] }
+    }
+  },
+  "requirements": [
+    ["have_launch_pad"],
+    ["have_pulse_stick"],
+    ["have_steel_block"],
+    ["have_quarry"],
+    ["have_drill"],
+    ["have_laser_drill"],
+    ["have_constructor"],
+    ["have_fluid_tank"],
+    ["have_bloomery"],
+    ["have_electric_furnace"],
+    ["have_xp_generator"],
+    ["have_crusher"],
+    ["have_tesla_coil"],
+    ["have_generator"],
+    ["have_solar_panel"],
+    ["have_reactor"],
+    ["have_battery"],
+    ["have_mass_fabricator"],
+    ["have_creative_generator"],
+    ["have_creative_consumer"]
+  ],
+  "sends_telemetry_event": true
+}
+
+

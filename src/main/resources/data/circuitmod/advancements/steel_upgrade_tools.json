@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:story/mine_stone",
+  "criteria": {
+    "steel_pickaxe": {
+      "conditions": {
+        "items": [
+          { "items": "circuitmod:steel_pickaxe" }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": { "translate": "advancements.circuitmod.steel_upgrade_tools.description" },
+    "icon": { "count": 1, "id": "circuitmod:steel_pickaxe" },
+    "title": { "translate": "advancements.circuitmod.steel_upgrade_tools.title" }
+  },
+  "requirements": [[ "steel_pickaxe" ]],
+  "sends_telemetry_event": true
+}
+
+

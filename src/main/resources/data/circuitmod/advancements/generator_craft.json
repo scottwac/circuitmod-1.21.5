@@ -1,0 +1,21 @@
+{
+  "parent": "circuitmod:root",
+  "display": {
+    "icon": { "item": "circuitmod:generator" },
+    "title": { "text": "Combustion Junction" },
+    "description": { "text": "Craft a Generator. Smells like progress!" },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "have_generator": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": { "items": [ { "items": [ "circuitmod:generator" ] } ] }
+    }
+  },
+  "requirements": [["have_generator"]]
+}
+
+

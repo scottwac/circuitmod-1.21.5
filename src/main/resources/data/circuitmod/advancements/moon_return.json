@@ -1,0 +1,21 @@
+{
+  "parent": "circuitmod:moon_launch",
+  "display": {
+    "icon": { "item": "minecraft:feather" },
+    "title": { "text": "Houston, I Am Fine" },
+    "description": { "text": "Return from the Moon to the Overworld (thanks, feather falling)." },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "back_home": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": { "to": "minecraft:overworld", "from": "circuitmod:moon" }
+    }
+  },
+  "requirements": [["back_home"]]
+}
+
+
