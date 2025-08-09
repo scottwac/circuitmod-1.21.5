@@ -2,6 +2,8 @@ package starduster.circuitmod.mixin;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -68,6 +70,8 @@ public abstract class LaunchPadPlayerMixin {
                                 self.getName().getString(), currentKey.getValue(), targetKey.getValue(), self.getX(), targetY, self.getZ());
                         serverPlayer.teleport(targetWorld, self.getX(), targetY, self.getZ(), java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
                         serverPlayer.setVelocity(0.0, -0.1, 0.0);
+                        // Grant Slow Falling for safe descent regardless of direction (moon <-> overworld)
+                        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 1200, 0, false, true, true));
                     }
                     // Cooldown and cleanup
                     circuitmod$launchedUpwards = false;
@@ -100,6 +104,8 @@ public abstract class LaunchPadPlayerMixin {
                             self.getName().getString(), currentKey.getValue(), targetKey.getValue(), self.getX(), targetY, self.getZ());
                     serverPlayer.teleport(targetWorld, self.getX(), targetY, self.getZ(), java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
                     serverPlayer.setVelocity(0.0, -0.1, 0.0); // start gentle descent
+                    // Grant Slow Falling for safe descent regardless of direction (moon <-> overworld)
+                    serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 1200, 0, false, true, true));
                 }
                 circuitmod$launchedUpwards = false;
                 circuitmod$launchBoostTicks = 0;
