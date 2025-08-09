@@ -1,5 +1,6 @@
 package starduster.circuitmod.mixin;
 
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
@@ -26,6 +27,7 @@ public abstract class MoonGravityMixin {
         PlayerEntity player = (PlayerEntity) (Object) this;
         World world = player.getWorld();
 
+
         boolean isMoon = world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "moon"));
 
         // Restore vanilla behavior outside the moon
@@ -38,6 +40,14 @@ public abstract class MoonGravityMixin {
 
         // Skip when the player is flying in creative/spectator
         if (player.getAbilities().flying || player.isSpectator()) {
+            return;
+        }
+
+        // If player has Slow Falling, let vanilla handle gravity and fall damage prevention
+        if (player.hasStatusEffect(StatusEffects.SLOW_FALLING)) {
+            if (player.hasNoGravity()) {
+                player.setNoGravity(false);
+            }
             return;
         }
 
