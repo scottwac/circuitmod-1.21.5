@@ -565,6 +565,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                 accumulatedEnergy = 0;
                 currentMiningProgress = 0;
                 currentBlockEnergyCost = 1;
+                // Advance to the next position in the scan so we don't retry the same block
+                advanceToNextPosition(miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth);
                 
                 return true;
             } else {
