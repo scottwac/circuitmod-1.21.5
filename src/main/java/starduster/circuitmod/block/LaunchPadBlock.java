@@ -5,7 +5,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.registry.RegistryKey;
@@ -17,7 +16,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import starduster.circuitmod.Circuitmod;
-import net.minecraft.world.Heightmap;
 
 /**
  * Launch Pad block: when stepped on, if there is a diamond block directly beneath,
@@ -73,7 +71,7 @@ public class LaunchPadBlock extends Block {
         Circuitmod.LOGGER.info("[LaunchPad] Teleporting {} from {} to {} at ({}, {}, {})",
                 serverPlayer.getName().getString(), currentKey.getValue(), targetKey.getValue(),
                 serverPlayer.getX(), targetY, serverPlayer.getZ());
-
+                
         // Perform teleport
         serverPlayer.teleport(targetWorld, serverPlayer.getX(), targetY, serverPlayer.getZ(),
                 java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
