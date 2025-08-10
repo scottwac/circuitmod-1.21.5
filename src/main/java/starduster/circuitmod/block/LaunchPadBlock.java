@@ -71,7 +71,7 @@ public class LaunchPadBlock extends Block {
         Circuitmod.LOGGER.info("[LaunchPad] Teleporting {} from {} to {} at ({}, {}, {})",
                 serverPlayer.getName().getString(), currentKey.getValue(), targetKey.getValue(),
                 serverPlayer.getX(), targetY, serverPlayer.getZ());
-                
+
         // Perform teleport
         serverPlayer.teleport(targetWorld, serverPlayer.getX(), targetY, serverPlayer.getZ(),
                 java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
@@ -79,7 +79,7 @@ public class LaunchPadBlock extends Block {
         // No initial velocity boost
         serverPlayer.setVelocity(0.0, 0.0, 0.0);
         // Grant Slow Falling for 60 seconds to ensure safe descent
-        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 1200, 0, false, true, true));
+        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 600, 0, false, true, true));
 
         // Consume the diamond block from the ORIGINAL world after successful teleport
         if (world instanceof ServerWorld originalWorld) {
