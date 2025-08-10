@@ -71,10 +71,10 @@
 
   "block.circuitmod.power_cable": "Cable",
   "block.circuitmod.battery": "Battery Block",
-  	"block.circuitmod.item_pipe": "Item Logistic Pipe",
-	"block.circuitmod.output_pipe": "Output Logistic Pipe",
-	"block.circuitmod.sorting_pipe": "Sorting Logistic Pipe",
-	  "block.circuitmod.up_pipe": "Up Pipe",
+  "block.circuitmod.item_pipe": "Item Logistic Pipe",
+  "block.circuitmod.output_pipe": "Output Logistic Pipe",
+  "block.circuitmod.sorting_pipe": "Sorting Logistic Pipe",
+  "block.circuitmod.up_pipe": "Up Pipe",
 
   "block.circuitmod.creative_generator": "Creative Generator",
   "block.circuitmod.creative_consumer": "Creative Consumer",
@@ -82,6 +82,7 @@
   "block.circuitmod.launch_pad": "Launch Pad",
 
   "itemgroup.circuitmod.main": "Circuit Mod",
+  "itemgroup.circuitmod.alt": "Circuit Mod Misc & Unfinished",
   "block.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
   "item.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
   "gui.circuitmod.energy_to_mass_converter.title": "Energy to Mass Converter",
