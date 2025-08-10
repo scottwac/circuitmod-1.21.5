@@ -3,13 +3,12 @@ package starduster.circuitmod.block;
 import java.util.function.Function;
 
 import net.minecraft.block.*;
-import net.minecraft.block.enums.NoteBlockInstrument;
+import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.intprovider.ConstantIntProvider;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
@@ -17,12 +16,20 @@ import starduster.circuitmod.block.machines.XpGenerator;
 import starduster.circuitmod.block.networkblocks.BatteryBlock;
 import starduster.circuitmod.block.networkblocks.PowerCableBlock;
 
-import net.minecraft.registry.Registries;
 
 
 public final class ModBlocks {
     // Register our QuarryBlock with a custom block class
-    public static final Block QUARRY_BLOCK = register("quarry_block", QuarryBlock::new, Block.Settings.create().strength(3.0f, 5.0f).requiresTool());
+    public static final Block QUARRY_BLOCK = registerWithCustomItem(
+            "quarry_block",
+            QuarryBlock::new,
+            Block.Settings.create().strength(3.0f, 5.0f).requiresTool(),
+            // Make the block item enchantable so it can accept Fortune in an anvil/enchanting
+            settings -> settings.component(
+                    net.minecraft.component.DataComponentTypes.ENCHANTABLE,
+                    new net.minecraft.component.type.EnchantableComponent(15)
+            )
+    );
 
     // Register drill block
     public static final Block DRILL_BLOCK = register(
@@ -341,6 +348,26 @@ public final class ModBlocks {
 
         final Block block = Blocks.register(registryKey, factory, settings);
         Items.register(block);
+        return block;
+    }
+
+    // Register a block but create its BlockItem with customized Item.Settings
+    private static Block registerWithCustomItem(
+            String path,
+            Function<AbstractBlock.Settings, Block> factory,
+            AbstractBlock.Settings blockSettings,
+            java.util.function.Function<Item.Settings, Item.Settings> itemSettingsCustomizer
+    ) {
+        final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);
+        final RegistryKey<Block> blockKey = RegistryKey.of(RegistryKeys.BLOCK, identifier);
+        final Block block = Blocks.register(blockKey, factory, blockSettings);
+
+        final RegistryKey<Item> itemKey = RegistryKey.of(RegistryKeys.ITEM, identifier);
+        Items.register(
+                itemKey,
+                (s) -> new net.minecraft.item.BlockItem(block, itemSettingsCustomizer.apply(s)),
+                new Item.Settings()
+        );
         return block;
     }
 

@@ -11,24 +11,33 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.item.ItemStack;
+// import net.minecraft.particle.ParticleTypes;
+// import net.minecraft.sound.SoundCategory;
+// import net.minecraft.sound.SoundEvent;
+// import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
+// import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
-import starduster.circuitmod.Circuitmod;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.enchantment.EnchantmentHelper;
+// import net.minecraft.enchantment.Enchantments;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
+// import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 
 import org.jetbrains.annotations.Nullable;
-import starduster.circuitmod.sound.ModSounds;
+// import starduster.circuitmod.sound.ModSounds;
 
 public class QuarryBlock extends BlockWithEntity {
     // Use the FACING property from HorizontalFacingBlock
@@ -86,6 +95,27 @@ public class QuarryBlock extends BlockWithEntity {
             }
         }
         return ActionResult.SUCCESS;
+    }
+
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        super.onPlaced(world, pos, state, placer, stack);
+        if (!world.isClient) {
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof QuarryBlockEntity quarry) {
+                int fortuneLevel = 0;
+                Registry<Enchantment> reg = world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
+                Enchantment ench = reg.get(Identifier.ofVanilla("fortune"));
+                if (ench != null) {
+                    int raw = reg.getRawId(ench);
+                    java.util.Optional<RegistryEntry.Reference<Enchantment>> ref = reg.getEntry(raw);
+                    if (ref.isPresent()) {
+                        fortuneLevel = EnchantmentHelper.getLevel(ref.get(), stack);
+                    }
+                }
+                quarry.setFortuneLevel(fortuneLevel);
+            }
+        }
     }
 
     // Allow the block to be rendered normally (not invisible like typical BlockEntities)

@@ -2,26 +2,22 @@ package starduster.circuitmod.block.entity;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.FluidBlock;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.inventory.Inventories;
-import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Identifier;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -32,7 +28,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import starduster.circuitmod.Circuitmod;
-import starduster.circuitmod.block.machines.BloomeryBlock;
 import starduster.circuitmod.block.machines.QuarryBlock;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.power.EnergyNetwork;
@@ -50,7 +45,7 @@ import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 
-public class QuarryBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.QuarryData>, IEnergyConsumer {
+public class QuarryBlockEntity extends BlockEntity implements SidedInventory, ExtendedScreenHandlerFactory<ModScreenHandlers.QuarryData>, IEnergyConsumer {
     // Energy properties
     private static final int MAX_ENERGY_DEMAND = 3600; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
@@ -100,6 +95,9 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
     
     // Inventory with custom size (12 slots - 3x4 grid)
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(12, ItemStack.EMPTY);
+
+    // Cache the fortune level if present on the placed block item
+    private int cachedFortuneLevel = 0;
     
     // Property delegate for GUI synchronization
     private final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -157,6 +155,11 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         // Initialize mining area immediately if we have the necessary data
         if (pos != null && state != null) {
             initializeMiningArea(pos, state);
+        }
+
+        // Attempt to read fortune level from this block's item form when constructed on server
+        if (this.world != null && !this.world.isClient()) {
+            this.cachedFortuneLevel = readFortuneLevelFromBlockItem();
         }
     }
 
@@ -217,6 +220,9 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         
         // Save inventory
         Inventories.writeNbt(nbt, this.inventory, registries);
+
+        // Save cached fortune level
+        nbt.putInt("fortune_level", this.cachedFortuneLevel);
     }
 
     // Load data from NBT when the block is loaded
@@ -293,11 +299,13 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         if (startPos == null && pos != null && world != null) {
             initializeMiningArea(pos, world.getBlockState(pos));
         }
+
+        // Load cached fortune level
+        this.cachedFortuneLevel = nbt.getInt("fortune_level").orElse(0);
     }
 
     // The tick method called by the ticker in QuarryBlock
     public void tick(World world, BlockPos pos, BlockState state, QuarryBlockEntity blockEntity) {
-        boolean runningBefore = blockEntity.isMiningEnabled();
 
         if(isMiningEnabled()) {
             if(soundClock <= 0){
@@ -805,29 +813,33 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         BlockState blockState = world.getBlockState(miningPos);
         BlockEntity blockEntity = world.getBlockEntity(miningPos);
         
-        // Get the drops as if mined by a player with an unenchanted tool
-        List<ItemStack> drops = Block.getDroppedStacks(
-            blockState, 
-            (ServerWorld) world, 
-            miningPos, 
-            blockEntity,
-            null, // No player entity
-            ItemStack.EMPTY // No tool (as if mined by hand)
-        );
-        
-        // Special handling for blocks that need a specific tool
-        if (blockState.isToolRequired()) {
-            // Create a mock pickaxe for calculating drops
-            ItemStack mockPickaxe = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
-            drops = Block.getDroppedStacks(
-                blockState, 
-                (ServerWorld) world, 
-                miningPos, 
-                blockEntity,
-                null, // No player entity
-                mockPickaxe // netherite pickaxe
-            );
+        // Build a mock tool that carries required tool and fortune, if any
+        final ItemStack[] mockToolHolder = new ItemStack[]{ItemStack.EMPTY};
+        if (blockState.isToolRequired() || cachedFortuneLevel > 0) {
+            mockToolHolder[0] = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
+            if (cachedFortuneLevel > 0) {
+                // Apply fortune to the mock tool; clamp to a safe range [1, 5]
+                int fortune = Math.max(1, Math.min(5, cachedFortuneLevel));
+                // Obtain the fortune enchantment entry via registry manager
+                net.minecraft.registry.Registry<Enchantment> reg = world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
+                Enchantment ench = reg.get(Identifier.ofVanilla("fortune"));
+                if (ench != null) {
+                    int raw = reg.getRawId(ench);
+                    var ref = reg.getEntry(raw);
+                    ref.ifPresent(entry -> mockToolHolder[0].addEnchantment(entry, fortune));
+                }
+            }
         }
+
+        // Get the drops using the mock tool (if empty, behaves like hand)
+        List<ItemStack> drops = Block.getDroppedStacks(
+            blockState,
+            (ServerWorld) world,
+            miningPos,
+            blockEntity,
+            null,
+            mockToolHolder[0]
+        );
         
         // Check if we have space in inventory for all drops
         boolean canAddAll = true;
@@ -857,6 +869,19 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Na
         recentlyMinedPositions.add(miningPos);
         
         return true;
+    }
+
+    // Try to read the Fortune level from the block item that placed this block
+    private int readFortuneLevelFromBlockItem() {
+        // There isn't a direct reference to the placing stack here; we rely on the block's item state when broken/placed.
+        // As a pragmatic approach, read the enchantments from the item representation of this block if it exists in inventory when picked.
+        // Fallback: zero if unknown. This keeps the logic simple and persists across saves via cachedFortuneLevel.
+        return this.cachedFortuneLevel;
+    }
+
+    public void setFortuneLevel(int fortuneLevel) {
+        this.cachedFortuneLevel = Math.max(0, fortuneLevel);
+        markDirty();
     }
     // Helper method to check if an item can be added to inventory
 private boolean canAddToInventory(ItemStack itemToAdd) {
