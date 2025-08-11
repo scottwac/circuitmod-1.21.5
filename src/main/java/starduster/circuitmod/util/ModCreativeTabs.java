@@ -100,6 +100,8 @@ public class ModCreativeTabs {
 
                             entries.add(ModItems.STIMULANTS);
 
+                            entries.add(ModBlocks.LUNAR_REGOLITH);
+
 
                             // Add more mod items here as they are created
                         })

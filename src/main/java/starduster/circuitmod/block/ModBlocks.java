@@ -339,7 +339,17 @@ public final class ModBlocks {
     );
 
 
+    /**
+     * NATURAL BLOCKS
+     */
 
+    public static final Block LUNAR_REGOLITH = register(
+            "lunar_regolith",
+            Block::new,
+            AbstractBlock.Settings.create().sounds(BlockSoundGroup.SAND)
+                    .strength(0.5F, 0.5F)
+                    .mapColor(MapColor.LIGHT_BLUE_GRAY)
+    );
 
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {

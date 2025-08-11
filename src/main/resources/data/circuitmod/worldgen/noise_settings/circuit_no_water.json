@@ -1,7 +1,7 @@
 {
   "aquifers_enabled": true,
   "default_block": {
-    "Name": "minecraft:stone"
+    "Name": "minecraft:smooth_basalt"
   },
   "default_fluid": {
     "Name": "minecraft:air",
@@ -457,7 +457,7 @@
                             "then_run": {
                               "type": "minecraft:block",
                               "result_state": {
-                                "Name": "minecraft:cobblestone"
+                                "Name": "circuitmod:lunar_regolith"
                               }
                             }
                           },
@@ -472,7 +472,7 @@
                             "then_run": {
                               "type": "minecraft:block",
                               "result_state": {
-                                "Name": "minecraft:cobblestone"
+                                "Name": "circuitmod:lunar_regolith"
                               }
                             }
                           },
@@ -487,7 +487,7 @@
                             "then_run": {
                               "type": "minecraft:block",
                               "result_state": {
-                                "Name": "minecraft:cobblestone"
+                                "Name": "circuitmod:lunar_regolith"
                               }
                             }
                           },
@@ -505,7 +505,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:cobblestone",
+                                    "Name": "circuitmod:lunar_regolith",
                                     "Properties": {
                                       "snowy": "false"
                                     }
@@ -515,7 +515,7 @@
                               {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:cobblestone"
+                                  "Name": "circuitmod:lunar_regolith"
                                 }
                               }
                             ]
@@ -818,7 +818,7 @@
                               "then_run": {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:stone"
+                                  "Name": "minecraft:smooth_basalt"
                                 }
                               }
                             },
@@ -1081,7 +1081,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -1146,7 +1146,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -1253,7 +1253,7 @@
                                   {
                                     "type": "minecraft:block",
                                     "result_state": {
-                                      "Name": "minecraft:stone"
+                                      "Name": "minecraft:smooth_basalt"
                                     }
                                   }
                                 ]
@@ -1293,7 +1293,7 @@
                                           "then_run": {
                                             "type": "minecraft:block",
                                             "result_state": {
-                                              "Name": "minecraft:stone"
+                                              "Name": "minecraft:smooth_basalt"
                                             }
                                           }
                                         },
@@ -1309,7 +1309,7 @@
                                   {
                                     "type": "minecraft:block",
                                     "result_state": {
-                                      "Name": "minecraft:stone"
+                                      "Name": "minecraft:smooth_basalt"
                                     }
                                   }
                                 ]
@@ -1334,7 +1334,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               }
@@ -1424,7 +1424,7 @@
                               "then_run": {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:stone"
+                                  "Name": "minecraft:smooth_basalt"
                                 }
                               }
                             }
@@ -1452,7 +1452,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -1467,7 +1467,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:cobblestone"
+                                    "Name": "circuitmod:lunar_regolith"
                                   }
                                 }
                               }
@@ -1508,7 +1508,7 @@
                                       "then_run": {
                                         "type": "minecraft:block",
                                         "result_state": {
-                                          "Name": "minecraft:stone"
+                                          "Name": "minecraft:smooth_basalt"
                                         }
                                       }
                                     },
@@ -1532,7 +1532,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -1558,7 +1558,7 @@
                                       "then_run": {
                                         "type": "minecraft:block",
                                         "result_state": {
-                                          "Name": "minecraft:cobblestone",
+                                          "Name": "circuitmod:lunar_regolith",
                                           "Properties": {
                                             "snowy": "false"
                                           }
@@ -1568,7 +1568,7 @@
                                     {
                                       "type": "minecraft:block",
                                       "result_state": {
-                                        "Name": "minecraft:cobblestone"
+                                        "Name": "circuitmod:lunar_regolith"
                                       }
                                     }
                                   ]
@@ -1589,7 +1589,7 @@
                                     "then_run": {
                                       "type": "minecraft:block",
                                       "result_state": {
-                                        "Name": "minecraft:stone"
+                                        "Name": "minecraft:smooth_basalt"
                                       }
                                     }
                                   },
@@ -1627,7 +1627,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:cobblestone"
+                                    "Name": "circuitmod:lunar_regolith"
                                   }
                                 }
                               },
@@ -1723,7 +1723,7 @@
                               "then_run": {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:cobblestone",
+                                  "Name": "circuitmod:lunar_regolith",
                                   "Properties": {
                                     "snowy": "false"
                                   }
@@ -1733,7 +1733,7 @@
                             {
                               "type": "minecraft:block",
                               "result_state": {
-                                "Name": "minecraft:cobblestone"
+                                "Name": "circuitmod:lunar_regolith"
                               }
                             }
                           ]
@@ -1892,7 +1892,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -1949,7 +1949,7 @@
                           "then_run": {
                             "type": "minecraft:block",
                             "result_state": {
-                              "Name": "minecraft:stone"
+                              "Name": "minecraft:smooth_basalt"
                             }
                           }
                         },
@@ -1991,7 +1991,7 @@
                               {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:cobblestone"
+                                  "Name": "circuitmod:lunar_regolith"
                                 }
                               }
                             ]
@@ -2029,7 +2029,7 @@
                                   {
                                     "type": "minecraft:block",
                                     "result_state": {
-                                      "Name": "minecraft:stone"
+                                      "Name": "minecraft:smooth_basalt"
                                     }
                                   }
                                 ]
@@ -2069,7 +2069,7 @@
                                           "then_run": {
                                             "type": "minecraft:block",
                                             "result_state": {
-                                              "Name": "minecraft:stone"
+                                              "Name": "minecraft:smooth_basalt"
                                             }
                                           }
                                         },
@@ -2085,7 +2085,7 @@
                                   {
                                     "type": "minecraft:block",
                                     "result_state": {
-                                      "Name": "minecraft:stone"
+                                      "Name": "minecraft:smooth_basalt"
                                     }
                                   }
                                 ]
@@ -2110,7 +2110,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               }
@@ -2200,7 +2200,7 @@
                               "then_run": {
                                 "type": "minecraft:block",
                                 "result_state": {
-                                  "Name": "minecraft:stone"
+                                  "Name": "minecraft:smooth_basalt"
                                 }
                               }
                             }
@@ -2225,7 +2225,7 @@
                             "then_run": {
                               "type": "minecraft:block",
                               "result_state": {
-                                "Name": "minecraft:stone"
+                                "Name": "minecraft:smooth_basalt"
                               }
                             }
                           }
@@ -2264,7 +2264,7 @@
                                       "then_run": {
                                         "type": "minecraft:block",
                                         "result_state": {
-                                          "Name": "minecraft:stone"
+                                          "Name": "minecraft:smooth_basalt"
                                         }
                                       }
                                     },
@@ -2288,7 +2288,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:stone"
+                                    "Name": "minecraft:smooth_basalt"
                                   }
                                 }
                               },
@@ -2303,7 +2303,7 @@
                                 "then_run": {
                                   "type": "minecraft:block",
                                   "result_state": {
-                                    "Name": "minecraft:cobblestone"
+                                    "Name": "circuitmod:lunar_regolith"
                                   }
                                 }
                               },
@@ -2322,7 +2322,7 @@
                                     "then_run": {
                                       "type": "minecraft:block",
                                       "result_state": {
-                                        "Name": "minecraft:stone"
+                                        "Name": "minecraft:smooth_basalt"
                                       }
                                     }
                                   },
@@ -2355,7 +2355,7 @@
                         {
                           "type": "minecraft:block",
                           "result_state": {
-                            "Name": "minecraft:cobblestone"
+                            "Name": "circuitmod:lunar_regolith"
                           }
                         }
                       ]
@@ -2440,7 +2440,7 @@
                     "then_run": {
                       "type": "minecraft:block",
                       "result_state": {
-                        "Name": "minecraft:stone"
+                        "Name": "minecraft:smooth_basalt"
                       }
                     }
                   },
@@ -2497,7 +2497,7 @@
                         "then_run": {
                           "type": "minecraft:block",
                           "result_state": {
-                            "Name": "minecraft:stone"
+                            "Name": "minecraft:smooth_basalt"
                           }
                         }
                       },

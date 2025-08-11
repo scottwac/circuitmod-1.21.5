@@ -1,0 +1,21 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "circuitmod:block/cubes/lunar_regolith"
+      },
+      {
+        "model": "circuitmod:block/cubes/lunar_regolith",
+        "y": 90
+      },
+      {
+        "model": "circuitmod:block/cubes/lunar_regolith",
+        "y": 180
+      },
+      {
+        "model": "circuitmod:block/cubes/lunar_regolith",
+        "y": 270
+      }
+    ]
+  }
+}
