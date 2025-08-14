@@ -97,18 +97,6 @@ public class Circuitmod implements ModInitializer {
 		// Disable startup mode after initialization to reduce logging spam
 		starduster.circuitmod.power.EnergyNetwork.setStartupMode(false);
 		
-		// Register world load event for recovery
-		net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.LOAD.register((server, world) -> {
-			// Perform recovery after a short delay to ensure all blocks are loaded
-			server.execute(() -> {
-				try {
-					Circuitmod.LOGGER.info("Performing automatic energy network recovery for world: " + world.getRegistryKey().getValue());
-					starduster.circuitmod.power.EnergyNetwork.performGlobalRecovery(world);
-				} catch (Exception e) {
-					Circuitmod.LOGGER.error("Error during automatic energy network recovery", e);
-				}
-			});
-		});
 		
 		// Register server-side networking handlers
 		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ToggleMiningPayload.ID, (payload, context) -> {

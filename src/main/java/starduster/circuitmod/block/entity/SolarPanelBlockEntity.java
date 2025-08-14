@@ -12,7 +12,16 @@ import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IEnergyProducer;
 import starduster.circuitmod.power.IPowerConnectable;
+import net.minecraft.world.LightType;
 
+/**
+ * Solar Panel Block Entity - Generates energy based on sunlight and time of day.
+ * 
+ * IMPORTANT: During startup, this block entity operates in a very conservative mode
+ * to prevent world loading from hanging. It will only do minimal operations and
+ * set basic energy production until the world has fully loaded and startup mode
+ * is disabled.
+ */
 public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProducer {
     // Energy production settings
     private static final int MAX_ENERGY_PER_TICK = 10; // Peak energy production during noon
@@ -22,6 +31,7 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     // Network and state
     private EnergyNetwork network;
     private int tickCounter = 0;
+    private int startupTickCounter = 0; // Track ticks during startup to prevent excessive operations
     private boolean needsNetworkRefresh = false;
     private int currentEnergyProduction = 0;
     private float lastLightLevel = 0.0f;
@@ -34,6 +44,7 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
         nbt.putInt("tick_counter", tickCounter);
+        nbt.putInt("startup_tick_counter", startupTickCounter);
         nbt.putInt("current_energy_production", currentEnergyProduction);
         nbt.putFloat("last_light_level", lastLightLevel);
         
@@ -48,21 +59,55 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
-        this.tickCounter = nbt.getInt("tick_counter", 0);
-        this.currentEnergyProduction = nbt.getInt("current_energy_production", 0);
-        this.lastLightLevel = nbt.getFloat("last_light_level", 0.0f);
+        tickCounter = nbt.getInt("tick_counter").orElse(0);
+        startupTickCounter = nbt.getInt("startup_tick_counter").orElse(0);
+        currentEnergyProduction = nbt.getInt("current_energy_production").orElse(0);
+        lastLightLevel = nbt.getFloat("last_light_level").orElse(0.0f);
         
-        // Load network data
+        // Load network data if present
         if (nbt.contains("energy_network")) {
-            this.network = new EnergyNetwork();
-            NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
-            network.readFromNbt(networkNbt);
+            try {
+                NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
+                network = new EnergyNetwork();
+                network.readFromNbt(networkNbt);
+            } catch (Exception e) {
+                Circuitmod.LOGGER.error("[SOLAR-PANEL] Failed to load network data from NBT", e);
+                network = null;
+            }
         }
-        this.needsNetworkRefresh = true;
+        
+        // Mark that we need to refresh network connections
+        needsNetworkRefresh = true;
     }
 
     // Tick method called by the ticker in SolarPanel
     public static void tick(World world, BlockPos pos, BlockState state, SolarPanelBlockEntity blockEntity) {
+        // Wait 5 seconds (100 ticks) after world load before doing any solar panel logic
+        if (world.getTime() < 100) {
+            // During the first 5 seconds, just set minimal energy production and do nothing else
+            if (blockEntity.currentEnergyProduction == 0) {
+                blockEntity.currentEnergyProduction = 1;
+            }
+            return;
+        }
+        
+        // After 5 seconds, check if we're still in startup mode
+        if (starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            // Still in startup mode, be very conservative
+            if (blockEntity.needsNetworkRefresh && world.getTime() > 200) {
+                // Wait until world has settled before trying to join networks
+                blockEntity.findAndJoinNetwork();
+                blockEntity.needsNetworkRefresh = false;
+            }
+            
+            // Set minimal energy production during startup
+            if (blockEntity.currentEnergyProduction == 0) {
+                blockEntity.currentEnergyProduction = 1;
+            }
+            return;
+        }
+        
+        // Normal operation - after startup mode is disabled
         if (blockEntity.needsNetworkRefresh) {
             blockEntity.findAndJoinNetwork();
             blockEntity.needsNetworkRefresh = false;
@@ -81,19 +126,8 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         }
         
         // Initialize energy production if it's still 0 and we haven't updated yet
-        if (blockEntity.currentEnergyProduction == 0 && blockEntity.tickCounter < UPDATE_INTERVAL) {
+        if (blockEntity.currentEnergyProduction == 0 && blockEntity.tickCounter > UPDATE_INTERVAL) {
             blockEntity.updateEnergyProduction(world, pos);
-        }
-        
-        // Debug logging (only log occasionally to avoid spam and not during startup)
-        if (!starduster.circuitmod.power.EnergyNetwork.startupMode && world.getTime() % 200 == 0) { // Only log every 10 seconds and not during startup
-            String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
-            long timeOfDay = world.getTimeOfDay() % 24000;
-            int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
-            int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-TICK] Light: {:.2f}, Energy: {}, Network: {}, Tick: {}, Time: {} ticks ({}:{:02d})", 
-                blockEntity.lastLightLevel, blockEntity.currentEnergyProduction, networkInfo, blockEntity.tickCounter, 
-                timeOfDay, hours, minutes);
         }
     }
     
@@ -102,6 +136,14 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
      */
     private void updateEnergyProduction(World world, BlockPos pos) {
         if (world.isClient()) return;
+        
+        // CRITICAL SAFETY CHECK: During the first 5 seconds (100 ticks), completely skip all sky checks to prevent hanging
+        if (world.getTime() < 100) {
+            // Just set minimal energy production and return immediately
+            this.currentEnergyProduction = 1;
+            this.lastLightLevel = 0.1f;
+            return;
+        }
         
         // Only log if NOT in startup mode
         if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
@@ -113,136 +155,77 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         
         // Check if the chunk is loaded before doing any sky/light operations
         if (!world.isChunkLoaded(skyPos.getX() >> 4, skyPos.getZ() >> 4)) {
-            // Chunk not loaded, use minimal energy production to avoid blocking
-            this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
-            this.lastLightLevel = 0.0f;
-            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-                Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Chunk not loaded, minimal energy: {}", this.currentEnergyProduction);
-            }
+            // Chunk not loaded, use minimal production
+            this.currentEnergyProduction = 1;
+            this.lastLightLevel = 0.1f;
             return;
         }
         
-        boolean canSeeSky = world.isSkyVisible(skyPos);
+        // Get light level at the panel position
+        float lightLevel = world.getLightLevel(LightType.SKY, pos.up());
         
-        // Also check if the block above is transparent to sky light
-        boolean hasSkyAccess = canSeeSky || world.getBlockState(skyPos).getLuminance() == 0;
+        // Check if there's a clear path to the sky (only after 20 seconds to prevent hanging)
+        boolean hasClearSky = world.getLightLevel(LightType.SKY, pos.up()) > 0;
         
-        // Only log sky access if NOT in startup mode
-        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-SKY] Can see sky: {}, Has sky access: {}, Block above: {}", 
-                canSeeSky, hasSkyAccess, world.getBlockState(skyPos).getBlock().toString());
-        }
-        
-        if (!hasSkyAccess) {
-            // If blocked from sky, provide minimal energy
-            this.currentEnergyProduction = MIN_ENERGY_PER_TICK / 4;
-            this.lastLightLevel = 0.0f;
-            if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-                Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Blocked from sky, minimal energy: {}", this.currentEnergyProduction);
-            }
+        if (!hasClearSky) {
+            // No clear sky, minimal production
+            this.currentEnergyProduction = 1;
+            this.lastLightLevel = 0.1f;
             return;
         }
         
-        // Get sky light level at the position above the solar panel
-        int skyLightLevel = world.getLightLevel(skyPos);
-        
-        // Get time of day (0-24000, where 0=6AM, 6000=noon, 12000=6PM, 18000=midnight)
-        long timeOfDay = world.getTimeOfDay() % 24000;
-        
-        // Only log main info if NOT in startup mode
-        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-MAIN] Sky visible: {}, Sky light level: {}, Time of day: {}", 
-                canSeeSky, skyLightLevel, timeOfDay);
-        }
-        
-        // Calculate efficiency based on time of day (sinusoidal function)
+        // Calculate time-based efficiency
+        long timeOfDay = world.getTimeOfDay();
         float timeEfficiency = calculateSolarTimeEfficiency(timeOfDay);
         
-        // Debug time calculation - convert to readable format
-        int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
-        int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
-        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME] Raw time: {} ticks ({}:{:02d}), Time efficiency: {:.3f}", 
-                timeOfDay, hours, minutes, timeEfficiency);
-        }
-        
-        // Calculate efficiency based on weather
-        float weatherEfficiency = world.isRaining() ? 0.3f : 1.0f;
-        if (world.isThundering()) {
-            weatherEfficiency = 0.1f; // Very little energy during storms
-        }
-        
-        // Calculate efficiency based on sky light (0-15)
-        float lightEfficiency = Math.max(0.1f, skyLightLevel / 15.0f);
-        
-        // Combine all efficiency factors
-        float totalEfficiency = timeEfficiency * weatherEfficiency * lightEfficiency;
+        // Calculate weather efficiency
+        float weatherEfficiency = calculateWeatherEfficiency(world);
         
         // Calculate final energy production
-        if (timeEfficiency <= 0.0f) {
-            // Night time - no energy production
-            this.currentEnergyProduction = 0;
-        } else {
-            // Daytime - calculate based on efficiency
-            int baseProduction = MAX_ENERGY_PER_TICK - MIN_ENERGY_PER_TICK;
-            this.currentEnergyProduction = MIN_ENERGY_PER_TICK + Math.round(baseProduction * totalEfficiency);
-        }
-        this.lastLightLevel = lightEfficiency;
+        float baseProduction = lightLevel * timeEfficiency * weatherEfficiency;
+        this.currentEnergyProduction = Math.max(1, Math.round(baseProduction * 10)); // Scale up for reasonable output
         
-        // Only log debug info if NOT in startup mode
+        // Update last light level for comparison
+        this.lastLightLevel = lightLevel;
+        
         if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-DEBUG] Sky: {}, Light: {}, Time: {}, TimeEff: {}, WeatherEff: {}, LightEff: {}, TotalEff: {}, Energy: {}", 
-                canSeeSky, skyLightLevel, timeOfDay, timeEfficiency, weatherEfficiency, lightEfficiency, totalEfficiency, this.currentEnergyProduction);
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-UPDATE] Light: {}, Time: {}, Weather: {}, Production: {}", 
+                lightLevel, timeEfficiency, weatherEfficiency, this.currentEnergyProduction);
         }
-        
-        // Mark dirty to save the updated state
-        markDirty();
     }
     
+    /**
+     * Calculates weather-based efficiency for solar power generation
+     */
+    private float calculateWeatherEfficiency(World world) {
+        if (world.isThundering()) {
+            return 0.1f; // Very little energy during storms
+        } else if (world.isRaining()) {
+            return 0.3f; // 30% efficiency in rain
+        } else {
+            return 1.0f; // Full efficiency in clear weather
+        }
+    }
+
     /**
      * Calculates sinusoidal time-based efficiency for solar power generation
      * Based on official Minecraft daylight cycle: 0=06:00, 6000=12:00, 12000=18:00, 18000=00:00
      * Peak efficiency at noon (6000 ticks), zero during night
      */
     private float calculateSolarTimeEfficiency(long timeOfDay) {
-        // Official Minecraft time mapping:
-        // 0 ticks = 06:00:00 (dawn/sunrise)
-        // 6000 ticks = 12:00:00 (noon - peak sun)
-        // 12000 ticks = 18:00:00 (dusk/sunset)
-        // 18000 ticks = 00:00:00 (midnight)
-        
-        // Daytime is from 0 to 12000 ticks (06:00 to 18:00)
-        // Nighttime is from 13000 to 23000 ticks (19:00 to 05:00)
-        // Sunset transition: 12000-13000 ticks (18:00-19:00)
-        // Sunrise transition: 23000-24000(0) ticks (05:00-06:00)
-        
-        // For realistic solar generation, produce energy only during daylight hours
-        if (timeOfDay >= 13000 && timeOfDay <= 23000) {
-            // Night time - no solar energy
-            return 0.0f;
+        // During startup, return minimal efficiency to prevent hanging
+        if (starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            return 0.1f; // Minimal efficiency during startup
         }
         
-        // Handle transition periods and day time
-        float actualTime = timeOfDay;
-        if (timeOfDay > 23000) {
-            // Early morning transition (23000-24000 = 05:00-06:00)
-            // Scale this to the beginning of the sine curve
-            actualTime = (timeOfDay - 23000) * 12.0f; // Map 1000 ticks to 12000 for smooth transition
-        } else if (timeOfDay > 12000) {
-            // Evening transition (12000-13000 = 18:00-19:00)
-            // Scale this to the end of the sine curve
-            actualTime = 12000 - (timeOfDay - 12000) * 12.0f; // Map last 1000 ticks smoothly
-        }
+        // Shift time so that 0 = midnight (18000 ticks in vanilla)
+        long shiftedTime = (timeOfDay + 18000) % 24000;
         
-        // Create sinusoidal curve with peak at noon (6000 ticks)
-        // Shift so that noon becomes 0 radians (peak of cosine)
-        double shiftedTime = actualTime - 6000;
+        // Convert to radians (0 to 2π)
+        float angleRadians = (float) (shiftedTime * 2 * Math.PI / 24000);
         
-        // Convert to radians: 6000 ticks = π/2 radians (quarter cycle from peak to zero)
-        double angleRadians = (shiftedTime * Math.PI) / 12000.0;
-        
-        // Use cosine to get peak at noon (when angle = 0)
-        double cosValue = Math.cos(angleRadians);
+        // Calculate cosine value (1 at midnight, -1 at noon)
+        float cosValue = (float) Math.cos(angleRadians);
         
         // Clamp to positive values only (no negative energy production)
         float efficiency = (float) Math.max(0.0, cosValue);
@@ -251,8 +234,11 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         int hours = (int) ((timeOfDay + 6000) / 1000) % 24;
         int minutes = (int) (((timeOfDay + 6000) % 1000) * 60 / 1000);
         
-        Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME-CALC] Time: {}:{:02d} ({} ticks), Shifted: {}, Angle: {:.3f}, Cos: {:.3f}, Efficiency: {:.3f}", 
-            hours, minutes, timeOfDay, shiftedTime, angleRadians, cosValue, efficiency);
+        // Only log during startup mode if we're not in the very early startup phase
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode || world.getTime() > 50) {
+            Circuitmod.LOGGER.info("[SOLAR-PANEL-TIME-CALC] Time: {}:{:02d} ({} ticks), Shifted: {}, Angle: {:.3f}, Cos: {:.3f}, Efficiency: {:.3f}", 
+                hours, minutes, timeOfDay, shiftedTime, angleRadians, cosValue, efficiency);
+        }
         
         return efficiency;
     }
@@ -274,16 +260,18 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
             return;
         }
         
-        // Log network changes
-        if (this.network != null && network != null && this.network != network) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} changing networks: {} -> {}", 
-                pos, this.network.getNetworkId(), network.getNetworkId());
-        } else if (network != null && this.network == null) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} connecting to network: {}", 
-                pos, network.getNetworkId());
-        } else if (this.network != null && network == null) {
-            Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} disconnecting from network: {}", 
-                pos, this.network.getNetworkId());
+        // Log network changes (only if not in startup mode to reduce spam)
+        if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            if (this.network != null && network != null && this.network != network) {
+                Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} changing networks: {} -> {}", 
+                    pos, this.network.getNetworkId(), network.getNetworkId());
+            } else if (network != null && this.network == null) {
+                Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} connecting to network: {}", 
+                    pos, network.getNetworkId());
+            } else if (this.network != null && network == null) {
+                Circuitmod.LOGGER.info("[SOLAR-PANEL-NETWORK] Solar panel at {} disconnecting from network: {}", 
+                    pos, this.network.getNetworkId());
+            }
         }
         
         this.network = network;
@@ -293,6 +281,30 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     public void findAndJoinNetwork() {
         if (world == null || world.isClient()) return;
         
+        // CRITICAL SAFETY CHECK: During the first 5 seconds, just set minimal values to prevent hanging
+        if (world.getTime() < 100) {
+            // Just set minimal energy production and do nothing else
+            this.currentEnergyProduction = 1;
+            this.lastLightLevel = 0.1f;
+            return;
+        }
+        
+        // During startup mode, be very conservative
+        if (starduster.circuitmod.power.EnergyNetwork.startupMode) {
+            // Just create a simple network for this panel during startup
+            if (this.network == null) {
+                try {
+                    EnergyNetwork newNetwork = new EnergyNetwork();
+                    newNetwork.addBlock(pos, this);
+                } catch (Exception e) {
+                    // If anything goes wrong during startup, just continue with no network
+                    Circuitmod.LOGGER.warn("[SOLAR-PANEL] Failed to create network during startup: {}", e.getMessage());
+                }
+            }
+            return;
+        }
+        
+        // Normal network joining logic (only after startup)
         boolean foundNetwork = false;
         for (Direction dir : Direction.values()) {
             BlockPos neighborPos = pos.offset(dir);
@@ -311,19 +323,10 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
             }
         }
         
-        if (!foundNetwork && (this.network == null)) {
+        // If no network found, create a new one
+        if (!foundNetwork && this.network == null) {
             EnergyNetwork newNetwork = new EnergyNetwork();
             newNetwork.addBlock(pos, this);
-            for (Direction dir : Direction.values()) {
-                BlockPos neighborPos = pos.offset(dir);
-                BlockEntity be = world.getBlockEntity(neighborPos);
-                if (be instanceof IPowerConnectable && ((IPowerConnectable) be).getNetwork() == null) {
-                    IPowerConnectable connectable = (IPowerConnectable) be;
-                    if (connectable.canConnectPower(dir.getOpposite()) && this.canConnectPower(dir)) {
-                        newNetwork.addBlock(neighborPos, connectable);
-                    }
-                }
-            }
         }
     }
     
@@ -335,8 +338,8 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         
         int energyToProduce = Math.min(currentEnergyProduction, maxRequested);
         
-        // Debug logs (only log occasionally to avoid spam)
-        if (world.getTime() % 100 == 0) {
+        // Debug logs (only log occasionally to avoid spam and not during startup)
+        if (world.getTime() % 100 == 0 && !starduster.circuitmod.power.EnergyNetwork.startupMode) {
             Circuitmod.LOGGER.info("[SOLAR-PANEL-ENERGY] Max requested: {}, Current production: {}, Producing: {}", 
                 maxRequested, currentEnergyProduction, energyToProduce);
         }
@@ -347,7 +350,7 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
     @Override
     public int getMaxOutput() {
         // Debug logging to see what the network is requesting
-        if (world != null && !world.isClient() && world.getTime() % 100 == 0) {
+        if (world != null && !world.isClient() && world.getTime() % 100 == 0 && !starduster.circuitmod.power.EnergyNetwork.startupMode) {
             Circuitmod.LOGGER.info("[SOLAR-PANEL-MAX-OUTPUT] Current production: {}, Network: {}", 
                 currentEnergyProduction, network != null ? network.getNetworkId() : "NO NETWORK");
         }
@@ -365,7 +368,14 @@ public class SolarPanelBlockEntity extends BlockEntity implements IEnergyProduce
         
         // Initialize energy production when world is set
         if (world != null && !world.isClient()) {
-            updateEnergyProduction(world, pos);
+            // During the first 5 seconds, just set minimal values to prevent hanging
+            if (world.getTime() < 100) {
+                this.currentEnergyProduction = 1;
+                this.lastLightLevel = 0.1f;
+            } else {
+                // Only call updateEnergyProduction after 5 seconds to prevent hanging
+                updateEnergyProduction(world, pos);
+            }
         }
     }
     

@@ -3,6 +3,7 @@ package starduster.circuitmod.block.entity;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.FluidBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.entity.player.PlayerEntity;
@@ -603,63 +604,129 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
      * Gets the next mining position in the sequence
      */
     private BlockPos getNextMiningPos() {
+        if (currentPos == null || startPos == null || facingDirection == null || world == null) {
+            return null;
+        }
+        
+        // Use intelligent scanning to find the next mineable block
+        return findNextMineableBlock(world);
+    }
+
+    /**
+     * Find the next mineable block in the mining area using intelligent scanning
+     */
+    private BlockPos findNextMineableBlock(World world) {
         if (currentPos == null || startPos == null || facingDirection == null) {
             return null;
         }
         
-        // Check if we've completed the current Y level
-        if (currentY > miningAreaMaxY) {
-            // Move to next width position
-            currentWidth++;
-            currentY = miningAreaMinY;
+        // Check if we've reached the maximum depth
+        if (currentDepth >= MINING_DEPTH) {
+            Circuitmod.LOGGER.info("[DRILL] Reached maximum depth of {}, drill completed", MINING_DEPTH);
+            return null;
+        }
+        
+        // Start searching from current position
+        int searchY = currentY;
+        int searchWidth = currentWidth;
+        int searchDepth = currentDepth;
+        
+        // Track consecutive empty blocks to optimize scanning
+        int consecutiveEmpty = 0;
+        final int MAX_CONSECUTIVE_EMPTY = 8; // Skip ahead if we find 8+ empty blocks in a row
+        
+        // Search systematically through the mining area
+        while (true) {
+            // Calculate the actual block position based on facing direction
+            int x, y, z;
+            y = searchY;
             
-            // Check if we've completed the current width level
-            if (currentWidth > miningAreaMaxWidth) {
-                // We've completed the entire vertical plane, move to next depth level
-                currentDepth++;
-                currentWidth = miningAreaMinWidth;
-                currentY = miningAreaMinY;
+            if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
+                // Width is X direction, depth is Z direction
+                x = searchWidth;
+                z = startPos.getZ() + (facingDirection == Direction.NORTH ? -searchDepth : searchDepth);
+            } else {
+                // Width is Z direction, depth is X direction
+                x = startPos.getX() + (facingDirection == Direction.WEST ? -searchDepth : searchDepth);
+                z = searchWidth;
+            }
+            
+            BlockPos searchPos = new BlockPos(x, y, z);
+            
+            // Skip safe zones (drill itself, starting position, bedrock)
+            if (!isInSafeZone(searchPos)) {
+                // Check if this block is actually mineable
+                BlockState blockState = world.getBlockState(searchPos);
                 
-                // Check if we've gone too deep (safety check)
-                if (currentDepth >= MINING_DEPTH) {
-                    Circuitmod.LOGGER.warn("[DRILL] Reached maximum depth of {}, stopping mining", MINING_DEPTH);
-                    return null;
+                if (!blockState.isAir() && canMineBlock(blockState, searchPos)) {
+                    // Found a mineable block! Update current position and return it
+                    currentY = searchY;
+                    currentWidth = searchWidth;
+                    currentDepth = searchDepth;
+                    currentPos = searchPos;
+                    return searchPos;
+                }
+                
+                // Track consecutive empty blocks for optimization
+                if (blockState.isAir()) {
+                    consecutiveEmpty++;
+                    if (consecutiveEmpty >= MAX_CONSECUTIVE_EMPTY) {
+                        // Skip ahead more aggressively in empty areas
+                        searchY += 2;
+                        consecutiveEmpty = 0;
+                    }
+                } else {
+                    consecutiveEmpty = 0;
+                }
+            }
+            
+            // Move to next position in the sequence
+            searchY++;
+            if (searchY > miningAreaMaxY) {
+                searchY = miningAreaMinY;
+                searchWidth++;
+                
+                if (searchWidth > miningAreaMaxWidth) {
+                    // Completed this vertical plane, move to next depth level
+                    searchDepth++;
+                    searchWidth = miningAreaMinWidth;
+                    searchY = miningAreaMinY;
+                    
+                    // Check if we've gone too deep
+                    if (searchDepth >= MINING_DEPTH) {
+                        Circuitmod.LOGGER.info("[DRILL] Reached maximum depth of {}, drill completed", MINING_DEPTH);
+                        return null;
+                    }
                 }
             }
         }
-        
-        // Calculate the actual block position based on facing direction
-        int x, y, z;
-        y = currentY;
-        
-        if (facingDirection == Direction.NORTH || facingDirection == Direction.SOUTH) {
-            // Width is X direction, depth is Z direction
-            x = currentWidth;
-            z = startPos.getZ() + (facingDirection == Direction.NORTH ? -currentDepth : currentDepth);
-        } else {
-            // Width is Z direction, depth is X direction
-            x = startPos.getX() + (facingDirection == Direction.WEST ? -currentDepth : currentDepth);
-            z = currentWidth;
+    }
+
+    /**
+     * Checks if a block can be mined
+     */
+    private boolean canMineBlock(BlockState blockState, BlockPos pos) {
+        // Don't mine air, fluids, or unbreakable blocks
+        if (blockState.isAir() || blockState.getBlock() instanceof net.minecraft.block.FluidBlock) {
+            return false;
         }
         
-        // Create the next mining position
-        BlockPos nextPos = new BlockPos(x, y, z);
-        
-        // Debug: Log the calculated position
-        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG] Calculated next mining position: " + nextPos);
-        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current depth: " + currentDepth);
-        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current width: " + currentWidth);
-        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Current Y: " + currentY);
-        // Circuitmod.LOGGER.info("[DRILL-POSITION-DEBUG]   Facing: " + facingDirection);
-        
-        // Check if this position is safe to mine
-        if (isInSafeZone(nextPos)) {
-            // Skip this position and try the next one
-            advanceToNextPosition(miningAreaMinY, miningAreaMaxY, miningAreaMinWidth, miningAreaMaxWidth);
-            return getNextMiningPos();
+        // Don't mine bedrock
+        if (blockState.isOf(Blocks.BEDROCK)) {
+            return false;
         }
         
-        return nextPos;
+        // Don't mine the drill itself
+        if (pos.equals(this.pos)) {
+            return false;
+        }
+        
+        // Don't mine the starting position
+        if (startPos != null && pos.equals(startPos)) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**

@@ -549,6 +549,10 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Ex
         int searchX = currentPos.getX();
         int searchZ = currentPos.getZ();
         
+        // Track consecutive empty blocks to optimize scanning
+        int consecutiveEmpty = 0;
+        final int MAX_CONSECUTIVE_EMPTY = 8; // Skip ahead if we find 8+ empty blocks in a row
+        
         // Search the current Y level systematically
         while (true) {
             BlockPos searchPos = new BlockPos(searchX, currentY, searchZ);
@@ -565,6 +569,18 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Ex
                     // Found a mineable block!
                     currentPos = searchPos; // Update current position
                     return searchPos;
+                }
+                
+                // Track consecutive empty blocks for optimization
+                if (blockState.isAir()) {
+                    consecutiveEmpty++;
+                    if (consecutiveEmpty >= MAX_CONSECUTIVE_EMPTY) {
+                        // Skip ahead more aggressively in empty areas
+                        searchX += 2;
+                        consecutiveEmpty = 0;
+                    }
+                } else {
+                    consecutiveEmpty = 0;
                 }
             }
             

@@ -532,61 +532,8 @@ public class EnergyNetwork {
         return wasRepaired;
     }
     
-    /**
-     * Performs global recovery of all energy networks in the world.
-     * This should be called during world loading to recover from crashes.
-     * 
-     * @param world The world
-     */
-    public static void performGlobalRecovery(World world) {
-        if (world == null) return;
-        
-        if (DEBUG_LOGGING) {
-            Circuitmod.LOGGER.info("Starting global energy network recovery...");
-        }
-        
-        // Track all networks we find
-        Set<EnergyNetwork> allNetworks = new HashSet<>();
-        Set<BlockPos> powerConnectablePositions = new HashSet<>();
-        
-        // Scan the world for all power connectable blocks
-        for (int x = -30000; x < 30000; x += 16) {
-            for (int z = -30000; z < 30000; z += 16) {
-                // Only check loaded chunks
-                if (world.isChunkLoaded(x >> 4, z >> 4)) {
-                    for (int y = world.getBottomY(); y < world.getHeight(); y++) {
-                        BlockPos pos = new BlockPos(x, y, z);
-                        BlockEntity blockEntity = world.getBlockEntity(pos);
-                        if (blockEntity instanceof IPowerConnectable) {
-                            powerConnectablePositions.add(pos);
-                            IPowerConnectable connectable = (IPowerConnectable) blockEntity;
-                            EnergyNetwork network = connectable.getNetwork();
-                            if (network != null) {
-                                allNetworks.add(network);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (DEBUG_LOGGING) {
-            Circuitmod.LOGGER.info("Found {} power connectable blocks and {} networks", 
-                powerConnectablePositions.size(), allNetworks.size());
-        }
-        
-        // Validate and repair each network
-        int repairedNetworks = 0;
-        for (EnergyNetwork network : allNetworks) {
-            if (network.validateAndRepair(world)) {
-                repairedNetworks++;
-            }
-        }
-        
-        if (DEBUG_LOGGING) {
-            Circuitmod.LOGGER.info("Global recovery complete: {} networks repaired", repairedNetworks);
-        }
-    }
+    // Note: Removed performGlobalRecovery method as it was causing world loading to hang
+    // Individual block entities will handle their own network connections during normal operation
     
     /**
      * Saves network data to an NBT compound.
