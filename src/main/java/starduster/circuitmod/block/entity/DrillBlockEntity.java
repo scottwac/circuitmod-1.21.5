@@ -43,6 +43,11 @@ import starduster.circuitmod.sound.ModSounds;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.util.Identifier;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.entry.RegistryEntry;
 
 public class DrillBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.DrillData>, IEnergyConsumer {
     // Energy properties
@@ -81,6 +86,8 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     // Networking properties
     private int packetCooldown = 0; // Cooldown to avoid sending too many packets
     private static final int PACKET_COOLDOWN_MAX = 10; // Only send packets every 10 ticks max (0.5 seconds)
+    // Cached enchantment level from the placed item (Fortune only for now)
+    private int cachedFortuneLevel = 0;
     
     // Property delegate indices
     private static final int ENERGY_RECEIVED_INDEX = 0;
@@ -154,6 +161,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.writeNbt(nbt, registries);
+        nbt.putInt("fortune_level", this.cachedFortuneLevel);
         
         // Save mining and energy data
         nbt.putInt("energy_demand", this.energyDemand);
@@ -215,6 +223,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         super.readNbt(nbt, registries);
+        this.cachedFortuneLevel = nbt.getInt("fortune_level").orElse(0);
         
         // Load mining and energy data
         this.energyDemand = nbt.getInt("energy_demand").orElse(MAX_ENERGY_DEMAND);
@@ -733,29 +742,31 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         BlockState blockState = world.getBlockState(miningPos);
         BlockEntity blockEntity = world.getBlockEntity(miningPos);
         
-        // Get the drops as if mined by a player with an unenchanted tool
-        List<ItemStack> drops = Block.getDroppedStacks(
-            blockState, 
-            (ServerWorld) world, 
-            miningPos, 
-            blockEntity,
-            null, // No player entity
-            ItemStack.EMPTY // No tool (as if mined by hand)
-        );
-        
-        // Special handling for blocks that need a specific tool
-        if (blockState.isToolRequired()) {
-            // Create a mock pickaxe for calculating drops
-            ItemStack mockPickaxe = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
-            drops = Block.getDroppedStacks(
-                blockState, 
-                (ServerWorld) world, 
-                miningPos, 
-                blockEntity,
-                null, // No player entity
-                mockPickaxe // netherite pickaxe
-            );
+        // Build a mock tool like the quarry to apply tool-required and Fortune
+        ItemStack mockTool = ItemStack.EMPTY;
+        if (blockState.isToolRequired() || cachedFortuneLevel > 0) {
+            mockTool = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
+            if (cachedFortuneLevel > 0) {
+                int fortune = Math.max(1, Math.min(5, cachedFortuneLevel));
+                Registry<Enchantment> reg = world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
+                Enchantment ench = reg.get(Identifier.ofVanilla("fortune"));
+                if (ench != null) {
+                    int raw = reg.getRawId(ench);
+                    java.util.Optional<RegistryEntry.Reference<Enchantment>> ref = reg.getEntry(raw);
+                    ref.ifPresent(entry -> mockTool.addEnchantment(entry, fortune));
+                }
+            }
         }
+
+        // Get the drops using the mock tool (if empty, behaves like hand)
+        List<ItemStack> drops = Block.getDroppedStacks(
+            blockState,
+            (ServerWorld) world,
+            miningPos,
+            blockEntity,
+            null,
+            mockTool
+        );
         
         // Check if we have space in inventory for all drops
         boolean canAddAll = true;
@@ -782,6 +793,11 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         world.removeBlock(miningPos, false);
         
         return true;
+    }
+
+    public void setFortuneLevel(int fortuneLevel) {
+        this.cachedFortuneLevel = Math.max(0, fortuneLevel);
+        markDirty();
     }
     
     /**

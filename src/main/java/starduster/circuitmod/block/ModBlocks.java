@@ -20,24 +20,32 @@ import starduster.circuitmod.block.networkblocks.PowerCableBlock;
 
 public final class ModBlocks {
     // Register our QuarryBlock with a custom block class
-    public static final Block QUARRY_BLOCK = registerWithCustomItem(
+        public static final Block QUARRY_BLOCK = registerWithCustomItem(
             "quarry_block",
             QuarryBlock::new,
             Block.Settings.create().strength(3.0f, 5.0f).requiresTool(),
             // Make the block item enchantable so it can accept Fortune in an anvil/enchanting
-            settings -> settings.component(
+            settings -> settings
+                    .maxCount(1)
+                    .component(
                     net.minecraft.component.DataComponentTypes.ENCHANTABLE,
                     new net.minecraft.component.type.EnchantableComponent(15)
             )
     );
 
-    // Register drill block
-    public static final Block DRILL_BLOCK = register(
+    // Register drill block with an enchantable BlockItem so it can accept Fortune via anvil
+    public static final Block DRILL_BLOCK = registerWithCustomItem(
             "drill_block",
             DrillBlock::new,
             Block.Settings.create()
                     .requiresTool()
-                    .strength(3.0f, 5.0f)
+                    .strength(3.0f, 5.0f),
+            settings -> settings
+                    .maxCount(1)
+                    .component(
+                            net.minecraft.component.DataComponentTypes.ENCHANTABLE,
+                            new net.minecraft.component.type.EnchantableComponent(15)
+                    )
     );
 
     // Register laser mining drill block

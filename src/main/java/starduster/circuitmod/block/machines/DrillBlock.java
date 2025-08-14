@@ -6,6 +6,12 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.Identifier;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
@@ -50,6 +56,27 @@ public class DrillBlock extends BlockWithEntity {
         Direction facing = ctx.getHorizontalPlayerFacing().getOpposite();
         Circuitmod.LOGGER.info("Drill placed with facing direction: " + facing);
         return this.getDefaultState().with(HorizontalFacingBlock.FACING, facing);
+    }
+
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state, net.minecraft.entity.LivingEntity placer, net.minecraft.item.ItemStack stack) {
+        super.onPlaced(world, pos, state, placer, stack);
+        if (!world.isClient) {
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof DrillBlockEntity drill) {
+                int fortuneLevel = 0;
+                Registry<Enchantment> reg = world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
+                Enchantment ench = reg.get(Identifier.ofVanilla("fortune"));
+                if (ench != null) {
+                    int raw = reg.getRawId(ench);
+                    java.util.Optional<RegistryEntry.Reference<Enchantment>> ref = reg.getEntry(raw);
+                    if (ref.isPresent()) {
+                        fortuneLevel = EnchantmentHelper.getLevel(ref.get(), stack);
+                    }
+                }
+                drill.setFortuneLevel(fortuneLevel);
+            }
+        }
     }
 
     // Make sure to append the facing property to the block state
