@@ -743,9 +743,9 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
         BlockEntity blockEntity = world.getBlockEntity(miningPos);
         
         // Build a mock tool like the quarry to apply tool-required and Fortune
-        ItemStack mockTool = ItemStack.EMPTY;
+        final ItemStack[] mockToolHolder = new ItemStack[]{ItemStack.EMPTY};
         if (blockState.isToolRequired() || cachedFortuneLevel > 0) {
-            mockTool = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
+            mockToolHolder[0] = new ItemStack(net.minecraft.item.Items.NETHERITE_PICKAXE);
             if (cachedFortuneLevel > 0) {
                 int fortune = Math.max(1, Math.min(5, cachedFortuneLevel));
                 Registry<Enchantment> reg = world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
@@ -753,7 +753,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
                 if (ench != null) {
                     int raw = reg.getRawId(ench);
                     java.util.Optional<RegistryEntry.Reference<Enchantment>> ref = reg.getEntry(raw);
-                    ref.ifPresent(entry -> mockTool.addEnchantment(entry, fortune));
+                    ref.ifPresent(entry -> mockToolHolder[0].addEnchantment(entry, fortune));
                 }
             }
         }
@@ -765,7 +765,7 @@ public class DrillBlockEntity extends BlockEntity implements SidedInventory, Nam
             miningPos,
             blockEntity,
             null,
-            mockTool
+            mockToolHolder[0]
         );
         
         // Check if we have space in inventory for all drops
