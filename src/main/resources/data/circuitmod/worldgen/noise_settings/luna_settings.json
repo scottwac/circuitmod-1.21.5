@@ -1,0 +1,107 @@
+{
+  "sea_level": 0,
+  "disable_mob_generation": true,
+  "ore_veins_enabled": false,
+  "aquifers_enabled": false,
+  "legacy_random_source": false,
+  "default_block": {
+    "Name": "minecraft:smooth_basalt"
+  },
+  "default_fluid": {
+    "Name": "minecraft:water"
+  },
+  "spawn_target": [],
+  "noise": {
+    "min_y": -64,
+    "height": 384,
+    "size_horizontal": 4,
+    "size_vertical": 1
+  },
+  "noise_router": {
+    "initial_density_without_jaggedness": 0.0,
+    "barrier": 0.0,
+    "fluid_level_floodedness": 0.0,
+    "fluid_level_spread": 0.0,
+    "lava": 0.0,
+    "vein_toggle": 0.0,
+    "vein_ridged": 0.0,
+    "vein_gap": 0.0,
+    "temperature": {
+      "type": "minecraft:shifted_noise",
+      "noise": "minecraft:temperature",
+      "shift_x": "minecraft:shift_x",
+      "shift_y": 0,
+      "shift_z": "minecraft:shift_z",
+      "xz_scale": 0.25,
+      "y_scale": 0
+    },
+    "vegetation": 0.0,
+    "continents": "minecraft:overworld/continents",
+    "erosion": "minecraft:overworld/erosion",
+    "depth": 1.0,
+    "ridges": 0.0,
+    "final_density": {
+        "type": "add",
+          "argument1": {
+            "type": "y_clamped_gradient",
+            "from_y": 40,
+            "to_y": 140,
+            "from_value": 6.25,
+            "to_value": -6.25
+        },
+        "argument2": {
+          "type": "add",
+          "argument1": {
+            "type": "noise",
+            "noise": "circuitmod:luna_noise",
+            "xz_scale": 1,
+            "y_scale": 0.25
+          },
+          "argument2": "circuitmod:luna/luna_biome_height_offset"
+        }
+      }
+  },
+  "surface_rule": {
+    "type": "sequence",
+    "sequence": [
+      {
+        "type": "condition",
+        "if_true": {
+          "type": "biome",
+          "biome_is": [
+            "circuitmod:lunar_maria"
+          ],
+          "surface_type": "floor",
+          "offset": 1,
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "block",
+          "result_state": {
+            "Name": "minecraft:black_concrete"
+          }
+        }
+      },
+      {
+        "type": "condition",
+        "if_true": {
+          "type": "biome",
+          "biome_is": [
+            "circuitmod:lunar_terrae"
+          ],
+          "surface_type": "floor",
+          "offset": 1,
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "block",
+          "result_state": {
+            "Name": "minecraft:white_concrete"
+          }
+        }
+      }
+    ]
+  }
+}

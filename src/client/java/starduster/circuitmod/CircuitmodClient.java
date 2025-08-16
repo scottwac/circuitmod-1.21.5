@@ -41,7 +41,8 @@ public class CircuitmodClient implements ClientModInitializer {
     // Identifier used by dimension_type effects mapping
     @SuppressWarnings("unused")
     private static final Identifier NO_MOON_ID = Identifier.of("circuitmod", "no_moon");
-	
+    private static final Identifier LUNA_ID = Identifier.of("circuitmod", "luna_effects");
+
 	@Override
 	public void onInitializeClient() {
 		Circuitmod.LOGGER.info("[CLIENT] Initializing CircuitmodClient");
@@ -73,7 +74,7 @@ public class CircuitmodClient implements ClientModInitializer {
 
 		// Register block entity renderers
 		BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
-		        BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
+		BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
         BlockEntityRendererFactories.register(ModBlockEntities.LASER_MINING_DRILL_BLOCK_ENTITY, LaserMiningDrillBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.CONSTRUCTOR_BLOCK_ENTITY, ConstructorBlockEntityRenderer::new);
 		
@@ -97,10 +98,10 @@ public class CircuitmodClient implements ClientModInitializer {
 		});
 		
         // Force black sky background for our dimension while keeping NORMAL sky behavior (sun/stars)
-        DimensionRenderingRegistry.registerDimensionEffects(NO_MOON_ID,
+        DimensionRenderingRegistry.registerDimensionEffects(LUNA_ID,
             new DimensionEffects(
                 192,                     // clouds height
-                true,                    // alternate sky color (use getSkyColor below)
+                false,                    // alternate sky color (use getSkyColor below)
                 DimensionEffects.SkyType.NORMAL,
                 false,                   // brightenLighting
                 true)                    // darkened (dim ambient lighting)
@@ -122,7 +123,7 @@ public class CircuitmodClient implements ClientModInitializer {
         });
         // Disable clouds for our dimension (draw nothing)
         DimensionRenderingRegistry.registerCloudRenderer(
-            net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "moon")),
+            net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "luna")),
             context -> {}
         );
 
