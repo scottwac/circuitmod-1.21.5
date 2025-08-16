@@ -211,7 +211,18 @@ public class PowerCableBlock extends BlockWithEntity {
             // Update network connections
             BlockEntity entity = world.getBlockEntity(pos);
             if (entity instanceof PowerCableBlockEntity) {
-                ((PowerCableBlockEntity) entity).updateNetworkConnections();
+                PowerCableBlockEntity cable = (PowerCableBlockEntity) entity;
+                cable.updateNetworkConnections();
+                
+                // Initialize chunk loading for the newly placed cable
+                if (world instanceof ServerWorld) {
+                    // Schedule chunk loading for next tick to ensure everything is properly initialized
+                    world.getServer().execute(() -> {
+                        if (world != null && !world.isClient()) {
+                            cable.updateChunkLoading();
+                        }
+                    });
+                }
             }
         }
     }
@@ -271,8 +282,12 @@ public class PowerCableBlock extends BlockWithEntity {
                         player.sendMessage(Text.literal("§7Battery activity: §a+" + cable.getNetwork().getLastTickEnergyStoredInBatteries() 
                             + "§7 stored, §c-" + cable.getNetwork().getLastTickEnergyDrawnFromBatteries() + "§7 drawn"), false);
                     }
+                    
+                    // Show chunk loading info
+                    player.sendMessage(Text.literal("§7Chunk loading: §aActive (§9" + cable.getLoadedChunkCount() + " chunks§7)"), false);
                 } else {
                     player.sendMessage(Text.literal("§cNot connected to any network!"), false);
+                    player.sendMessage(Text.literal("§7Chunk loading: §cInactive"), false);
                 }
             }
         }

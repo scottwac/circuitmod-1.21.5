@@ -78,8 +78,8 @@ public class LaunchPadBlock extends Block {
 
         // No initial velocity boost
         serverPlayer.setVelocity(0.0, 0.0, 0.0);
-        // Grant Slow Falling for 60 seconds to ensure safe descent
-        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 600, 0, false, true, true));
+        // Grant Slow Falling for 30 seconds to ensure safe descent
+        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 300, 0, false, true, true));
 
         // Consume the diamond block from the ORIGINAL world after successful teleport
         if (world instanceof ServerWorld originalWorld) {

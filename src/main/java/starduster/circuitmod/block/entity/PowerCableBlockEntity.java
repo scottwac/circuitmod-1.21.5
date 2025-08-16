@@ -5,8 +5,10 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
@@ -28,6 +30,10 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
     private static final int MERGE_CHECK_COOLDOWN_MAX = 20; // Only check every 20 ticks (1 second)
     
     private boolean needsNetworkRefresh = false;
+    
+    // Chunk loading management
+    private Set<ChunkPos> loadedChunks = new HashSet<>();
+    private static final int CHUNK_LOAD_RADIUS = 1; // Load chunks in a 1 chunk radius around the cable
     
     public PowerCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_CABLE_BLOCK_ENTITY, pos, state);
@@ -53,6 +59,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Circuitmod.LOGGER.info("Cable already has a network with " + network.getSize() + " blocks, checking for merges");
             checkAndMergeWithNeighboringNetworks();
         }
+        
+        // Update chunk loading after network changes
+        updateChunkLoading();
     }
     
     /**
@@ -89,15 +98,18 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 }
             }
             
-            if (rebuildFrom != null) {
-                // Get the disconnected blocks after rebuilding
-                Set<BlockPos> disconnectedPositions = network.rebuild(world, rebuildFrom);
-                
-                // Create new networks for disconnected blocks that are still valid
-                createNetworksForDisconnectedBlocks(disconnectedPositions);
-                
-                Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " rebuilt from " + rebuildFrom);
-            } else {
+                if (rebuildFrom != null) {
+                    // Get the disconnected blocks after rebuilding
+                    Set<BlockPos> disconnectedPositions = network.rebuild(world, rebuildFrom);
+                    
+                    // Create new networks for disconnected blocks that are still valid
+                    createNetworksForDisconnectedBlocks(disconnectedPositions);
+                    
+                    Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " rebuilt from " + rebuildFrom);
+                    
+                    // Update chunk loading after network rebuild
+                    updateChunkLoading();
+                } else {
                 // No blocks adjacent to the removed cable are in the network
                 // We need to scan the entire network to find a valid block for rebuilding
                 boolean foundRebuildBlock = false;
@@ -111,6 +123,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                         createNetworksForDisconnectedBlocks(disconnectedPositions);
                         foundRebuildBlock = true;
                         Circuitmod.LOGGER.info("Network " + network.getNetworkId() + " rebuilt from non-adjacent block " + blockPos);
+                        
+                        // Update chunk loading after network rebuild
+                        updateChunkLoading();
                         break;
                     }
                 }
@@ -123,6 +138,110 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 }
             }
         }
+        
+        // Release chunk loading when cable is removed
+        releaseChunkLoading();
+    }
+    
+    /**
+     * Manages chunk loading to keep chunks with cables loaded.
+     */
+    public void updateChunkLoading() {
+        if (world == null || world.isClient() || !(world instanceof ServerWorld)) {
+            return;
+        }
+        
+        ServerWorld serverWorld = (ServerWorld) world;
+        Set<ChunkPos> newLoadedChunks = new HashSet<>();
+        
+        // Calculate chunks that should be loaded around this cable
+        ChunkPos cableChunk = new ChunkPos(pos);
+        for (int x = -CHUNK_LOAD_RADIUS; x <= CHUNK_LOAD_RADIUS; x++) {
+            for (int z = -CHUNK_LOAD_RADIUS; z <= CHUNK_LOAD_RADIUS; z++) {
+                ChunkPos chunkPos = new ChunkPos(cableChunk.x + x, cableChunk.z + z);
+                newLoadedChunks.add(chunkPos);
+                
+                // Force load the chunk if it's not already loaded
+                if (!serverWorld.isChunkLoaded(chunkPos.x, chunkPos.z)) {
+                    serverWorld.setChunkForced(chunkPos.x, chunkPos.z, true);
+                    Circuitmod.LOGGER.info("Forced chunk loading for cable at {}: chunk ({}, {})", pos, chunkPos.x, chunkPos.z);
+                }
+            }
+        }
+        
+        // Release chunks that are no longer needed
+        Set<ChunkPos> chunksToRelease = new HashSet<>(loadedChunks);
+        chunksToRelease.removeAll(newLoadedChunks);
+        
+        for (ChunkPos chunkPos : chunksToRelease) {
+            // Only release if no other cables in the network are keeping it loaded
+            if (!isChunkNeededByNetwork(chunkPos)) {
+                serverWorld.setChunkForced(chunkPos.x, chunkPos.z, false);
+                Circuitmod.LOGGER.info("Released forced chunk loading: chunk ({}, {})", chunkPos.x, chunkPos.z);
+            }
+        }
+        
+        // Update our loaded chunks set
+        loadedChunks = newLoadedChunks;
+    }
+    
+    /**
+     * Releases all chunk loading when this cable is removed.
+     */
+    private void releaseChunkLoading() {
+        if (world == null || world.isClient() || !(world instanceof ServerWorld)) {
+            return;
+        }
+        
+        ServerWorld serverWorld = (ServerWorld) world;
+        
+        for (ChunkPos chunkPos : loadedChunks) {
+            // Only release if no other cables in the network are keeping it loaded
+            if (!isChunkNeededByNetwork(chunkPos)) {
+                serverWorld.setChunkForced(chunkPos.x, chunkPos.z, false);
+                Circuitmod.LOGGER.debug("Released forced chunk loading on removal: chunk ({}, {})", chunkPos.x, chunkPos.z);
+            }
+        }
+        
+        loadedChunks.clear();
+    }
+    
+    /**
+     * Gets the number of chunks currently being kept loaded by this cable.
+     */
+    public int getLoadedChunkCount() {
+        return loadedChunks.size();
+    }
+    
+    /**
+     * Gets the set of chunks currently being kept loaded by this cable.
+     */
+    public Set<ChunkPos> getLoadedChunks() {
+        return new HashSet<>(loadedChunks);
+    }
+    
+    /**
+     * Checks if a chunk is still needed by other cables in the same network.
+     */
+    private boolean isChunkNeededByNetwork(ChunkPos chunkPos) {
+        if (network == null) {
+            return false;
+        }
+        
+        // Check if any other cables in the network are in this chunk
+        for (BlockPos networkPos : network.getConnectedBlockPositions()) {
+            if (networkPos.equals(pos)) {
+                continue; // Skip this cable
+            }
+            
+            ChunkPos networkChunk = new ChunkPos(networkPos);
+            if (networkChunk.equals(chunkPos)) {
+                // Another cable in the network is in this chunk, so it's still needed
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -213,6 +332,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 this.network.addBlock(entry.getKey(), entry.getValue());
             }
         }
+        
+        // Update chunk loading after network changes
+        updateChunkLoading();
     }
     
     /**
@@ -252,6 +374,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             }
         }
         mergeCheckCooldown = MERGE_CHECK_COOLDOWN_MAX; // Reset cooldown
+        
+        // Update chunk loading after potential network merges
+        updateChunkLoading();
     }
     
     @Override
@@ -263,6 +388,19 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             NbtCompound networkNbt = new NbtCompound();
             network.writeToNbt(networkNbt);
             nbt.put("energy_network", networkNbt);
+        }
+        
+        // Save chunk loading data
+        if (!loadedChunks.isEmpty()) {
+            NbtCompound chunksNbt = new NbtCompound();
+            chunksNbt.putInt("count", loadedChunks.size());
+            int i = 0;
+            for (ChunkPos chunkPos : loadedChunks) {
+                chunksNbt.putInt("x" + i, chunkPos.x);
+                chunksNbt.putInt("z" + i, chunkPos.z);
+                i++;
+            }
+            nbt.put("loaded_chunks", chunksNbt);
         }
     }
     
@@ -278,6 +416,28 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             network.readFromNbt(networkNbt);
         }
         needsNetworkRefresh = true;
+        
+        // Load chunk loading data
+        loadedChunks.clear();
+        if (nbt.contains("loaded_chunks")) {
+            NbtCompound chunksNbt = nbt.getCompound("loaded_chunks").orElse(new NbtCompound());
+            int count = chunksNbt.getInt("count").orElse(0);
+            for (int i = 0; i < count; i++) {
+                int x = chunksNbt.getInt("x" + i).orElse(0);
+                int z = chunksNbt.getInt("z" + i).orElse(0);
+                loadedChunks.add(new ChunkPos(x, z));
+            }
+        }
+        
+        // Initialize chunk loading when loaded from NBT
+        if (world != null && !world.isClient()) {
+            // Schedule chunk loading update for next tick to ensure world is fully loaded
+            world.getServer().execute(() -> {
+                if (world != null && !world.isClient()) {
+                    updateChunkLoading();
+                }
+            });
+        }
     }
     
     // IPowerConnectable implementation
@@ -318,13 +478,18 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             validateNetworkIntegrity(world, pos, blockEntity);
             
             // Check for neighbors that aren't in a network every 2 ticks (high frequency)
-            if (world.getTime() % 2 == 0) {
+            if (world.getTime() % 10 == 0) {
                 checkForUnconnectedNeighbors(world, pos, blockEntity);
             }
             
             // Periodically verify all network connections and remove invalid ones
-            if (world.getTime() % 10 == 0) {
+            if (world.getTime() % 20 == 0) {
                 validateNetworkConnections(world, blockEntity);
+            }
+            
+            // Update chunk loading every 100 ticks (5 seconds) to ensure chunks stay loaded
+            if (world.getTime() % 100 == 0) {
+                blockEntity.updateChunkLoading();
             }
         } else {
             // If we don't have a network, try to establish one every tick
@@ -396,6 +561,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 cable.network.rebuild(world, pos);
                 String networkId = cable.network != null ? cable.network.getNetworkId() : "NULL";
                 Circuitmod.LOGGER.info("Rebuilt network " + networkId + " after updating internal tracking");
+                
+                // Update chunk loading after network rebuild
+                cable.updateChunkLoading();
             }
         }
     }
@@ -463,6 +631,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         
         // Reset cooldown after checking
         cable.mergeCheckCooldown = MERGE_CHECK_COOLDOWN_MAX;
+        
+        // Update chunk loading after potential network changes
+        cable.updateChunkLoading();
     }
     
     /**
@@ -493,6 +664,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 
                 // Remove all visited positions from the remaining set
                 remainingPositions.removeAll(visited);
+                
+                // Update chunk loading for the new network
+                updateChunkLoading();
             } else {
                 // If there's no IPowerConnectable at this position, remove it
                 remainingPositions.remove(startPos);
@@ -580,6 +754,11 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             }
             joinExistingNetworkOrCreateNew();
             wasRecovered = true;
+        }
+        
+        // Update chunk loading after recovery operations
+        if (wasRecovered) {
+            updateChunkLoading();
         }
         
         return wasRecovered;

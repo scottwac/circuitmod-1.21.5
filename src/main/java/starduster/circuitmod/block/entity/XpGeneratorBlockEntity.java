@@ -25,7 +25,7 @@ public class XpGeneratorBlockEntity extends BlockEntity implements NamedScreenHa
     // XP generation properties
     private int storedXp = 0; // XP stored in the machine
     private int generationProgress = 0; // Progress towards next XP point
-    private static final int TICKS_PER_XP = 51; // 51 ticks (~2.55 seconds) per XP point
+    private static final int TICKS_PER_XP = 10; // 51 ticks (~2.55 seconds) per XP point
     private static final int MAX_STORED_XP = 1395; // Maximum XP that can be stored (30 levels worth)
     
     // Energy properties

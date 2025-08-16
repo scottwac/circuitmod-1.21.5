@@ -70,7 +70,7 @@ public abstract class LaunchPadPlayerMixin {
                         serverPlayer.teleport(targetWorld, self.getX(), targetY, self.getZ(), java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
                         serverPlayer.setVelocity(0.0, -0.1, 0.0);
                         // Grant Slow Falling for safe descent regardless of direction (moon <-> overworld)
-                        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 1200, 0, false, true, true));
+                        serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 600, 0, false, true, true));
                     }
                     // Cooldown and cleanup
                     circuitmod$launchedUpwards = false;
@@ -104,7 +104,7 @@ public abstract class LaunchPadPlayerMixin {
                     serverPlayer.teleport(targetWorld, self.getX(), targetY, self.getZ(), java.util.Set.of(), serverPlayer.getYaw(), serverPlayer.getPitch(), false);
                     serverPlayer.setVelocity(0.0, -0.1, 0.0); // start gentle descent
                     // Grant Slow Falling for safe descent regardless of direction (moon <-> overworld)
-                    serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 1200, 0, false, true, true));
+                    serverPlayer.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 600, 0, false, true, true));
                 }
                 circuitmod$launchedUpwards = false;
                 circuitmod$launchBoostTicks = 0;
