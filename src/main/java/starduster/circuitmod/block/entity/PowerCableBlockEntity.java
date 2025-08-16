@@ -12,6 +12,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.power.EnergyNetwork;
+import starduster.circuitmod.power.EnergyNetworkManager;
 import starduster.circuitmod.power.IPowerConnectable;
 
 import java.util.HashMap;
@@ -34,6 +35,10 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
     // Chunk loading management
     private Set<ChunkPos> loadedChunks = new HashSet<>();
     private static final int CHUNK_LOAD_RADIUS = 1; // Load chunks in a 1 chunk radius around the cable
+    
+    // Add chunk ticket expiry system like EnderPearl
+    private long chunkTicketExpiryTicks = 0L;
+    private static final long CHUNK_TICKET_REFRESH_INTERVAL = 6000L; // Refresh every 5 minutes (6000 ticks)
     
     public PowerCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.POWER_CABLE_BLOCK_ENTITY, pos, state);
@@ -144,7 +149,7 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
     }
     
     /**
-     * Manages chunk loading to keep chunks with cables loaded.
+     * Updates chunk loading for this cable and its network.
      */
     public void updateChunkLoading() {
         if (world == null || world.isClient() || !(world instanceof ServerWorld)) {
@@ -161,8 +166,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 ChunkPos chunkPos = new ChunkPos(cableChunk.x + x, cableChunk.z + z);
                 newLoadedChunks.add(chunkPos);
                 
-                // Force load the chunk if it's not already loaded
-                if (!serverWorld.isChunkLoaded(chunkPos.x, chunkPos.z)) {
+                // Force load the chunk if it's not already loaded or if tickets are expiring
+                if (!serverWorld.isChunkLoaded(chunkPos.x, chunkPos.z) || 
+                    this.chunkTicketExpiryTicks <= 0L) {
                     serverWorld.setChunkForced(chunkPos.x, chunkPos.z, true);
                     Circuitmod.LOGGER.info("Forced chunk loading for cable at {}: chunk ({}, {})", pos, chunkPos.x, chunkPos.z);
                 }
@@ -183,6 +189,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         
         // Update our loaded chunks set
         loadedChunks = newLoadedChunks;
+        
+        // Reset chunk ticket expiry when we update chunk loading
+        this.chunkTicketExpiryTicks = CHUNK_TICKET_REFRESH_INTERVAL;
     }
     
     /**
@@ -317,8 +326,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 }
             }
         } else {
-            // Create new network
-            this.network = new EnergyNetwork();
+            // Create new network using global manager
+            this.network = starduster.circuitmod.power.EnergyNetworkManager.createNetwork();
             this.network.addBlock(pos, this);
             if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
                 Circuitmod.LOGGER.info("Cable at " + pos + " created new network");
@@ -365,8 +374,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                         continue;
                     }
                     
-                    // Found different network, merge them
-                    network.mergeWith(neighborNetwork);
+                    // Found different network, merge them using global manager
+                    starduster.circuitmod.power.EnergyNetworkManager.mergeNetworks(network, neighborNetwork);
                     if (!starduster.circuitmod.power.EnergyNetwork.startupMode) {
                         Circuitmod.LOGGER.debug("Merged networks at " + pos);
                     }
@@ -402,6 +411,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             }
             nbt.put("loaded_chunks", chunksNbt);
         }
+        
+        // Save chunk ticket expiry information
+        nbt.putLong("chunk_ticket_expiry", chunkTicketExpiryTicks);
     }
     
     @Override
@@ -410,10 +422,20 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         
         // Load network data
         if (nbt.contains("energy_network")) {
-            // Create a new network and load its data
-            this.network = new EnergyNetwork();
+            // Try to find existing network first, or create new one
             NbtCompound networkNbt = nbt.getCompound("energy_network").orElse(new NbtCompound());
-            network.readFromNbt(networkNbt);
+            String networkId = networkNbt.getString("networkId").orElse("");
+            
+            if (!networkId.isEmpty()) {
+                // Try to find existing network with this ID
+                this.network = starduster.circuitmod.power.EnergyNetworkManager.getNetwork(networkId);
+            }
+            
+            // If no existing network found, create new one
+            if (this.network == null) {
+                this.network = new EnergyNetwork();
+                this.network.readFromNbt(networkNbt);
+            }
         }
         needsNetworkRefresh = true;
         
@@ -428,6 +450,9 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                 loadedChunks.add(new ChunkPos(x, z));
             }
         }
+        
+        // Load chunk ticket expiry information
+        this.chunkTicketExpiryTicks = nbt.getLong("chunk_ticket_expiry").orElse(CHUNK_TICKET_REFRESH_INTERVAL);
         
         // Initialize chunk loading when loaded from NBT
         if (world != null && !world.isClient()) {
@@ -490,6 +515,15 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             // Update chunk loading every 100 ticks (5 seconds) to ensure chunks stay loaded
             if (world.getTime() % 100 == 0) {
                 blockEntity.updateChunkLoading();
+            }
+            
+            // Handle chunk ticket expiry - refresh chunk loading when tickets are about to expire
+            if (blockEntity.chunkTicketExpiryTicks > 0) {
+                blockEntity.chunkTicketExpiryTicks--;
+                if (blockEntity.chunkTicketExpiryTicks <= 0) {
+                    // Tickets are expiring, refresh chunk loading
+                    blockEntity.updateChunkLoading();
+                }
             }
         } else {
             // If we don't have a network, try to establish one every tick
@@ -621,8 +655,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
                     Circuitmod.LOGGER.info("Cable at " + pos + " found neighbor with different network at " + neighborPos + 
                                           " (Network ID: " + neighborNetworkId + ")");
                     
-                    // Merge networks
-                    cable.network.mergeWith(connectable.getNetwork());
+                    // Merge networks using global manager
+                    starduster.circuitmod.power.EnergyNetworkManager.mergeNetworks(cable.network, connectable.getNetwork());
                     Circuitmod.LOGGER.info("Merged networks at " + pos + ": " + 
                                           neighborNetworkId + " -> " + cable.network.getNetworkId());
                 }
@@ -654,8 +688,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
             BlockEntity be = world.getBlockEntity(startPos);
             
             if (be instanceof IPowerConnectable) {
-                // Create a new network
-                EnergyNetwork newNetwork = new EnergyNetwork();
+                // Create a new network using global manager
+                EnergyNetwork newNetwork = starduster.circuitmod.power.EnergyNetworkManager.createNetwork();
                 Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " for disconnected blocks");
                 
                 // Flood fill from this position to find all connected blocks

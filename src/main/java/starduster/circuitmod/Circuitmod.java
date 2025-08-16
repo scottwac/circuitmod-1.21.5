@@ -76,6 +76,7 @@ public class Circuitmod implements ModInitializer {
 		ModSounds.initialize();
 		starduster.circuitmod.effect.ModStatusEffects.initialize();
 		starduster.circuitmod.item.PulseStickHandler.initialize();
+		starduster.circuitmod.power.EnergyNetworkTickHandler.initialize();
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		ModCreativeTabs.initialize();
 		
@@ -96,6 +97,7 @@ public class Circuitmod implements ModInitializer {
 		
 		// Disable startup mode after initialization to reduce logging spam
 		starduster.circuitmod.power.EnergyNetwork.setStartupMode(false);
+		starduster.circuitmod.power.EnergyNetworkManager.setStartupMode(false);
 		
 		
 		// Register server-side networking handlers
