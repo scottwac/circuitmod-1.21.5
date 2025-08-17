@@ -10,6 +10,12 @@
     "circuitmod:generator",
     "circuitmod:solar_panel",
     "circuitmod:reactor_block",
-    "circuitmod:battery"
+    "circuitmod:battery",
+    "circuitmod:laser_mining_drill_block",
+    "circuitmod:fluid_tank",
+    "circuitmod:blueprint_desk",
+    "circuitmod:mass_fabricator",
+    "circuitmod:steel_block",
+    "circuitmod:launch_pad"
   ]
 } 
