@@ -29,6 +29,11 @@
     "circuitmod:creative_consumer",
     "circuitmod:mass_fabricator",
     "circuitmod:steel_block",
-    "circuitmod:launch_pad"
+    "circuitmod:launch_pad",
+    "circuitmod:item_pipe",
+    "circuitmod:output_pipe",
+    "circuitmod:sorting_pipe",
+    "circuitmod:power_cable",
+    "circuitmod:electric_carpet"
   ]
 } 
