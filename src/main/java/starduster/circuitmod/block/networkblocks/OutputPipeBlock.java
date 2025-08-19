@@ -1,4 +1,4 @@
-package starduster.circuitmod.block;
+package starduster.circuitmod.block.networkblocks;
 
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.BlockState;

@@ -101,7 +101,9 @@ public class ModCreativeTabs {
                             entries.add(ModItems.STIMULANTS);
 
                             entries.add(ModBlocks.LUNAR_REGOLITH);
-
+                            entries.add(ModBlocks.LUNAR_ANORTHOSITE);
+                            entries.add(ModBlocks.LUNAR_BASALT);
+                            entries.add(ModBlocks.LUNAR_DEEPBASALT);
 
                             // Add more mod items here as they are created
                         })

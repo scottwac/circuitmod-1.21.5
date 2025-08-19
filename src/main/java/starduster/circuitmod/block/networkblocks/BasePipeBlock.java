@@ -1,4 +1,4 @@
-package starduster.circuitmod.block;
+package starduster.circuitmod.block.networkblocks;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
@@ -7,8 +7,6 @@ import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
@@ -23,8 +21,6 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
-import org.jetbrains.annotations.Nullable;
-import starduster.circuitmod.Circuitmod;
 
 import java.util.Map;
 

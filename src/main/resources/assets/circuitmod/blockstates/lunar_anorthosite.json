@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "": [
+      { "model": "circuitmod:block/cubes/lunar_anorthosite" },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "x": 90 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "x": 180 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "x": 270 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 90 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 90, "x": 90 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 90, "x": 180 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 90, "x": 270 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 180 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 180, "x": 90 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 180, "x": 180 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 180, "x": 270 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 270 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 270, "x": 90 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 270, "x": 180 },
+      { "model": "circuitmod:block/cubes/lunar_anorthosite", "y": 270, "x": 270 }
+    ]
+  }
+}

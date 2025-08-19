@@ -3,7 +3,7 @@
   "argument1": {
     "type": "y_clamped_gradient",
     "from_y": 40,
-    "to_y": 180,
+    "to_y": 210,
     "from_value": 6.25,
     "to_value": -6.25
   },

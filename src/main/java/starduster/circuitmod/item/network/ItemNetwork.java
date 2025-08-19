@@ -5,6 +5,7 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.block.networkblocks.BasePipeBlock;
 
 import java.util.*;
 
@@ -62,7 +63,7 @@ public class ItemNetwork {
             BlockPos neighborPos = pipePos.offset(direction);
             
             // Skip other pipes
-            if (world.getBlockState(neighborPos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+            if (world.getBlockState(neighborPos).getBlock() instanceof BasePipeBlock) {
                 continue;
             }
             

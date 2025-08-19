@@ -13,9 +13,7 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
 import starduster.circuitmod.block.machines.XpGenerator;
-import starduster.circuitmod.block.networkblocks.BatteryBlock;
-import starduster.circuitmod.block.networkblocks.PowerCableBlock;
-
+import starduster.circuitmod.block.networkblocks.*;
 
 
 public final class ModBlocks {
@@ -354,9 +352,30 @@ public final class ModBlocks {
     public static final Block LUNAR_REGOLITH = register(
             "lunar_regolith",
             Block::new,
-            AbstractBlock.Settings.create().sounds(BlockSoundGroup.SAND)
+            Block.Settings.create().sounds(BlockSoundGroup.SAND)
                     .strength(0.5F, 0.5F)
                     .mapColor(MapColor.LIGHT_BLUE_GRAY)
+    );
+    public static final Block LUNAR_DEEPBASALT = register(
+            "lunar_deepbasalt",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.NETHERRACK)
+                    .strength(3.0F, 6.0F)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+    );
+    public static final Block LUNAR_BASALT = register(
+            "lunar_basalt",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.BASALT)
+                    .strength(1.25F, 4.2F)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+    );
+    public static final Block LUNAR_ANORTHOSITE = register(
+            "lunar_anorthosite",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.TUFF)
+                    .strength(1.5F, 6.0F)
+                    .mapColor(MapColor.IRON_GRAY)
     );
 
 

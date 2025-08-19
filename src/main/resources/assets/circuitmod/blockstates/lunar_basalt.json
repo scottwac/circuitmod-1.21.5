@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "circuitmod:block/cubes/lunar_basalt"
+      }
+    ]
+  }
+}

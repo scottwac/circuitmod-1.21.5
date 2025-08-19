@@ -23,7 +23,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
-import starduster.circuitmod.block.BasePipeBlock;
+import starduster.circuitmod.block.networkblocks.BasePipeBlock;
 import starduster.circuitmod.item.network.ItemNetworkManager;
 import starduster.circuitmod.item.network.ItemNetwork;
 import starduster.circuitmod.network.PipeNetworkAnimator;

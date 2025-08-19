@@ -1,0 +1,34 @@
+{
+  "type": "add",
+  "argument1": {
+    "type": "add",
+    "argument1": {
+      "type": "mul",
+      "argument1": -1,
+      "argument2": {
+        "type": "add",
+        "argument1": {
+          "type": "noise",
+          "noise": "circuitmod:luna_caves",
+          "xz_scale": 3.1,
+          "y_scale": 1.4
+        },
+        "argument2": -0.46
+      }
+    },
+    "argument2": {
+      "type": "y_clamped_gradient",
+      "from_y": 75,
+      "to_y": 190,
+      "from_value": 0.0,
+      "to_value": 0.93
+    }
+  },
+  "argument2": {
+    "type": "y_clamped_gradient",
+    "from_y": -54,
+    "to_y": -30,
+    "from_value": 1.0,
+    "to_value": 0.0
+  }
+}

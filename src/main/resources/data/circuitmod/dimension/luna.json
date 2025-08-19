@@ -8,78 +8,151 @@
         {
           "biome": "circuitmod:lunar_maria",
           "parameters": {
-            "temperature": 0.0,
-            "humidity": 0.0,
+            "temperature": [
+              -0.4,
+              1.0
+            ],
+            "humidity": [
+              -1.0,
+              1.0
+            ],
             "continentalness": 0.0,
             "erosion": [
-              -2,
-              0.3
+              -1.0,
+              0.0
             ],
             "weirdness": [
               -1,
-              0.1
+              0.3
             ],
-            "depth": 0.0,
+            "depth": [-2,0],
             "offset": 0.0
           }
         },
         {
           "biome": "circuitmod:lunar_terrae",
           "parameters": {
-            "temperature": 0.0,
-            "humidity": 0.0,
+            "temperature": [
+              -0.4,
+              1.0
+            ],
+            "humidity": [
+              -1.0,
+              1.0
+            ],
             "continentalness": 0.0,
             "erosion": [
-              0.3,
-              2
+              0.0,
+              1.0
             ],
             "weirdness": [
-              -1,
+              -1.0,
               0.3
             ],
-            "depth": 0.0,
+            "depth": [-2,0],
             "offset": 0.0
           }
         },
-
         {
           "biome": "circuitmod:lunar_rocky_maria",
           "parameters": {
-            "temperature": 0.0,
-            "humidity": 0.0,
+            "temperature": [
+              -0.4,
+              1.0
+            ],
+            "humidity": [
+              -1.0,
+              1.0
+            ],
             "continentalness": 0.0,
             "erosion": [
-              -2,
-              0.3
+              -1.0,
+              0.0
             ],
             "weirdness": [
-              0.1,
-              1
+              0.25,
+              1.0
             ],
-            "depth": 0.0,
+            "depth": [-2,0],
             "offset": 0.0
           }
         },
         {
           "biome": "circuitmod:lunar_rocky_terrae",
           "parameters": {
-            "temperature": 0.0,
-            "humidity": 0.0,
+            "temperature": [
+              -0.4,
+              1.0
+            ],
+            "humidity": [
+              -1.0,
+              1.0
+            ],
             "continentalness": 0.0,
             "erosion": [
-              0.3,
-              2
+              0.0,
+              1.0
+            ],
+            "weirdness": [
+              0.25,
+              1.0
+            ],
+            "depth": [-2,0],
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "circuitmod:lunar_glacies",
+          "parameters": {
+            "temperature": [
+              -1.0,
+              -0.2
+            ],
+            "humidity": [
+              0.30,
+              1.0
+            ],
+            "continentalness": 0.0,
+            "erosion": [
+              0.6,
+              1.0
+            ],
+            "weirdness": [
+              -1.0,
+              0.4
+            ],
+            "depth": [-2,0],
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "circuitmod:lunar_rocky_glacies",
+          "parameters": {
+            "temperature": [
+              -1.0,
+              -0.2
+            ],
+            "humidity": [
+              0.30,
+              1.0
+            ],
+            "continentalness": 0.0,
+            "erosion": [
+              0.6,
+              1.0
             ],
             "weirdness": [
               0.3,
-              1
+              1.0
             ],
-            "depth": 0.0,
+            "depth": [-2,0],
             "offset": 0.0
           }
         }
+
+
       ]
     },
-    "settings": "circuitmod:luna_test_settings"
+    "settings": "circuitmod:luna_settings"
   }
 }

@@ -1,0 +1,16 @@
+{
+        "type": "range_choice",
+        "input": "circuitmod:luna/domes",
+        "min_inclusive": 0.01,
+        "max_exclusive": 2,
+        "when_in_range": 0,
+        "when_out_of_range": {
+                "type": "minecraft:shifted_noise",
+                "noise": "minecraft:vegetation",
+                "shift_x": "minecraft:shift_x",
+                "shift_y": 0.0,
+                "shift_z": "minecraft:shift_z",
+                "xz_scale": 0.65,
+                "y_scale": 0.0
+        }
+}

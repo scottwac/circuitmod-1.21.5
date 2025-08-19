@@ -8,7 +8,7 @@
     "Name": "minecraft:smooth_basalt"
   },
   "default_fluid": {
-    "Name": "minecraft:water"
+    "Name": "minecraft:air"
   },
   "spawn_target": [],
   "noise": {
@@ -26,21 +26,17 @@
     "vein_toggle": 0.0,
     "vein_ridged": 0.0,
     "vein_gap": 0.0,
-    "temperature": {
-      "type": "minecraft:shifted_noise",
-      "noise": "minecraft:temperature",
-      "shift_x": "minecraft:shift_x",
-      "shift_y": 0,
-      "shift_z": "minecraft:shift_z",
-      "xz_scale": 0.25,
-      "y_scale": 0
-    },
-    "vegetation": 0.0,
-    "continents": "minecraft:overworld/continents",
+    "temperature": "circuitmod:luna/temp_dome_capped",
+    "vegetation": "circuitmod:luna/humidity_dome_capped",
+    "continents": 0.0,
     "erosion": "circuitmod:luna/erosion_height",
-    "depth": 1.0,
-    "ridges": "minecraft:overworld/ridges",
-    "final_density": "circuitmod:luna/luna_biome_height_offset"
+    "depth": "circuitmod:luna/domes",
+    "ridges": "circuitmod:luna/ridges_dome_capped",
+    "final_density": {
+      "type": "min",
+      "argument1": "circuitmod:luna/luna_biome_height_offset",
+      "argument2": "circuitmod:luna/caves"
+    }
   },
   "surface_rule": {
     "type": "sequence",
@@ -118,6 +114,44 @@
           "type": "block",
           "result_state": {
             "Name": "minecraft:red_concrete"
+          }
+        }
+      },
+      {
+        "type": "condition",
+        "if_true": {
+          "type": "biome",
+          "biome_is": [
+            "circuitmod:lunar_rocky_glacies"
+          ],
+          "surface_type": "floor",
+          "offset": 1,
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "block",
+          "result_state": {
+            "Name": "minecraft:light_gray_concrete"
+          }
+        }
+      },
+      {
+        "type": "condition",
+        "if_true": {
+          "type": "biome",
+          "biome_is": [
+            "circuitmod:lunar_glacies"
+          ],
+          "surface_type": "floor",
+          "offset": 1,
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "block",
+          "result_state": {
+            "Name": "minecraft:white_concrete"
           }
         }
       }

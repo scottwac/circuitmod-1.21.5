@@ -10,6 +10,7 @@ import net.minecraft.block.entity.BlockEntity;
 import starduster.circuitmod.block.entity.ItemPipeBlockEntity;
 import starduster.circuitmod.block.entity.SortingPipeBlockEntity;
 import starduster.circuitmod.block.entity.OutputPipeBlockEntity;
+import starduster.circuitmod.block.networkblocks.BasePipeBlock;
 
 /**
  * Network manager - handles pipe connections and network discovery.
@@ -130,7 +131,7 @@ public class ItemNetworkManager {
             BlockState neighborState = world.getBlockState(neighborPos);
             
             // Check if there's another pipe that can connect
-            if (neighborState.getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+            if (neighborState.getBlock() instanceof BasePipeBlock) {
                 ItemNetwork neighborNetwork = pipeToNetwork.get(neighborPos);
                 if (neighborNetwork != null) {
                     connectableNetworks.add(neighborNetwork);
@@ -211,7 +212,7 @@ public class ItemNetworkManager {
             BlockPos startPos = unprocessed.iterator().next();
             
             // Check if this pipe still exists
-            if (world.getBlockState(startPos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+            if (world.getBlockState(startPos).getBlock() instanceof BasePipeBlock) {
                 // Create a new network starting from this position
                 ItemNetwork newNetwork = createNetwork(world);
                 
@@ -221,7 +222,7 @@ public class ItemNetworkManager {
                 
                 // Add all connected pipes to the new network
                 for (BlockPos connectedPos : connectedPipes) {
-                    if (world.getBlockState(connectedPos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+                    if (world.getBlockState(connectedPos).getBlock() instanceof BasePipeBlock) {
                         newNetwork.addPipe(connectedPos);
                     }
                 }
@@ -248,11 +249,11 @@ public class ItemNetworkManager {
         
         visited.add(pos);
         
-        if (world.getBlockState(pos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+        if (world.getBlockState(pos).getBlock() instanceof BasePipeBlock) {
             // Check neighboring pipes
             for (net.minecraft.util.math.Direction dir : net.minecraft.util.math.Direction.values()) {
                 BlockPos neighborPos = pos.offset(dir);
-                if (world.getBlockState(neighborPos).getBlock() instanceof starduster.circuitmod.block.BasePipeBlock) {
+                if (world.getBlockState(neighborPos).getBlock() instanceof BasePipeBlock) {
                     floodFillPipes(world, neighborPos, visited, availablePipes);
                 }
             }
