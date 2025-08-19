@@ -2,18 +2,18 @@
   "variants": {
     "": [
       {
-        "model": "circuitmod:block/cubes/lunar_deepbasalt"
+        "model": "circuitmod:block/luna/lunar_deepbasalt"
       },
       {
-        "model": "circuitmod:block/cubes/lunar_deepbasalt",
+        "model": "circuitmod:block/luna/lunar_deepbasalt",
         "y": 90
       },
       {
-        "model": "circuitmod:block/cubes/lunar_deepbasalt",
+        "model": "circuitmod:block/luna/lunar_deepbasalt",
         "y": 180
       },
       {
-        "model": "circuitmod:block/cubes/lunar_deepbasalt",
+        "model": "circuitmod:block/luna/lunar_deepbasalt",
         "y": 270
       }
     ]

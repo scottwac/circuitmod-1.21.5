@@ -346,7 +346,7 @@ public final class ModBlocks {
 
 
     /**
-     * NATURAL BLOCKS
+     * LUANR BLOCKS
      */
 
     public static final Block LUNAR_REGOLITH = register(
@@ -376,6 +376,35 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.TUFF)
                     .strength(1.5F, 6.0F)
                     .mapColor(MapColor.IRON_GRAY)
+    );
+
+    public static final Block LUNAR_BRECCIA = register(
+            "lunar_breccia",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.TUFF)
+                    .strength(3.5F, 6.0F)
+                    .mapColor(MapColor.TERRACOTTA_CYAN)
+    );
+    public static final Block LUNAR_IMPACT_GLASS = register(
+            "lunar_impact_glass",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.TUFF)
+                    .strength(3.5F, 4.0F)
+                    .mapColor(MapColor.GRAY)
+    );
+    public static final Block LUNAR_EJECTA = register(
+            "lunar_ejecta",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.SAND)
+                    .strength(0.5F, 0.5F)
+                    .mapColor(MapColor.WHITE_GRAY)
+    );
+    public static final Block LUNAR_ICE = register(
+            "lunar_ice",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.GLASS)
+                    .strength(2.5F, 2.8F)
+                    .mapColor(MapColor.PALE_PURPLE)
     );
 
 

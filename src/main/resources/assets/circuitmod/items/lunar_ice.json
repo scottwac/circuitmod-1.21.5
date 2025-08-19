@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "circuitmod:block/luna/lunar_basalt"
+    "model": "circuitmod:block/luna/lunar_ice"
   }
 }

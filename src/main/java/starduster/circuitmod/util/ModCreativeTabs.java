@@ -101,9 +101,13 @@ public class ModCreativeTabs {
                             entries.add(ModItems.STIMULANTS);
 
                             entries.add(ModBlocks.LUNAR_REGOLITH);
+                            entries.add(ModBlocks.LUNAR_EJECTA);
                             entries.add(ModBlocks.LUNAR_ANORTHOSITE);
                             entries.add(ModBlocks.LUNAR_BASALT);
                             entries.add(ModBlocks.LUNAR_DEEPBASALT);
+                            entries.add(ModBlocks.LUNAR_BRECCIA);
+                            entries.add(ModBlocks.LUNAR_IMPACT_GLASS);
+                            entries.add(ModBlocks.LUNAR_ICE);
 
                             // Add more mod items here as they are created
                         })

@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "circuitmod:block/luna/lunar_impact_glass"
+      }
+    ]
+  }
+}
