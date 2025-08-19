@@ -332,7 +332,7 @@ public final class ModBlocks {
             Block::new,
             AbstractBlock.Settings.create().sounds(BlockSoundGroup.IRON)
                     .requiresTool()
-                    .strength(5.0F, 6.0F)
+                    .strength(3.0F, 6.0F)
     );
 
     public static final Block LAUNCH_PAD = register(

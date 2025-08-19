@@ -5,7 +5,7 @@
     "A": "circuitmod:aluminum_ingot",
     "R": "minecraft:redstone",
     "E": "minecraft:enchanting_table",
-    "B": "minecraft:experience_bottle",
+    "B": "minecraft:diamond",
     "S": "circuitmod:steel_ingot",
     "C": "minecraft:copper_ingot"
   },

@@ -292,40 +292,40 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
                     }
                 }
             } else {
-                // Server-side: Damage entities in the laser beam path
-                Direction beamDirection = blockEntity.getMiningDirection().getOpposite();
-                int beamLength = blockEntity.getMiningDepth();
+                // Server-side: Entity damage disabled - laser drill no longer damages entities
+                // Direction beamDirection = blockEntity.getMiningDirection().getOpposite();
+                // int beamLength = blockEntity.getMiningDepth();
                 
-                // Check for entities along the laser beam path
-                for (int distance = 0; distance < beamLength; distance++) {
-                    BlockPos beamPos = pos.offset(beamDirection, distance);
-                    
-                    // Get entities in a small area around the beam position
-                    List<net.minecraft.entity.Entity> entities = world.getOtherEntities(null, 
-                        new net.minecraft.util.math.Box(beamPos).expand(0.5), 
-                        entity -> entity.isAlive() && !entity.isSpectator());
-                    
-                    for (net.minecraft.entity.Entity entity : entities) {
-                        // Check if entity is actually in the laser beam path (more precise)
-                        double entityX = entity.getX();
-                        double entityY = entity.getY() + entity.getHeight() / 2; // Check center of entity
-                        double entityZ = entity.getZ();
-                        
-                        // Calculate distance from beam center
-                        double distanceX = Math.abs(entityX - (beamPos.getX() + 0.5));
-                        double distanceY = Math.abs(entityY - (beamPos.getY() + 0.5));
-                        double distanceZ = Math.abs(entityZ - (beamPos.getZ() + 0.5));
-                        
-                        // Only damage if entity is within 0.3 blocks of beam center (narrower beam)
-                        if (distanceX <= 0.3 && distanceY <= 0.3 && distanceZ <= 0.3) {
-                            // Use generic damage source (death message will be handled by the translation key)
-                            entity.damage((ServerWorld) world, world.getDamageSources().generic(), 20.0f);
-                            
-                            Circuitmod.LOGGER.info("[LASER-MINING-DRILL] Damaged entity {} at position {}", 
-                                entity.getName().getString(), beamPos);
-                        }
-                    }
-                }
+                // Check for entities along the laser beam path (damage code removed)
+                // for (int distance = 0; distance < beamLength; distance++) {
+                //     BlockPos beamPos = pos.offset(beamDirection, distance);
+                //     
+                //     // Get entities in a small area around the beam position
+                //     List<net.minecraft.entity.Entity> entities = world.getOtherEntities(null, 
+                //         new net.minecraft.util.math.Box(beamPos).expand(0.5), 
+                //         entity -> entity.isAlive() && !entity.isSpectator());
+                //     
+                //     for (net.minecraft.entity.Entity entity : entities) {
+                //         // Check if entity is actually in the laser beam path (more precise)
+                //         double entityX = entity.getX();
+                //         double entityY = entity.getY() + entity.getHeight() / 2; // Check center of entity
+                //         double entityZ = entity.getZ();
+                //         
+                //         // Calculate distance from beam center
+                //         double distanceX = Math.abs(entityX - (beamPos.getX() + 0.5));
+                //         double distanceY = Math.abs(entityY - (beamPos.getY() + 0.5));
+                //         double distanceZ = Math.abs(entityZ - (beamPos.getZ() + 0.5));
+                //         
+                //         // Only damage if entity is within 0.3 blocks of beam center (narrower beam)
+                //         if (distanceX <= 0.3 && distanceY <= 0.3 && distanceZ <= 0.3) {
+                //             // Use generic damage source (death message will be handled by the translation key)
+                //             entity.damage((ServerWorld) world, world.getDamageSources().generic(), 20.0f);
+                //             
+                //             Circuitmod.LOGGER.info("[LASER-MINING-DRILL] Damaged entity {} at position {}", 
+                //                 entity.getName().getString(), beamPos);
+                //         }
+                //     }
+                // }
             }
         }
         if(!blockEntity.isMiningEnabled()) {

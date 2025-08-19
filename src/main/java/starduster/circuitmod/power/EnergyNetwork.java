@@ -14,6 +14,7 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.world.ServerWorld;
+import starduster.circuitmod.power.EnergyNetworkManager;
 
 /**
  * Manages a network of energy producers, consumers, and cables.
@@ -91,7 +92,9 @@ public class EnergyNetwork {
         }
         
         connectedBlocks.put(pos, block);
-        block.setNetwork(this);
+        if (block != null) {
+            block.setNetwork(this);
+        }
         
         // Sort blocks into appropriate categories
         if (block instanceof IEnergyProducer) {
@@ -102,6 +105,11 @@ public class EnergyNetwork {
         }
         if (block instanceof IEnergyStorage) {
             batteries.add((IEnergyStorage) block);
+        }
+        
+        // Register with global manager if not in startup mode
+        if (!startupMode) {
+            EnergyNetworkManager.registerNetwork(this);
         }
         
         if (DEBUG_LOGGING && !startupMode) {
@@ -136,9 +144,12 @@ public class EnergyNetwork {
                 Circuitmod.LOGGER.debug("Removed block reference at " + pos + " from energy network tracking. Network size: " + connectedBlocks.size());
             }
             
-            // If the network is now empty, deactivate it
+            // If the network is now empty, deactivate it and unregister from global manager
             if (connectedBlocks.isEmpty()) {
                 active = false;
+                if (!startupMode) {
+                    EnergyNetworkManager.unregisterNetwork(this);
+                }
                 if (DEBUG_LOGGING && !startupMode) {
                     Circuitmod.LOGGER.info("Network " + networkId + " is now empty and inactive");
                 }
@@ -172,6 +183,11 @@ public class EnergyNetwork {
         other.clear();
         other.active = false;
         other.networkId = "MERGED-" + otherNetworkId; // Mark as merged to prevent further operations
+        
+        // Unregister the merged network from global manager
+        if (!startupMode) {
+            EnergyNetworkManager.unregisterNetwork(other);
+        }
         
         if (DEBUG_LOGGING && !startupMode) {
             Circuitmod.LOGGER.info("Networks merged. Network " + otherNetworkId + " merged into " + this.networkId + ". New size: " + connectedBlocks.size());
@@ -580,6 +596,11 @@ public class EnergyNetwork {
         lastTickEnergyConsumed = nbt.getInt("lastTickEnergyConsumed").orElse(0);
         lastTickEnergyStoredInBatteries = nbt.getInt("lastTickEnergyStoredInBatteries").orElse(0);
         lastTickEnergyDrawnFromBatteries = nbt.getInt("lastTickEnergyDrawnFromBatteries").orElse(0);
+        
+        // Register with global manager if not in startup mode and network is active
+        if (!startupMode && active && !connectedBlocks.isEmpty()) {
+            EnergyNetworkManager.registerNetwork(this);
+        }
     }
     
     // Getters for network properties

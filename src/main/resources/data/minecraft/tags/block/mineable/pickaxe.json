@@ -21,8 +21,19 @@
     "circuitmod:deepslate_uranium_ore",
     "circuitmod:zircon_ore",
     "circuitmod:deepslate_zircon_ore",
-    "circuitmod:nuke"
-
-
+    "circuitmod:nuke",
+    "circuitmod:laser_mining_drill_block",
+    "circuitmod:fluid_tank",
+    "circuitmod:blueprint_desk",
+    "circuitmod:creative_generator",
+    "circuitmod:creative_consumer",
+    "circuitmod:mass_fabricator",
+    "circuitmod:steel_block",
+    "circuitmod:launch_pad",
+    "circuitmod:item_pipe",
+    "circuitmod:output_pipe",
+    "circuitmod:sorting_pipe",
+    "circuitmod:power_cable",
+    "circuitmod:electric_carpet"
   ]
 } 
