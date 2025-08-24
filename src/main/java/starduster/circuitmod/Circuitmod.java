@@ -31,6 +31,7 @@ import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.sound.ModSounds;
+import starduster.circuitmod.util.ModBlockTags;
 import starduster.circuitmod.util.ModCreativeTabs;
 import starduster.circuitmod.util.ModItemTags;
 
@@ -71,6 +72,7 @@ public class Circuitmod implements ModInitializer {
 		ModScreenHandlers.initialize();
 		ModNetworking.initialize();
 		ModItemTags.initialize();
+		ModBlockTags.initialize();
 		ModToolMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();

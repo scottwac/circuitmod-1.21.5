@@ -25,32 +25,14 @@
       { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 90 },
       { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 90, "x": 90 },
       { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 90, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 90, "x": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 180, "x": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 180, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 180, "x": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 270, "x": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 270, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_2", "y": 270, "x": 270 },
+
 
       { "model": "circuitmod:block/luna/lunar_ejecta_3"},
       { "model": "circuitmod:block/luna/lunar_ejecta_3", "x": 90 },
       { "model": "circuitmod:block/luna/lunar_ejecta_3", "x": 180 },
       { "model": "circuitmod:block/luna/lunar_ejecta_3", "x": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 90, "x": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 90, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 90, "x": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 180, "x": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 180, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 180, "x": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 270 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 270, "x": 90 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 270, "x": 180 },
-      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 270, "x": 270 }
+      { "model": "circuitmod:block/luna/lunar_ejecta_3", "y": 90 }
+
     ]
   }
 }

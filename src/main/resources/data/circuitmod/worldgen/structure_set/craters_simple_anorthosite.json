@@ -1,0 +1,15 @@
+{
+  "structures": [
+    {
+      "weight": 1,
+      "structure": "circuitmod:craters_simple_anorthosite"
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "separation": 2,
+    "spacing": 7,
+    "salt": 7201969,
+    "locate_offset": [0,-3,0]
+  }
+}
