@@ -7,11 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import starduster.circuitmod.effect.ModStatusEffects;
 import starduster.circuitmod.effect.PulseVelocityStorage;
@@ -70,12 +66,20 @@ public class PulseStickItem extends Item {
     public ActionResult useOnBlock(net.minecraft.item.ItemUsageContext context) {
         PlayerEntity player = context.getPlayer();
         World world = context.getWorld();
+        ItemStack itemStack = context.getStack();
         
         if (player == null || world.isClient) {
             return ActionResult.PASS;
         }
         
-        System.out.println("[PULSE-STICK-DEBUG] Pulse stick used by: " + player.getName().getString());
+        // Check if the pulse stick has zero durability
+        if (itemStack.getDamage() >= itemStack.getMaxDamage()) {
+            // Item is at zero durability, don't work but don't break either
+            System.out.println("[PULSE-STICK-DEBUG] Pulse stick at zero durability, cannot use");
+            return ActionResult.FAIL;
+        }
+        
+        
         
         // Get the player's looking direction (not where they clicked)
         Vec3d lookDirection = player.getRotationVecClient();
@@ -97,12 +101,15 @@ public class PulseStickItem extends Item {
         world.playSound(null, player.getX(), player.getY(), player.getZ(), 
                         SoundEvents.ENTITY_ENDER_DRAGON_FLAP, SoundCategory.PLAYERS, 0.8f, 1.5f);
         
-        // Damage the item (1 durability per use)
-        ItemStack itemStack = context.getStack();
-        itemStack.damage(1, player);
+        // Damage the item (1 durability per use) but don't break it
+        int currentDamage = itemStack.getDamage();
+        if (currentDamage < itemStack.getMaxDamage()) {
+            itemStack.setDamage(currentDamage + 1);
+        }
         
         System.out.println("[PULSE-STICK-DEBUG] Pulse activated! Launch velocity: " + launchVelocity + " | Stored horizontal: " + horizontalVelocity);
         
         return ActionResult.SUCCESS;
     }
+    
 } 

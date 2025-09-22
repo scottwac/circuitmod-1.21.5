@@ -2,7 +2,6 @@ package starduster.circuitmod.item;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
-import starduster.circuitmod.item.FuelRodItem;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
@@ -72,7 +71,10 @@ public final class ModItems {
     public static final Item MINING_EXPLOSIVE = register("mining_explosive", MiningExplosiveItem::new, new Item.Settings().maxCount(16));
     
     // Movement items
-    public static final Item PULSE_STICK = register("pulse_stick", PulseStickItem::new, new Item.Settings().maxCount(1).maxDamage(64));
+    public static final Item PULSE_STICK = register("pulse_stick", PulseStickItem::new, new Item.Settings()
+            .maxCount(1)
+            .maxDamage(128)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(15)));
 
 
 

@@ -6,7 +6,8 @@
 		"ExampleMixin",
 		"PlayerFallDamageMixin",
 		"CircuitDimensionDamageMixin",
-		"MoonGravityMixin"
+		"MoonGravityMixin",
+		"AnvilRepairMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

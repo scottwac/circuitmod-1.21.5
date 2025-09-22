@@ -17,6 +17,15 @@ public class ModToolMaterials {
                 ModItemTags.STEEL_TOOL_MATERIALS
         );
 
+    public static final ToolMaterial PULSE_STICK_MATERIAL = new ToolMaterial(
+                BlockTags.INCORRECT_FOR_IRON_TOOL,
+                64,
+                1.0F,
+                0.0F,
+                15,
+                ModItemTags.PULSE_STICK_REPAIR_MATERIALS
+        );
+
 
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering tool materials");
