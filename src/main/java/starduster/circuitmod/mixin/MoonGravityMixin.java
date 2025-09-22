@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MoonGravityMixin {
 
     // 0.0 = no downward acceleration, 1.0 = vanilla
-    private static final double MOON_GRAVITY_MULTIPLIER = 0.15; // < 1.0 = weaker gravity than vanilla
+    private static final double MOON_GRAVITY_MULTIPLIER = 0.16; // < 1.0 = weaker gravity than vanilla
     private static final double VANILLA_GRAVITY_PER_TICK = 0.08; // matches vanilla gravity step
 
     @Inject(method = "tick", at = @At("TAIL"))
@@ -28,7 +28,7 @@ public abstract class MoonGravityMixin {
         World world = player.getWorld();
 
 
-        boolean isMoon = world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "moon"));
+        boolean isMoon = world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "luna"));
 
         // Restore vanilla behavior outside the moon
         if (!isMoon) {

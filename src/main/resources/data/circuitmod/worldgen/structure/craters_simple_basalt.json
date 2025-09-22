@@ -1,6 +1,6 @@
 {
   "type": "minecraft:jigsaw",
-  "biomes": "#circuitmod:has_structure/luna_craters/anorthosite_simple_craters",
+  "biomes": "#circuitmod:has_structure/luna_craters/basalt_simple_craters",
   "max_distance_from_center": 80,
   "size": 1,
   "step": "lakes",
@@ -10,5 +10,5 @@
   },
   "spawn_overrides": {},
   "use_expansion_hack": false,
-  "start_pool": "circuitmod:craters_simple_anorthosite"
+  "start_pool": "circuitmod:craters_simple_basalt"
 }

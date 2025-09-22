@@ -75,7 +75,7 @@ public final class ModItems {
 
 
 
-
+    public static final Item MOON = register("moon", Item::new, new Item.Settings());
 
     // Registration helper
     public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {

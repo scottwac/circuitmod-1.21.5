@@ -48,6 +48,16 @@
   "block.circuitmod.zircon_ore": "Zircon Ore",
   "block.circuitmod.deepslate_zircon_ore": "Deepslate Zircon Ore",
 
+  "block.circuitmod.lunar_regolith":  "Lunar Regolith",
+  "block.circuitmod.lunar_ejecta":  "Ejecta",
+  "block.circuitmod.lunar_anorthosite":  "Anorthosite",
+  "block.circuitmod.lunar_basalt":  "Lunar Basalt",
+  "block.circuitmod.lunar_deepbasalt":  "Lunar Deepbasalt",
+  "block.circuitmod.lunar_breccia":  "Crater Breccia",
+  "block.circuitmod.lunar_impact_glass":  "Crater Impact Glass",
+  "block.circuitmod.lunar_ice":  "Lunar Ice",
+  "block.circuitmod.lunar_mantlerock":  "Lunar Mantlerock",
+
 
   "block.circuitmod.bloomery": "Bloomery",
 
@@ -83,6 +93,8 @@
 
   "itemgroup.circuitmod.main": "Circuit Mod",
   "itemgroup.circuitmod.alt": "Circuit Mod Misc & Unfinished",
+  "itemgroup.circuitmod.lunar": "Circuit Mod Lunar Blocks",
+
   "block.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
   "item.circuitmod.energy_to_mass_converter": "Energy to Mass Converter",
   "gui.circuitmod.energy_to_mass_converter.title": "Energy to Mass Converter",
@@ -111,5 +123,11 @@
   "advancements.circuitmod.steel_axe_hit.title": "Axe to Grind",
   "advancements.circuitmod.steel_axe_hit.description": "hits harder than diamond, but still chad complains",
   "advancements.circuitmod.steel_upgrade_tools.title": "Upgrade: Steel Tools",
-  "advancements.circuitmod.steel_upgrade_tools.description": "Craft or obtain your first steel tool."
+  "advancements.circuitmod.steel_upgrade_tools.description": "Craft or obtain your first steel tool.",
+
+  "circuitmod.advancements.luna.root.description": "Hold space to slow down",
+  "circuitmod.advancements.luna.root.title": "The Moon",
+
+  "circuitmod.advancements.luna.arch.description": "Find a lunar anomaly",
+  "circuitmod.advancements.luna.arch.title": "MÜN OR BUST"
 }

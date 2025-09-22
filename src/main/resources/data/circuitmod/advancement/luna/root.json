@@ -1,0 +1,31 @@
+{
+  "criteria": {
+    "entered_luna": {
+      "conditions": {
+        "to": "circuitmod:luna"
+      },
+      "trigger": "minecraft:changed_dimension"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "translate": "circuitmod.advancements.luna.root.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "circuitmod:moon"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "circuitmod.advancements.luna.root.title"
+    },
+    "background": "circuitmod:block/natural/luna/lunar_regolith"
+  },
+  "requirements": [
+    [
+      "entered_luna"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

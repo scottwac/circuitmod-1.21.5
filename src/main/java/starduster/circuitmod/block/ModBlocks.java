@@ -9,6 +9,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.intprovider.ConstantIntProvider;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
@@ -276,6 +277,7 @@ public final class ModBlocks {
                     .strength(4.5f, 3.0f)
                     .sounds(BlockSoundGroup.DEEPSLATE)
                     .requiresTool()
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
     );
 
     public static final Block LEAD_ORE = register(
@@ -290,6 +292,7 @@ public final class ModBlocks {
                     .strength(4.5f, 3.0f)
                     .sounds(BlockSoundGroup.DEEPSLATE)
                     .requiresTool()
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
     );
 
     public static final Block URANIUM_ORE = register(
@@ -306,6 +309,7 @@ public final class ModBlocks {
                     .sounds(BlockSoundGroup.DEEPSLATE)
                     .requiresTool()
                     .luminance(state -> 2) // Slight glow
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
     );
 
     public static final Block ZIRCON_ORE = register(
@@ -320,6 +324,7 @@ public final class ModBlocks {
                     .strength(4.5f, 3.0f)
                     .sounds(BlockSoundGroup.DEEPSLATE)
                     .requiresTool()
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
     );
 
 
@@ -361,6 +366,13 @@ public final class ModBlocks {
             Block::new,
             Block.Settings.create().sounds(BlockSoundGroup.NETHERRACK)
                     .strength(3.0F, 6.0F)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+    );
+    public static final Block LUNAR_MANTLEROCK = register(
+            "lunar_mantlerock",
+            Block::new,
+            Block.Settings.create().sounds(BlockSoundGroup.NETHERRACK)
+                    .strength(4.0F, 7.0F)
                     .mapColor(MapColor.DEEPSLATE_GRAY)
     );
     public static final Block LUNAR_BASALT = register(
@@ -405,6 +417,143 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.GLASS)
                     .strength(2.5F, 2.8F)
                     .mapColor(MapColor.PALE_PURPLE)
+    );
+
+    /**
+     * LUANR ORES
+     */
+
+    public static final Block ANORTHOSITE_IRON_ORE = register(
+            "anorthosite_iron_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+    public static final Block ANORTHOSITE_COPPER_ORE = register(
+            "anorthosite_copper_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+    public static final Block ANORTHOSITE_GOLD_ORE = register(
+            "anorthosite_gold_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+    public static final Block ANORTHOSITE_DIAMOND_ORE = register(
+            "anorthosite_diamond_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(3,7), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+    public static final Block ANORTHOSITE_ZIRCON_ORE = register(
+            "anorthosite_zircon_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(1,3), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+    public static final Block ANORTHOSITE_TITANIUM_ORE = register(
+            "anorthosite_titanium_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(7,9), settings), AbstractBlock.Settings.create()
+                    .strength(3.0f, 3.0f)
+                    .sounds(BlockSoundGroup.TUFF)
+                    .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
+    );
+
+
+    public static final Block DEEPBASALT_IRON_ORE = register(
+            "deepbasalt_iron_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_COPPER_ORE = register(
+            "deepbasalt_copper_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_GOLD_ORE = register(
+            "deepbasalt_gold_ore", (settings) ->
+                    new ExperienceDroppingBlock(ConstantIntProvider.create(0), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_DIAMOND_ORE = register(
+            "deepbasalt_diamond_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(3,7), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_ZIRCON_ORE = register(
+            "deepbasalt_zircon_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(1,3), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_URANIUM_ORE = register(
+            "deepbasalt_uranium_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(3,5), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block DEEPBASALT_TITANIUM_ORE = register(
+            "deepbasalt_titanium_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(7,9), settings), AbstractBlock.Settings.create()
+                    .strength(4.0f, 3.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+
+
+    public static final Block MANTLEROCK_DIAMOND_ORE = register(
+            "mantlerock_diamond_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(3,7), settings), AbstractBlock.Settings.create()
+                    .strength(5.0f, 5.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block MANTLEROCK_URANIUM_ORE = register(
+            "mantlerock_uranium_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(3,5), settings), AbstractBlock.Settings.create()
+                    .strength(5.0f, 5.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
+    );
+    public static final Block MANTLEROCK_TITANIUM_ORE = register(
+            "mantlerock_titanium_ore", (settings) ->
+                    new ExperienceDroppingBlock(UniformIntProvider.create(7,9), settings), AbstractBlock.Settings.create()
+                    .strength(5.0f, 5.0f)
+                    .sounds(BlockSoundGroup.NETHERRACK)
+                    .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
     );
 
 

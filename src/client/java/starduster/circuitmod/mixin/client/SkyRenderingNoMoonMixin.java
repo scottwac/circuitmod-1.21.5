@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 abstract class SkyRenderingNoMoonMixin {
 
     private static final RegistryKey<World> CIRCUIT_DIM_KEY =
-            RegistryKey.of(RegistryKeys.WORLD, Identifier.of("circuitmod", "moon"));
+            RegistryKey.of(RegistryKeys.WORLD, Identifier.of("circuitmod", "luna"));
 
     @Invoker("renderMoon")
     abstract void circuitmod$invokeRenderMoon(int phase, float alpha, VertexConsumerProvider vertexConsumers, MatrixStack matrices);

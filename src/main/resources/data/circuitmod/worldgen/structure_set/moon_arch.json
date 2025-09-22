@@ -1,0 +1,14 @@
+{
+  "structures": [
+    {
+      "weight": 1,
+      "structure": "circuitmod:moon_arch"
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "separation": 81,
+    "spacing": 256,
+    "salt": 2051971
+  }
+}

@@ -14,7 +14,7 @@ import starduster.circuitmod.item.ModItems;
 
 @Mixin(LivingEntity.class)
 public class PlayerFallDamageMixin {
-    private static final double MOON_GRAVITY_MULTIPLIER = 0.15; // matches gravity scaling used in moon
+    private static final double MOON_GRAVITY_MULTIPLIER = 0.16; // matches gravity scaling used in moon
 
     @Inject(method = "handleFallDamage", at = @At("HEAD"), cancellable = true)
     private void preventFallDamageWhenHoldingPulseStick(double fallDistance, float damagePerDistance, net.minecraft.entity.damage.DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
@@ -39,7 +39,7 @@ public class PlayerFallDamageMixin {
     @ModifyVariable(method = "handleFallDamage", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private double circuitmod$scaleFallDistanceForMoon(double fallDistance) {
         LivingEntity entity = (LivingEntity) (Object) this;
-        if (entity.getWorld().getRegistryKey().getValue().equals(Identifier.of("circuitmod", "moon"))) {
+        if (entity.getWorld().getRegistryKey().getValue().equals(Identifier.of("circuitmod", "luna"))) {
             return fallDistance * Math.sqrt(MOON_GRAVITY_MULTIPLIER);
         }
         return fallDistance;

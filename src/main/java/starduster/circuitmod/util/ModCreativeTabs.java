@@ -100,14 +100,6 @@ public class ModCreativeTabs {
 
                             entries.add(ModItems.STIMULANTS);
 
-                            entries.add(ModBlocks.LUNAR_REGOLITH);
-                            entries.add(ModBlocks.LUNAR_EJECTA);
-                            entries.add(ModBlocks.LUNAR_ANORTHOSITE);
-                            entries.add(ModBlocks.LUNAR_BASALT);
-                            entries.add(ModBlocks.LUNAR_DEEPBASALT);
-                            entries.add(ModBlocks.LUNAR_BRECCIA);
-                            entries.add(ModBlocks.LUNAR_IMPACT_GLASS);
-                            entries.add(ModBlocks.LUNAR_ICE);
 
                             // Add more mod items here as they are created
                         })
@@ -134,6 +126,45 @@ public class ModCreativeTabs {
 
                             // Add consumable items
                             entries.add(ModItems.MINING_EXPLOSIVE);
+
+                        })
+                        .build());
+
+
+        Registry.register(Registries.ITEM_GROUP, Identifier.of(Circuitmod.MOD_ID, "lunar"),
+                FabricItemGroup.builder()
+                        .icon(() -> new ItemStack(ModBlocks.LUNAR_REGOLITH))
+                        .displayName(Text.translatable("itemgroup.circuitmod.lunar"))
+                        .entries((context, entries) -> {
+
+                            entries.add(ModBlocks.LUNAR_REGOLITH);
+                            entries.add(ModBlocks.LUNAR_EJECTA);
+                            entries.add(ModBlocks.LUNAR_ANORTHOSITE);
+                            entries.add(ModBlocks.LUNAR_BASALT);
+                            entries.add(ModBlocks.LUNAR_DEEPBASALT);
+                            entries.add(ModBlocks.LUNAR_MANTLEROCK);
+                            entries.add(ModBlocks.LUNAR_BRECCIA);
+                            entries.add(ModBlocks.LUNAR_IMPACT_GLASS);
+                            entries.add(ModBlocks.LUNAR_ICE);
+
+                            entries.add(ModBlocks.ANORTHOSITE_IRON_ORE);
+                            entries.add(ModBlocks.ANORTHOSITE_COPPER_ORE);
+                            entries.add(ModBlocks.ANORTHOSITE_GOLD_ORE);
+                            entries.add(ModBlocks.ANORTHOSITE_DIAMOND_ORE);
+                            entries.add(ModBlocks.ANORTHOSITE_ZIRCON_ORE);
+                            entries.add(ModBlocks.ANORTHOSITE_TITANIUM_ORE);
+
+                            entries.add(ModBlocks.DEEPBASALT_IRON_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_COPPER_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_GOLD_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_DIAMOND_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_ZIRCON_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_URANIUM_ORE);
+                            entries.add(ModBlocks.DEEPBASALT_TITANIUM_ORE);
+
+                            entries.add(ModBlocks.MANTLEROCK_DIAMOND_ORE);
+                            entries.add(ModBlocks.MANTLEROCK_URANIUM_ORE);
+                            entries.add(ModBlocks.MANTLEROCK_TITANIUM_ORE);
 
                         })
                         .build());
