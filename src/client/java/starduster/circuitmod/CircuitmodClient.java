@@ -3,9 +3,12 @@ package starduster.circuitmod;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
+import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.render.DimensionEffects;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.render.RenderLayer;
@@ -81,6 +84,9 @@ public class CircuitmodClient implements ClientModInitializer {
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		
+		// Register color providers for biome-based tinting
+		registerColorProviders();
+		
 		// Initialize client networking
 		starduster.circuitmod.network.ClientNetworking.initialize();
 		
@@ -128,5 +134,51 @@ public class CircuitmodClient implements ClientModInitializer {
         );
 
         Circuitmod.LOGGER.info("[CLIENT] CircuitmodClient initialization complete");
+	}
+	
+	/**
+	 * Register color providers for blocks that should have biome-based tinting
+	 */
+	private static void registerColorProviders() {
+		// Register lunar regolith color provider based on biome
+		ColorProviderRegistry.BLOCK.register((state, view, pos, tintIndex) -> {
+			if (view != null && pos != null) {
+				try {
+					// Try to get the world and biome through the client
+					MinecraftClient client = MinecraftClient.getInstance();
+					if (client.world != null) {
+						var biomeRegistry = client.world.getRegistryManager().getOrThrow(RegistryKeys.BIOME);
+						var biome = client.world.getBiome(pos);
+						var biomeId = biomeRegistry.getId(biome.value());
+						
+						if (biomeId != null) {
+							String biomeName = biomeId.getPath();
+							
+							// Return different colors based on biome name
+							switch (biomeName) {
+								case "lunar_maria":
+									return 0xE0E0E0; // Light gray - smooth plains (mare)
+								case "lunar_terrae":
+									return 0xC0C0C0; // Medium gray - highland terrain
+								case "lunar_rocky_maria":
+									return 0xD0D0D0; // Light gray with rocky tint
+								case "lunar_rocky_terrae":
+									return 0xA0A0A0; // Darker gray - rocky highlands
+								case "lunar_glacies":
+									return 0xF0F0F8; // Very light gray with blue tint - icy areas
+								case "lunar_rocky_glacies":
+									return 0xD8D8E8; // Light gray with blue tint - rocky icy areas
+							}
+						}
+					}
+				} catch (Exception e) {
+					// If there's any issue getting the biome, fall back to default
+					// Silently ignore to avoid spam in logs
+				}
+			}
+			
+			// Default color (base regolith)
+			return 0xCCCCCC;
+		}, ModBlocks.LUNAR_REGOLITH);
 	}
 }
