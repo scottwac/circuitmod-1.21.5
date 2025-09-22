@@ -2,10 +2,7 @@ package starduster.circuitmod.item;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
-import net.minecraft.item.ToolMaterial;
 import starduster.circuitmod.item.FuelRodItem;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
@@ -53,11 +50,16 @@ public final class ModItems {
     public static final Item SOLAR_CELL = register("solar_cell", Item::new, new Item.Settings());
     public static final Item SOLAR_MODULE = register("solar_module", Item::new, new Item.Settings());
 
-    public static final Item STEEL_SWORD = register("steel_sword", Item::new, (new Item.Settings()).sword(ModToolMaterials.STEEL_TOOL_MATERIAL, 3.0F, -2.4F));
-    public static final Item STEEL_SHOVEL = register("steel_shovel", Item::new, (new Item.Settings()).shovel(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.5F, -3.0F));
-    public static final Item STEEL_PICKAXE = register("steel_pickaxe", Item::new, (new Item.Settings()).pickaxe(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.0F, -2.8F));
-    public static final Item STEEL_AXE = register("steel_axe", Item::new, (new Item.Settings()).axe(ModToolMaterials.STEEL_TOOL_MATERIAL, 6.0F, -3.1F));
-    public static final Item STEEL_HOE = register("steel_hoe", Item::new, (new Item.Settings()).hoe(ModToolMaterials.STEEL_TOOL_MATERIAL, 2.0F, -1.0F));
+    public static final Item STEEL_SWORD = register("steel_sword", Item::new, (new Item.Settings()).sword(ModToolMaterials.STEEL_TOOL_MATERIAL, 3.0F, -2.4F)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
+    public static final Item STEEL_SHOVEL = register("steel_shovel", Item::new, (new Item.Settings()).shovel(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.5F, -3.0F)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
+    public static final Item STEEL_PICKAXE = register("steel_pickaxe", Item::new, (new Item.Settings()).pickaxe(ModToolMaterials.STEEL_TOOL_MATERIAL, 1.0F, -2.8F)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
+    public static final Item STEEL_AXE = register("steel_axe", Item::new, (new Item.Settings()).axe(ModToolMaterials.STEEL_TOOL_MATERIAL, 6.0F, -3.1F)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
+    public static final Item STEEL_HOE = register("steel_hoe", Item::new, (new Item.Settings()).hoe(ModToolMaterials.STEEL_TOOL_MATERIAL, 2.0F, -1.0F)
+            .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
 
     // Blueprint items
     public static final Item BLUEPRINT = register("blueprint", BlueprintItem::new, new Item.Settings().maxCount(1));

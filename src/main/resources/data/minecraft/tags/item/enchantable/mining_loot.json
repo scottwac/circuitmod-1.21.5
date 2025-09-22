@@ -2,7 +2,11 @@
   "replace": false,
   "values": [
     "circuitmod:quarry_block",
-    "circuitmod:drill_block"
+    "circuitmod:drill_block",
+    "circuitmod:steel_pickaxe",
+    "circuitmod:steel_shovel",
+    "circuitmod:steel_axe",
+    "circuitmod:steel_hoe"
   ]
 }
 
