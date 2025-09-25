@@ -24,6 +24,11 @@ import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.power.EnergyNetworkManager;
+import starduster.circuitmod.power.IPowerConnectable;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
 
 public class DrillBlock extends BlockWithEntity {
     // Use the FACING property from HorizontalFacingBlock
@@ -59,7 +64,7 @@ public class DrillBlock extends BlockWithEntity {
     }
 
     @Override
-    public void onPlaced(World world, BlockPos pos, BlockState state, net.minecraft.entity.LivingEntity placer, net.minecraft.item.ItemStack stack) {
+    public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.onPlaced(world, pos, state, placer, stack);
         if (!world.isClient) {
             BlockEntity be = world.getBlockEntity(pos);
@@ -75,6 +80,12 @@ public class DrillBlock extends BlockWithEntity {
                     }
                 }
                 drill.setFortuneLevel(fortuneLevel);
+                
+                // Use the standardized network connection method
+                if (be instanceof IPowerConnectable) {
+                    EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) be);
+                    Circuitmod.LOGGER.info("[DRILL] Block placed at {}, attempting network connection", pos);
+                }
             }
         }
     }
@@ -104,6 +115,7 @@ public class DrillBlock extends BlockWithEntity {
         return ActionResult.SUCCESS;
     }
 
+
     // Allow the block to be rendered normally (not invisible like typical BlockEntities)
     @Override
     public BlockRenderType getRenderType(BlockState state) {
@@ -119,5 +131,46 @@ public class DrillBlock extends BlockWithEntity {
         }
         return validateTicker(type, ModBlockEntities.DRILL_BLOCK_ENTITY,
                 (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
+    }
+    
+    @Override
+    protected BlockState getStateForNeighborUpdate(
+        BlockState state,
+        net.minecraft.world.WorldView world,
+        net.minecraft.world.tick.ScheduledTickView tickView,
+        BlockPos pos,
+        Direction direction,
+        BlockPos neighborPos,
+        BlockState neighborState,
+        net.minecraft.util.math.random.Random random
+    ) {
+        // Schedule a block tick to handle network connections (avoid modifying world during neighbor update)
+        if (world instanceof World realWorld && !realWorld.isClient()) {
+            realWorld.scheduleBlockTick(pos, this, 1);
+        }
+        
+        return state;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, net.minecraft.server.world.ServerWorld world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof IPowerConnectable) {
+            // Try to connect to networks when neighbors change
+            EnergyNetworkManager.findAndJoinNetwork(world, pos, (IPowerConnectable) blockEntity);
+            Circuitmod.LOGGER.info("[DRILL] Scheduled tick at {}, checking network connections", pos);
+        }
+    }
+
+    @Override
+    protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+        if (!moved) {
+            // Only handle network removal if the block is actually being removed, not moved
+            EnergyNetworkManager.onBlockRemoved(world, pos);
+        }
+        
+        super.onStateReplaced(state, world, pos, moved);
     }
 } 

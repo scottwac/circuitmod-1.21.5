@@ -18,6 +18,7 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
@@ -195,7 +196,10 @@ public class PowerCableBlock extends BlockWithEntity {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        if (!world.isClient) {
+        if (!world.isClient && world instanceof ServerWorld serverWorld) {
+            // Force load the chunk containing this cable and all adjacent chunks
+            forceLoadCableChunks(serverWorld, pos, true);
+            
             // Debug what's around us
             Circuitmod.LOGGER.info("PowerCable placed at " + pos + ". Checking for connectable neighbors...");
             
@@ -230,6 +234,9 @@ public class PowerCableBlock extends BlockWithEntity {
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
         if (!moved) {
+            // Unload the force-loaded chunks when cable is removed
+            forceLoadCableChunks(world, pos, false);
+            
             // Handle network splitting
             BlockEntity entity = world.getBlockEntity(pos);
             if (entity instanceof PowerCableBlockEntity) {
@@ -336,6 +343,38 @@ public class PowerCableBlock extends BlockWithEntity {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Force loads or unloads the chunk containing the cable and all 8 adjacent chunks.
+     * This ensures power networks remain active even when players are far away.
+     */
+    private void forceLoadCableChunks(ServerWorld world, BlockPos cablePos, boolean forceLoad) {
+        ChunkPos cableChunk = new ChunkPos(cablePos);
+        
+        // Force load the cable's chunk and all 8 adjacent chunks (3x3 grid)
+        for (int xOffset = -1; xOffset <= 1; xOffset++) {
+            for (int zOffset = -1; zOffset <= 1; zOffset++) {
+                int chunkX = cableChunk.x + xOffset;
+                int chunkZ = cableChunk.z + zOffset;
+                
+                boolean success = world.setChunkForced(chunkX, chunkZ, forceLoad);
+                
+                if (forceLoad && success) {
+                    Circuitmod.LOGGER.info("PowerCable at {} force-loaded chunk [{}, {}]", 
+                        cablePos, chunkX, chunkZ);
+                } else if (!forceLoad && success) {
+                    Circuitmod.LOGGER.info("PowerCable at {} unloaded force-loaded chunk [{}, {}]", 
+                        cablePos, chunkX, chunkZ);
+                }
+            }
+        }
+        
+        if (forceLoad) {
+            Circuitmod.LOGGER.info("PowerCable at {} force-loaded 9 chunks (3x3 grid) to keep power network active", cablePos);
+        } else {
+            Circuitmod.LOGGER.info("PowerCable at {} removed force-loading for 9 chunks", cablePos);
         }
     }
 } 

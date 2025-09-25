@@ -22,6 +22,7 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.PowerCableBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.server.world.ServerWorld;
 

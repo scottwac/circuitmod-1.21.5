@@ -153,7 +153,8 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         // Periodically check if we should be in a network
         if (world.getTime() % 20 == 0) {  // Check every second
             if (entity.network == null) {
-                entity.findAndJoinNetwork();
+                // Use the standardized network connection method
+                starduster.circuitmod.power.EnergyNetworkManager.findAndJoinNetwork(world, pos, entity);
             }
         }
         

@@ -14,7 +14,6 @@ import net.minecraft.world.World;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.world.ServerWorld;
-import starduster.circuitmod.power.EnergyNetworkManager;
 
 /**
  * Manages a network of energy producers, consumers, and cables.
@@ -57,9 +56,7 @@ public class EnergyNetwork {
         // Generate a unique ID for this network - use first 8 chars of UUID for readability
         this.networkId = "NET-" + UUID.randomUUID().toString().substring(0, 8);
         
-        if (DEBUG_LOGGING && !startupMode) {
-            Circuitmod.LOGGER.info("Created new energy network with ID: " + networkId);
-        }
+        
     }
     
     /**
@@ -487,15 +484,22 @@ public class EnergyNetwork {
      * @return true if the network was repaired, false if it's healthy
      */
     public boolean validateAndRepair(World world) {
-        if (world == null) return false;
+        if (world == null || !(world instanceof ServerWorld)) return false;
         
         boolean wasRepaired = false;
         Set<BlockPos> invalidPositions = new HashSet<>();
+        Set<BlockPos> unloadedPositions = new HashSet<>();
         
         // Check each block position to see if the block still exists and is valid
         for (Map.Entry<BlockPos, IPowerConnectable> entry : connectedBlocks.entrySet()) {
             BlockPos pos = entry.getKey();
-            IPowerConnectable connectable = entry.getValue();
+            
+        // Check if chunk is loaded
+        if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                unloadedPositions.add(pos);
+                markBlockUnloaded(pos);
+                continue;
+            }
             
             // Check if the block still exists at this position
             BlockEntity blockEntity = world.getBlockEntity(pos);
@@ -509,30 +513,32 @@ public class EnergyNetwork {
                 continue;
             }
             
-            // Check if the block's network reference is consistent
+            // Ensure the block entity has correct network reference
             IPowerConnectable currentConnectable = (IPowerConnectable) blockEntity;
             EnergyNetwork blockNetwork = currentConnectable.getNetwork();
-            if (blockNetwork != this && blockNetwork != null) {
-                // Block's network reference is inconsistent - try to fix it first
-                Circuitmod.LOGGER.info("Found inconsistent network reference at {} in network {}, attempting to fix", pos, networkId);
+            if (blockNetwork != this) {
+                if (blockNetwork != null) {
+                    // Block's network reference is inconsistent - try to fix it first
+                    if (DEBUG_LOGGING && !startupMode) {
+                        Circuitmod.LOGGER.info("Found inconsistent network reference at {} in network {}, attempting to fix", pos, networkId);
+                    }
+                }
                 currentConnectable.setNetwork(this);
-                // Give it a tick to update
+                wasRepaired = true;
+                
+                // Give it a tick to update if it's a server world
                 if (world instanceof ServerWorld) {
                     ((ServerWorld) world).scheduleBlockTick(pos, world.getBlockState(pos).getBlock(), 1);
                 }
-            } else if (blockNetwork == null) {
-                // Block has no network reference - fix it
-                Circuitmod.LOGGER.info("Found block with null network reference at {} in network {}, fixing", pos, networkId);
-                currentConnectable.setNetwork(this);
             }
         }
         
-        // Remove invalid positions
+        // Only remove truly invalid positions, not unloaded ones
         for (BlockPos pos : invalidPositions) {
             removeBlock(pos);
         }
         
-        // If network is now empty, deactivate it
+        // If network is now empty (not counting unloaded chunks), deactivate it
         if (connectedBlocks.isEmpty()) {
             active = false;
             if (DEBUG_LOGGING && !startupMode) {
@@ -541,11 +547,25 @@ public class EnergyNetwork {
         }
         
         if (wasRepaired && DEBUG_LOGGING && !startupMode) {
-            Circuitmod.LOGGER.info("Repaired network {}: removed {} invalid blocks, remaining: {}", 
-                networkId, invalidPositions.size(), connectedBlocks.size());
+            Circuitmod.LOGGER.info("Repaired network {}: removed {} invalid blocks, {} unloaded chunks, remaining: {}", 
+                networkId, invalidPositions.size(), unloadedPositions.size(), connectedBlocks.size());
         }
         
         return wasRepaired;
+    }
+    
+    /**
+     * Marks a block as unloaded but keeps it in the network for when the chunk loads again.
+     * This prevents losing network connections when chunks unload temporarily.
+     * 
+     * @param pos The position of the unloaded block
+     */
+    private void markBlockUnloaded(BlockPos pos) {
+        // For now, we simply keep the block in the network but don't process it
+        // In the future, we could add an "unloaded" flag to track these specifically
+        if (DEBUG_LOGGING && !startupMode) {
+            Circuitmod.LOGGER.debug("Block at {} in network {} is in unloaded chunk, keeping reference", pos, networkId);
+        }
     }
     
     // Note: Removed performGlobalRecovery method as it was causing world loading to hang

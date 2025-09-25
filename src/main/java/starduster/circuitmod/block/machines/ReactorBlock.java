@@ -22,6 +22,8 @@ import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.ReactorBlockBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
+import starduster.circuitmod.block.entity.ModBlockEntities;
 
 public class ReactorBlock extends BlockWithEntity {
     public static final MapCodec<ReactorBlock> CODEC = createCodec(ReactorBlock::new);

@@ -22,6 +22,7 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.PowerCableBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.server.world.ServerWorld;
 
@@ -74,6 +75,15 @@ public class CreativeGeneratorBlock extends BlockWithEntity {
     @Override
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
+        
+        if (!world.isClient()) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof IPowerConnectable) {
+                // Use the standardized network connection method
+                EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) blockEntity);
+                Circuitmod.LOGGER.info("[CREATIVE-GENERATOR] Block placed at {}, attempting network connection", pos);
+            }
+        }
         
         if (!world.isClient) {
             // Check for adjacent power cables and connect to their network

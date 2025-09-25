@@ -3,7 +3,6 @@ package starduster.circuitmod.block.entity;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -82,8 +81,8 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         // Store connected blocks before removing this one (for notification)
         Set<BlockPos> connectedPositions = new HashSet<>(network.getConnectedBlockPositions());
         
-        // Remove this block from the network
-        network.removeBlock(pos);
+        // Remove this block from the network (also updates global mappings)
+        EnergyNetworkManager.removeBlockFromNetwork(pos);
         
         // If there are still blocks in the network, choose one to rebuild from
         if (network.getSize() > 0) {
@@ -721,12 +720,16 @@ public class PowerCableBlockEntity extends BlockEntity implements IPowerConnecta
         // Mark as visited
         visited.add(currentPos);
         
-        // Add to new network
+        // Add to new network and update global mapping deterministically
         BlockEntity be = world.getBlockEntity(currentPos);
         if (be instanceof IPowerConnectable) {
             IPowerConnectable connectable = (IPowerConnectable) be;
-            connectable.setNetwork(null); // Clear old network reference
+            // Clear old network reference first to avoid stale links
+            connectable.setNetwork(null);
+            // First, add with real connectable so the BE gets its network set
             newNetwork.addBlock(currentPos, connectable);
+            // Then, update the global block->network mapping
+            EnergyNetworkManager.addBlockToNetwork(currentPos, newNetwork);
         }
         
         // Check neighbors that are in the disconnected set

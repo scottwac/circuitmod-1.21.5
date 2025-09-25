@@ -22,6 +22,7 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.SolarPanelBlockEntity;
 import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
 
 public class SolarPanel extends BlockWithEntity {
     public static final MapCodec<SolarPanel> CODEC = createCodec(SolarPanel::new);
@@ -78,22 +79,52 @@ public class SolarPanel extends BlockWithEntity {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        if (!world.isClient() && world.getBlockEntity(pos) instanceof SolarPanelBlockEntity solarPanel) {
-            // Find and connect to nearby energy network
-            solarPanel.findAndJoinNetwork();
-            Circuitmod.LOGGER.info("Solar panel placed at " + pos + ", attempting to connect to energy network");
+        if (!world.isClient()) {
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof IPowerConnectable) {
+                // Use the standardized network connection method
+                EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) blockEntity);
+                Circuitmod.LOGGER.info("[SOLAR-PANEL] Block placed at {}, attempting network connection", pos);
+            }
+        }
+    }
+    
+    @Override
+    protected BlockState getStateForNeighborUpdate(
+        BlockState state,
+        net.minecraft.world.WorldView world,
+        net.minecraft.world.tick.ScheduledTickView tickView,
+        BlockPos pos,
+        Direction direction,
+        BlockPos neighborPos,
+        BlockState neighborState,
+        net.minecraft.util.math.random.Random random
+    ) {
+        // Schedule a block tick to handle network connections (avoid modifying world during neighbor update)
+        if (world instanceof World realWorld && !realWorld.isClient()) {
+            realWorld.scheduleBlockTick(pos, this, 1);
+        }
+        
+        return state;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, net.minecraft.server.world.ServerWorld world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof IPowerConnectable) {
+            // Try to connect to networks when neighbors change
+            EnergyNetworkManager.findAndJoinNetwork(world, pos, (IPowerConnectable) blockEntity);
+            Circuitmod.LOGGER.info("[SOLAR-PANEL] Scheduled tick at {}, checking network connections", pos);
         }
     }
 
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-        // Disconnect from energy network when block is removed
-        if (world.getBlockEntity(pos) instanceof SolarPanelBlockEntity solarPanel) {
-            EnergyNetwork network = solarPanel.getNetwork();
-            if (network != null) {
-                network.removeBlock(pos);
-                Circuitmod.LOGGER.info("Solar panel at " + pos + " disconnected from energy network: " + network.getNetworkId());
-            }
+        if (!moved) {
+            // Only handle network removal if the block is actually being removed, not moved
+            EnergyNetworkManager.onBlockRemoved(world, pos);
         }
         
         super.onStateReplaced(state, world, pos, moved);

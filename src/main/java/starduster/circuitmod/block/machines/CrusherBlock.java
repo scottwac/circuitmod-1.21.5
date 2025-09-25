@@ -21,12 +21,12 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.Circuitmod;
-import starduster.circuitmod.block.entity.BloomeryBlockEntity;
 import starduster.circuitmod.block.entity.CrusherBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
-import starduster.circuitmod.power.EnergyNetwork;
+import starduster.circuitmod.power.EnergyNetworkManager;
+import starduster.circuitmod.power.IPowerConnectable;
 
-public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider {
+public class CrusherBlock extends BlockWithEntity {
     public static final MapCodec<CrusherBlock> CODEC = createCodec(CrusherBlock::new);
     public static final BooleanProperty RUNNING = BooleanProperty.of("running");
 
@@ -84,8 +84,10 @@ public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider
         
         if (!world.isClient) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof CrusherBlockEntity crusher) {
-                crusher.needsNetworkRefresh = true;
+            if (blockEntity instanceof IPowerConnectable) {
+                // Use the standardized network connection method
+                EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) blockEntity);
+                Circuitmod.LOGGER.info("[CRUSHER] Block placed at {}, attempting network connection", pos);
             }
         }
     }
@@ -102,15 +104,41 @@ public class CrusherBlock extends BlockWithEntity implements BlockEntityProvider
     }
 
     @Override
+    protected BlockState getStateForNeighborUpdate(
+        BlockState state,
+        net.minecraft.world.WorldView world,
+        net.minecraft.world.tick.ScheduledTickView tickView,
+        BlockPos pos,
+        Direction direction,
+        BlockPos neighborPos,
+        BlockState neighborState,
+        net.minecraft.util.math.random.Random random
+    ) {
+        // Schedule a block tick to handle network connections (avoid modifying world during neighbor update)
+        if (world instanceof World realWorld && !realWorld.isClient()) {
+            realWorld.scheduleBlockTick(pos, this, 1);
+        }
+        
+        return state;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, net.minecraft.server.world.ServerWorld world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof IPowerConnectable) {
+            // Try to connect to networks when neighbors change
+            EnergyNetworkManager.findAndJoinNetwork(world, pos, (IPowerConnectable) blockEntity);
+            Circuitmod.LOGGER.info("[CRUSHER] Scheduled tick at {}, checking network connections", pos);
+        }
+    }
+
+    @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
         if (!moved) {
-            BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof CrusherBlockEntity crusher) {
-                EnergyNetwork network = crusher.getNetwork();
-                if (network != null) {
-                    network.removeBlock(pos);
-                }
-            }
+            // Only handle network removal if the block is actually being removed, not moved
+            EnergyNetworkManager.onBlockRemoved(world, pos);
         }
         
         super.onStateReplaced(state, world, pos, moved);

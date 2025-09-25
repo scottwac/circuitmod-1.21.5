@@ -19,9 +19,8 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.CreativeConsumerBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
-import starduster.circuitmod.block.entity.PowerCableBlockEntity;
-import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.server.world.ServerWorld;
 
@@ -75,63 +74,44 @@ public class CreativeConsumerBlock extends BlockWithEntity {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        if (!world.isClient) {
-            // Check for adjacent power cables and connect to their network
+        if (!world.isClient()) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof CreativeConsumerBlockEntity consumer) {
-                // First, try to find an existing network to join
-                boolean foundNetwork = false;
-                
-                // Look for adjacent networks
-                for (Direction dir : Direction.values()) {
-                    BlockPos neighborPos = pos.offset(dir);
-                    BlockEntity be = world.getBlockEntity(neighborPos);
-                    
-                    if (be instanceof IPowerConnectable) {
-                        IPowerConnectable connectable = (IPowerConnectable) be;
-                        EnergyNetwork network = connectable.getNetwork();
-                        
-                        if (network != null) {
-                            // Found a network, join it
-                            network.addBlock(pos, consumer);
-                            foundNetwork = true;
-                            Circuitmod.LOGGER.info("Consumer at " + pos + " joined existing network " + network.getNetworkId());
-                            break;
-                        }
-                    }
-                }
-                
-                // If no existing network was found, create a new one with any adjacent IPowerConnectable blocks
-                if (!foundNetwork) {
-                    Circuitmod.LOGGER.info("No existing network found for consumer at " + pos + ", checking for other connectables");
-                    
-                    // Create a new network
-                    EnergyNetwork newNetwork = new EnergyNetwork();
-                    newNetwork.addBlock(pos, consumer);
-                    
-                    // Try to add adjacent connectables to this new network
-                    for (Direction dir : Direction.values()) {
-                        BlockPos neighborPos = pos.offset(dir);
-                        BlockEntity be = world.getBlockEntity(neighborPos);
-                        
-                        if (be instanceof IPowerConnectable && !(be instanceof PowerCableBlockEntity)) {
-                            IPowerConnectable connectable = (IPowerConnectable) be;
-                            
-                            // Only add if it doesn't already have a network
-                            if (connectable.getNetwork() == null && 
-                                // Check both sides can connect
-                                connectable.canConnectPower(dir.getOpposite()) && 
-                                consumer.canConnectPower(dir)) {
-                                
-                                newNetwork.addBlock(neighborPos, connectable);
-                                Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to new network " + newNetwork.getNetworkId());
-                            }
-                        }
-                    }
-                    
-                    Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " with consumer at " + pos);
-                }
+            if (blockEntity instanceof IPowerConnectable) {
+                // Use the standardized network connection method
+                EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) blockEntity);
+                Circuitmod.LOGGER.info("[CREATIVE-CONSUMER] Block placed at {}, attempting network connection", pos);
             }
+        }
+    }
+    
+    @Override
+    protected BlockState getStateForNeighborUpdate(
+        BlockState state,
+        net.minecraft.world.WorldView world,
+        net.minecraft.world.tick.ScheduledTickView tickView,
+        BlockPos pos,
+        Direction direction,
+        BlockPos neighborPos,
+        BlockState neighborState,
+        net.minecraft.util.math.random.Random random
+    ) {
+        // Schedule a block tick to handle network connections (avoid modifying world during neighbor update)
+        if (world instanceof World realWorld && !realWorld.isClient()) {
+            realWorld.scheduleBlockTick(pos, this, 1);
+        }
+        
+        return state;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, net.minecraft.server.world.ServerWorld world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof IPowerConnectable) {
+            // Try to connect to networks when neighbors change
+            EnergyNetworkManager.findAndJoinNetwork(world, pos, (IPowerConnectable) blockEntity);
+            Circuitmod.LOGGER.info("[CREATIVE-CONSUMER] Scheduled tick at {}, checking network connections", pos);
         }
     }
 
@@ -144,16 +124,8 @@ public class CreativeConsumerBlock extends BlockWithEntity {
     @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
         if (!moved) {
-            // Handle network updates when this block is removed
-            BlockEntity entity = world.getBlockEntity(pos);
-            if (entity instanceof CreativeConsumerBlockEntity consumer) {
-                EnergyNetwork network = consumer.getNetwork();
-                if (network != null) {
-                    // Remove this block from the network
-                    network.removeBlock(pos);
-                    Circuitmod.LOGGER.info("Consumer at " + pos + " removed from network " + network.getNetworkId());
-                }
-            }
+            // Only handle network removal if the block is actually being removed, not moved
+            EnergyNetworkManager.onBlockRemoved(world, pos);
         }
         
         super.onStateReplaced(state, world, pos, moved);

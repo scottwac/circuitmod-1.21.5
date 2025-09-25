@@ -14,18 +14,17 @@ import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.Properties;
-import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import starduster.circuitmod.block.entity.BatteryBlockEntity;
 import starduster.circuitmod.block.entity.ModBlockEntities;
-import starduster.circuitmod.block.entity.PowerCableBlockEntity;
-import starduster.circuitmod.power.EnergyNetwork;
 import starduster.circuitmod.power.IPowerConnectable;
+import starduster.circuitmod.power.EnergyNetworkManager;
 import starduster.circuitmod.Circuitmod;
 import net.minecraft.server.world.ServerWorld;
 
@@ -80,62 +79,15 @@ public class BatteryBlock extends BlockWithEntity {
     public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
         super.onPlaced(world, pos, state, placer, itemStack);
         
-        if (!world.isClient) {
-            // Check for adjacent power cables and connect to their network
+        if (!world.isClient && world instanceof ServerWorld serverWorld) {
+            // Force load the chunk containing this battery and all adjacent chunks
+            forceLoadBatteryChunks(serverWorld, pos, true);
+            
+            // Use the standardized network connection method
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof BatteryBlockEntity battery) {
-                // First, try to find an existing network to join
-                boolean foundNetwork = false;
-                
-                // Look for adjacent networks
-                for (Direction dir : Direction.values()) {
-                    BlockPos neighborPos = pos.offset(dir);
-                    BlockEntity be = world.getBlockEntity(neighborPos);
-                    
-                    if (be instanceof IPowerConnectable) {
-                        IPowerConnectable connectable = (IPowerConnectable) be;
-                        EnergyNetwork network = connectable.getNetwork();
-                        
-                        if (network != null) {
-                            // Found a network, join it
-                            network.addBlock(pos, battery);
-                            foundNetwork = true;
-                            Circuitmod.LOGGER.info("Battery at " + pos + " joined existing network " + network.getNetworkId());
-                            break;
-                        }
-                    }
-                }
-                
-                // If no existing network was found, create a new one with any adjacent IPowerConnectable blocks
-                if (!foundNetwork) {
-                    Circuitmod.LOGGER.info("No existing network found for battery at " + pos + ", checking for other connectables");
-                    
-                    // Create a new network
-                    EnergyNetwork newNetwork = new EnergyNetwork();
-                    newNetwork.addBlock(pos, battery);
-                    
-                    // Try to add adjacent connectables to this new network
-                    for (Direction dir : Direction.values()) {
-                        BlockPos neighborPos = pos.offset(dir);
-                        BlockEntity be = world.getBlockEntity(neighborPos);
-                        
-                        if (be instanceof IPowerConnectable && !(be instanceof PowerCableBlockEntity)) {
-                            IPowerConnectable connectable = (IPowerConnectable) be;
-                            
-                            // Only add if it doesn't already have a network
-                            if (connectable.getNetwork() == null && 
-                                // Check both sides can connect
-                                connectable.canConnectPower(dir.getOpposite()) && 
-                                battery.canConnectPower(dir)) {
-                                
-                                newNetwork.addBlock(neighborPos, connectable);
-                                Circuitmod.LOGGER.info("Added neighbor at " + neighborPos + " to new network " + newNetwork.getNetworkId());
-                            }
-                        }
-                    }
-                    
-                    Circuitmod.LOGGER.info("Created new network " + newNetwork.getNetworkId() + " with battery at " + pos);
-                }
+            if (blockEntity instanceof IPowerConnectable) {
+                EnergyNetworkManager.onBlockPlaced(world, pos, (IPowerConnectable) blockEntity);
+                Circuitmod.LOGGER.info("[BATTERY] Block placed at {}, attempting network connection", pos);
             }
         }
     }
@@ -147,20 +99,78 @@ public class BatteryBlock extends BlockWithEntity {
     }
 
     @Override
+    protected BlockState getStateForNeighborUpdate(
+        BlockState state,
+        net.minecraft.world.WorldView world,
+        net.minecraft.world.tick.ScheduledTickView tickView,
+        BlockPos pos,
+        Direction direction,
+        BlockPos neighborPos,
+        BlockState neighborState,
+        net.minecraft.util.math.random.Random random
+    ) {
+        // Schedule a block tick to handle network connections (avoid modifying world during neighbor update)
+        if (world instanceof World realWorld && !realWorld.isClient()) {
+            realWorld.scheduleBlockTick(pos, this, 1);
+        }
+        
+        return state;
+    }
+    
+    @Override
+    public void scheduledTick(BlockState state, net.minecraft.server.world.ServerWorld world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+        super.scheduledTick(state, world, pos, random);
+        
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof IPowerConnectable) {
+            // Try to connect to networks when neighbors change
+            EnergyNetworkManager.findAndJoinNetwork(world, pos, (IPowerConnectable) blockEntity);
+            Circuitmod.LOGGER.info("[BATTERY] Scheduled tick at {}, checking network connections", pos);
+        }
+    }
+
+    @Override
     protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
         if (!moved) {
-            // Handle network updates when this block is removed
-            BlockEntity entity = world.getBlockEntity(pos);
-            if (entity instanceof BatteryBlockEntity battery) {
-                EnergyNetwork network = battery.getNetwork();
-                if (network != null) {
-                    // Remove this block from the network
-                    network.removeBlock(pos);
-                    Circuitmod.LOGGER.info("Battery at " + pos + " removed from network " + network.getNetworkId());
+            // Unload the force-loaded chunks when battery is removed
+            forceLoadBatteryChunks(world, pos, false);
+            
+            // Only handle network removal if the block is actually being removed, not moved
+            EnergyNetworkManager.onBlockRemoved(world, pos);
+        }
+        
+        super.onStateReplaced(state, world, pos, moved);
+    }
+
+    /**
+     * Force loads or unloads the chunk containing the battery and all 8 adjacent chunks.
+     * This ensures power networks remain active even when players are far away.
+     */
+    private void forceLoadBatteryChunks(ServerWorld world, BlockPos batteryPos, boolean forceLoad) {
+        ChunkPos batteryChunk = new ChunkPos(batteryPos);
+        
+        // Force load the battery's chunk and all 8 adjacent chunks (3x3 grid)
+        for (int xOffset = -1; xOffset <= 1; xOffset++) {
+            for (int zOffset = -1; zOffset <= 1; zOffset++) {
+                int chunkX = batteryChunk.x + xOffset;
+                int chunkZ = batteryChunk.z + zOffset;
+                
+                boolean success = world.setChunkForced(chunkX, chunkZ, forceLoad);
+                
+                if (forceLoad && success) {
+                    Circuitmod.LOGGER.info("Battery at {} force-loaded chunk [{}, {}]", 
+                        batteryPos, chunkX, chunkZ);
+                } else if (!forceLoad && success) {
+                    Circuitmod.LOGGER.info("Battery at {} unloaded force-loaded chunk [{}, {}]", 
+                        batteryPos, chunkX, chunkZ);
                 }
             }
         }
         
-        super.onStateReplaced(state, world, pos, moved);
+        if (forceLoad) {
+            Circuitmod.LOGGER.info("Battery at {} force-loaded 9 chunks (3x3 grid) to keep power network active", batteryPos);
+        } else {
+            Circuitmod.LOGGER.info("Battery at {} removed force-loading for 9 chunks", batteryPos);
+        }
     }
 } 
