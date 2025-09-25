@@ -158,17 +158,17 @@ public class CircuitmodClient implements ClientModInitializer {
 							// Return different colors based on biome name
 							switch (biomeName) {
 								case "lunar_maria":
-									return 0xE0E0E0; // Light gray - smooth plains (mare)
+									return 0xD6D6D6; // Light gray - smooth plains (mare)
 								case "lunar_terrae":
-									return 0xC0C0C0; // Medium gray - highland terrain
+									return 0xF7F7F7; // Medium gray - highland terrain
 								case "lunar_rocky_maria":
-									return 0xD0D0D0; // Light gray with rocky tint
+									return 0xD6D6D6; // Light gray with rocky tint
 								case "lunar_rocky_terrae":
-									return 0xA0A0A0; // Darker gray - rocky highlands
+									return 0xF7F7F7; // Darker gray - rocky highlands
 								case "lunar_glacies":
-									return 0xF0F0F8; // Very light gray with blue tint - icy areas
+									return 0xFEFFFF; // Very light gray with blue tint - icy areas
 								case "lunar_rocky_glacies":
-									return 0xD8D8E8; // Light gray with blue tint - rocky icy areas
+									return 0xFEFFFF; // Light gray with blue tint - rocky icy areas
 							}
 						}
 					}
@@ -179,7 +179,7 @@ public class CircuitmodClient implements ClientModInitializer {
 			}
 			
 			// Default color (base regolith)
-			return 0xCCCCCC;
+			return 0xF7F7F7;
 		}, ModBlocks.LUNAR_REGOLITH);
 	}
 }
