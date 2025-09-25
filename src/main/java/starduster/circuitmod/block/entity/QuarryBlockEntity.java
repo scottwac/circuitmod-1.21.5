@@ -81,7 +81,7 @@ public class QuarryBlockEntity extends BlockEntity implements SidedInventory, Ex
     
     
     // Debug logging control - set to true only when debugging
-    private static final boolean DEBUG_LOGGING = true;
+    private static final boolean DEBUG_LOGGING = false;
     
     // Networking properties
     private int packetCooldown = 0; // Cooldown to avoid sending too many packets

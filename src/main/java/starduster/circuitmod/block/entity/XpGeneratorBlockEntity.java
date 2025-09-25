@@ -21,6 +21,8 @@ import starduster.circuitmod.power.IEnergyConsumer;
 import starduster.circuitmod.screen.XpGeneratorScreenHandler;
 
 public class XpGeneratorBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, IEnergyConsumer {
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
     
     // XP generation properties
     private int storedXp = 0; // XP stored in the machine
@@ -189,7 +191,9 @@ public class XpGeneratorBlockEntity extends BlockEntity implements NamedScreenHa
             if (entity.generationProgress >= TICKS_PER_XP) {
                 entity.storedXp++;
                 entity.generationProgress = 0;
-                Circuitmod.LOGGER.info("[XP-GENERATOR] Generated 1 XP at {}, total stored: {}", pos, entity.storedXp);
+                if (DEBUG_LOGGING) {
+                    Circuitmod.LOGGER.info("[XP-GENERATOR-DEBUG] Generated 1 XP at {}, total stored: {}", pos, entity.storedXp);
+                }
             }
             entity.markDirty();
         } else if (!entity.isPowered) {
@@ -210,8 +214,8 @@ public class XpGeneratorBlockEntity extends BlockEntity implements NamedScreenHa
         entity.energyReceived = 0;
         
         // Debug logging every 40 ticks (2 seconds)
-        if (world.getTime() % 40 == 0) {
-            Circuitmod.LOGGER.info("[XP-GENERATOR] Tick at {}: network={}, energyReceived={}, isPowered={}, storedXp={}, progress={}/{}", 
+        if (DEBUG_LOGGING && world.getTime() % 40 == 0) {
+            Circuitmod.LOGGER.info("[XP-GENERATOR-DEBUG] Tick at {}: network={}, energyReceived={}, isPowered={}, storedXp={}, progress={}/{}", 
                 pos, entity.network != null ? entity.network.getNetworkId() : "null", 
                 entity.energyReceived, entity.isPowered, entity.storedXp, entity.generationProgress, TICKS_PER_XP);
         }
@@ -233,8 +237,10 @@ public class XpGeneratorBlockEntity extends BlockEntity implements NamedScreenHa
         
         if (storedXp > 0) {
             player.addExperience(storedXp);
-            Circuitmod.LOGGER.info("[XP-GENERATOR] Player {} collected {} XP from generator at {}", 
-                player.getName().getString(), storedXp, pos);
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("[XP-GENERATOR-DEBUG] Player {} collected {} XP from generator at {}", 
+                    player.getName().getString(), storedXp, pos);
+            }
             storedXp = 0;
             generationProgress = 0; // Reset progress when collected
             markDirty();

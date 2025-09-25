@@ -52,6 +52,8 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     private boolean needsNetworkRefresh = false;
     private int energyReceived = 0; // Energy received this tick
     private boolean isPowered = false; // Whether we're receiving power
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
     
     // Property delegate for GUI synchronization
     protected final PropertyDelegate propertyDelegate = new PropertyDelegate() {
@@ -168,8 +170,8 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         entity.isPowered = entity.isReceivingPower();
         
         // Debug logging every 40 ticks (2 seconds)
-        if (world.getTime() % 40 == 0) {
-            Circuitmod.LOGGER.info("[ELECTRIC-FURNACE] Tick at {}: network={}, energyReceived={}, isPowered={}, hasRecipe={}, canSmelt={}", 
+        if (DEBUG_LOGGING && world.getTime() % 40 == 0) {
+            Circuitmod.LOGGER.info("[ELECTRIC-FURNACE-DEBUG] Tick at {}: network={}, energyReceived={}, isPowered={}, hasRecipe={}, canSmelt={}", 
                 pos, entity.network != null ? entity.network.getNetworkId() : "null", 
                 entity.energyReceived, entity.isPowered, hasRecipe, canSmelt);
         }
@@ -442,8 +444,10 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
         int energyToConsume = Math.min(energyOffered, ENERGY_DEMAND_PER_TICK);
         if (energyToConsume > 0) {
             this.energyReceived += energyToConsume;
-            Circuitmod.LOGGER.info("[ELECTRIC-FURNACE] Received {} energy at {}, total received this tick: {}", 
-                energyToConsume, pos, this.energyReceived);
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("[ELECTRIC-FURNACE-DEBUG] Received {} energy at {}, total received this tick: {}", 
+                    energyToConsume, pos, this.energyReceived);
+            }
         }
         
         return energyToConsume;
@@ -493,8 +497,10 @@ public class ElectricFurnaceBlockEntity extends BlockEntity implements NamedScre
     public void onRemoved() {
         if (network != null) {
             network.removeBlock(pos);
-            Circuitmod.LOGGER.info("[ELECTRIC-FURNACE] Removed from network {} at {}", 
-                network.getNetworkId(), pos);
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("[ELECTRIC-FURNACE-DEBUG] Removed from network {} at {}", 
+                    network.getNetworkId(), pos);
+            }
         }
     }
 } 

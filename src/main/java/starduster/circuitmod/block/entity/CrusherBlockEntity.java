@@ -38,6 +38,8 @@ import starduster.circuitmod.block.machines.CrusherBlock;
 import java.util.Optional;
 
 public class CrusherBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory, IEnergyConsumer {
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(6, ItemStack.EMPTY);
 
     private static final int INPUT_SLOT = 0;

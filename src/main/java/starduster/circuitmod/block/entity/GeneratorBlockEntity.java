@@ -37,6 +37,8 @@ import starduster.circuitmod.sound.ModSounds;
 import starduster.circuitmod.util.ImplementedInventory;
 
 public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, ImplementedInventory, IEnergyProducer, IPowerConnectable {
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
     private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(1, ItemStack.EMPTY);
     
     private static final int FUEL_SLOT = 0;
@@ -269,7 +271,9 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
                     }
                     network.addBlock(pos, this);
                     foundNetwork = true;
-                    Circuitmod.LOGGER.info("[GENERATOR] Joined network {} at {}", network.getNetworkId(), pos);
+                    if (DEBUG_LOGGING) {
+                        Circuitmod.LOGGER.info("[GENERATOR-DEBUG] Joined network {} at {}", network.getNetworkId(), pos);
+                    }
                     break;
                 }
             }
@@ -288,7 +292,9 @@ public class GeneratorBlockEntity extends BlockEntity implements NamedScreenHand
                     }
                 }
             }
-            Circuitmod.LOGGER.info("[GENERATOR] Created new network {} at {}", newNetwork.getNetworkId(), pos);
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("[GENERATOR-DEBUG] Created new network {} at {}", newNetwork.getNetworkId(), pos);
+            }
         }
     }
 } 

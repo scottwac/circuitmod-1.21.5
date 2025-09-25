@@ -47,6 +47,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInventory, NamedScreenHandlerFactory, ExtendedScreenHandlerFactory<ModScreenHandlers.LaserMiningDrillData>, IEnergyConsumer {
+    // Debug logging control - set to true only when debugging
+    private static final boolean DEBUG_LOGGING = false;
     // Energy properties
     private static final int MAX_ENERGY_DEMAND = 1000; // Maximum energy demand per tick
     private int energyDemand = MAX_ENERGY_DEMAND; // Current energy demand per tick
@@ -338,12 +340,14 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
             boolean networkFound = blockEntity.findAndJoinNetwork();
             if (networkFound) {
                 blockEntity.needsNetworkRefresh = false;
-                Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK] Successfully joined network at " + pos);
+                    if (DEBUG_LOGGING) {
+                        Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK-DEBUG] Successfully joined network at {}", pos);
+                    }
             } else {
                 // If we couldn't find a network, try again in a few ticks
                 // This helps with world reload scenarios where power cables might not be loaded yet
-                if (world.getTime() % 20 == 0) { // Log every second
-                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK] No network found at " + pos + ", will retry. Mining enabled: " + blockEntity.miningEnabled);
+                if (DEBUG_LOGGING && world.getTime() % 20 == 0) { // Log every second
+                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK-DEBUG] No network found at {}, will retry. Mining enabled: {}", pos, blockEntity.miningEnabled);
                 }
             }
         }
@@ -369,9 +373,9 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
         boolean needsSync = false;
         
         // Debug log for diagnostics
-        if (world.getTime() % 20 == 0) { // Only log every second
+        if (DEBUG_LOGGING && world.getTime() % 20 == 0) { // Only log every second
             String networkInfo = blockEntity.network != null ? blockEntity.network.getNetworkId() : "NO NETWORK";
-            // Circuitmod.LOGGER.info("[LASER-MINING-DRILL-TICK] Energy received: " + blockEntity.energyReceived + ", network: " + networkInfo);
+            Circuitmod.LOGGER.info("[LASER-MINING-DRILL-DEBUG] Energy received: {}, network: {}", blockEntity.energyReceived, networkInfo);
         }
         
         // Process mining operations based on energy available and if mining is enabled
@@ -408,8 +412,8 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
             // If mining is enabled but we're not receiving power, try to refresh network connection
             // This helps with world reload scenarios where network connections might be lost
             if (blockEntity.miningEnabled && blockEntity.energyReceived == 0 && blockEntity.network == null) {
-                if (world.getTime() % 40 == 0) { // Try every 2 seconds
-                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK-RETRY] Mining enabled but no power at " + pos + ", attempting network refresh");
+                if (DEBUG_LOGGING && world.getTime() % 40 == 0) { // Try every 2 seconds
+                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-NETWORK-RETRY] Mining enabled but no power at {}, attempting network refresh", pos);
                     blockEntity.needsNetworkRefresh = true;
                 }
             }
@@ -496,7 +500,9 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
                 currentMiningPos = getNextMiningPos();
                 if (currentMiningPos == null) {
                     // Reached the end of the mining line
-                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-DEBUG] Reached end of mining line at depth {}", currentDepth);
+                    if (DEBUG_LOGGING) {
+                        Circuitmod.LOGGER.info("[LASER-MINING-DRILL-DEBUG] Reached end of mining line at depth {}", currentDepth);
+                    }
                     return false;
                 }
                 currentMiningProgress = 0;
@@ -538,7 +544,9 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
         }
         if (attempts >= maxAttempts) {
             // Could not find a valid block to mine in the entire line
-            Circuitmod.LOGGER.info("[LASER-MINING-DRILL-DEBUG] No valid blocks found in entire mining line");
+            if (DEBUG_LOGGING) {
+                Circuitmod.LOGGER.info("[LASER-MINING-DRILL-DEBUG] No valid blocks found in entire mining line");
+            }
             return false;
         }
 
@@ -586,7 +594,9 @@ public class LaserMiningDrillBlockEntity extends BlockEntity implements SidedInv
                 return true;
             } else {
                 // Inventory full - don't mine the block, pause position advancement and re-attempt later
-                Circuitmod.LOGGER.info("[LASER-MINING-DRILL-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
+                if (DEBUG_LOGGING) {
+                    Circuitmod.LOGGER.info("[LASER-MINING-DRILL-MINE] Inventory full, pausing mining of block {} - will re-attempt when space available", minedItem.getItem().getName().getString());
+                }
                 return false; // Don't advance position, re-attempt the same block later
             }
         }
