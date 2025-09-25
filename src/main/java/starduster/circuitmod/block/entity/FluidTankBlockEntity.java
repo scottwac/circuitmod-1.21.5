@@ -8,7 +8,6 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.Fluids;
 import net.minecraft.inventory.Inventories;
-import net.minecraft.item.BucketItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -20,7 +19,6 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -36,7 +34,7 @@ public class FluidTankBlockEntity extends BlockEntity implements IFluidStorage, 
     // Constants
     private static final int CAPACITY_MB = 8 * 1024; // 8 buckets = 8192 millibuckets
     private static final int MB_PER_BUCKET = 1024;
-    private static final int INVENTORY_SIZE = 1; // One slot for bucket interaction
+    private static final int INVENTORY_SIZE = 2; // Two slots: input bucket (0) and output bucket (1)
     
     // Fluid storage
     private Fluid storedFluidType = Fluids.EMPTY;
@@ -87,34 +85,45 @@ public class FluidTankBlockEntity extends BlockEntity implements IFluidStorage, 
     }
 
     private void processBucketInteraction() {
-        ItemStack bucketStack = getStack(0);
-        if (bucketStack.isEmpty()) return;
-
-        if (bucketStack.getItem() == Items.BUCKET) {
-            // Empty bucket - try to fill from tank
-            if (storedFluidAmount >= MB_PER_BUCKET && storedFluidType != Fluids.EMPTY) {
-                ItemStack filledBucket = getFilledBucket(storedFluidType);
-                if (filledBucket != null) {
-                    storedFluidAmount -= MB_PER_BUCKET;
-                    if (storedFluidAmount <= 0) {
-                        storedFluidType = Fluids.EMPTY;
-                        storedFluidAmount = 0;
+        // Process input slot (slot 0) - handles filled buckets and empty buckets being filled
+        ItemStack inputStack = getStack(0);
+        ItemStack outputStack = getStack(1);
+        
+        if (!inputStack.isEmpty()) {
+            if (inputStack.getItem() == Items.BUCKET) {
+                // Empty bucket in input - try to fill from tank if output slot is empty
+                if (outputStack.isEmpty() && storedFluidAmount >= MB_PER_BUCKET && storedFluidType != Fluids.EMPTY) {
+                    ItemStack filledBucket = getFilledBucket(storedFluidType);
+                    if (filledBucket != null) {
+                        storedFluidAmount -= MB_PER_BUCKET;
+                        if (storedFluidAmount <= 0) {
+                            storedFluidType = Fluids.EMPTY;
+                            storedFluidAmount = 0;
+                        }
+                        inputStack.decrement(1);
+                        setStack(1, filledBucket);
+                        markDirty();
                     }
-                    setStack(0, filledBucket);
-                    markDirty();
                 }
-            }
-        } else {
-            // Check for filled buckets by item type
-            Fluid bucketFluid = getFluidFromBucketItem(bucketStack.getItem());
-            if (bucketFluid != Fluids.EMPTY) {
-                if (canAcceptFluid(bucketFluid) && storedFluidAmount + MB_PER_BUCKET <= CAPACITY_MB) {
-                    if (storedFluidType == Fluids.EMPTY) {
-                        storedFluidType = bucketFluid;
+            } else {
+                // Check for filled buckets by item type
+                Fluid bucketFluid = getFluidFromBucketItem(inputStack.getItem());
+                if (bucketFluid != Fluids.EMPTY) {
+                    if (canAcceptFluid(bucketFluid) && storedFluidAmount + MB_PER_BUCKET <= CAPACITY_MB) {
+                        if (storedFluidType == Fluids.EMPTY) {
+                            storedFluidType = bucketFluid;
+                        }
+                        storedFluidAmount += MB_PER_BUCKET;
+                        inputStack.decrement(1);
+                        
+                        // Try to place empty bucket in output slot if it's empty
+                        if (outputStack.isEmpty()) {
+                            setStack(1, new ItemStack(Items.BUCKET));
+                        } else if (outputStack.getItem() == Items.BUCKET && outputStack.getCount() < outputStack.getMaxCount()) {
+                            outputStack.increment(1);
+                        }
+                        markDirty();
                     }
-                    storedFluidAmount += MB_PER_BUCKET;
-                    setStack(0, new ItemStack(Items.BUCKET));
-                    markDirty();
                 }
             }
         }
@@ -296,6 +305,6 @@ public class FluidTankBlockEntity extends BlockEntity implements IFluidStorage, 
     }
 
     public double getFluidPercentage() {
-        return CAPACITY_MB > 0 ? (double) storedFluidAmount / CAPACITY_MB : 0.0;
+        return (double) storedFluidAmount / CAPACITY_MB;
     }
 } 
