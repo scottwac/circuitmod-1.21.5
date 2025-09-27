@@ -97,6 +97,7 @@ public class ModCreativeTabs {
 
                             // Add movement items
                             entries.add(ModItems.PULSE_STICK);
+                            entries.add(ModItems.HOVERCRAFT);
 
                             entries.add(ModItems.STIMULANTS);
 

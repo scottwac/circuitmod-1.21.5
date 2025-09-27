@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "transportation",
+  "pattern": [
+    "IAI",
+    "PSP",
+    " R "
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "A": {
+      "item": "circuitmod:aluminum_ingot"
+    },
+    "P": {
+      "item": "circuitmod:plastic_bar"
+    },
+    "S": {
+      "item": "circuitmod:steel_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "result": {
+    "item": "circuitmod:hovercraft",
+    "count": 1
+  }
+}

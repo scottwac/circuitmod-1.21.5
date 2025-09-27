@@ -574,4 +574,24 @@ public class ClientNetworking {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send constructor transform update: {}", e.getMessage(), e);
         }
     }
+    
+    /**
+     * Send hovercraft input to the server
+     * 
+     * @param entityId The ID of the hovercraft entity
+     * @param forward Whether the forward key is pressed
+     * @param backward Whether the backward key is pressed
+     * @param left Whether the left key is pressed
+     * @param right Whether the right key is pressed
+     * @param up Whether the up key is pressed
+     * @param down Whether the down key is pressed
+     */
+    public static void sendHovercraftInput(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) {
+        try {
+            ModNetworking.HovercraftInputPayload payload = new ModNetworking.HovercraftInputPayload(entityId, forward, backward, left, right, up, down);
+            ClientPlayNetworking.send(payload);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send hovercraft input: {}", e.getMessage(), e);
+        }
+    }
 } 

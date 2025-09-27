@@ -21,6 +21,8 @@ import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
 import starduster.circuitmod.client.render.DrillBlockEntityRenderer;
 import starduster.circuitmod.client.render.LaserMiningDrillBlockEntityRenderer;
 import starduster.circuitmod.client.render.ConstructorBlockEntityRenderer;
+import starduster.circuitmod.client.render.HovercraftEntityRenderer;
+import starduster.circuitmod.client.HovercraftInputHandler;
 import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.LaserMiningDrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
@@ -84,12 +86,16 @@ public class CircuitmodClient implements ClientModInitializer {
 		
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
+		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
 		
 		// Register color providers for biome-based tinting
 		registerColorProviders();
 		
 		// Initialize client networking
 		starduster.circuitmod.network.ClientNetworking.initialize();
+		
+		// Initialize hovercraft input handler
+		HovercraftInputHandler.initialize();
 		
 		// Initialize client network animator
 		starduster.circuitmod.network.ClientNetworkAnimator.initialize();

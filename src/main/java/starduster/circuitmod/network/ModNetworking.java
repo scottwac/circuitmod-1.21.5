@@ -54,6 +54,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(BlueprintNamePayload.ID, BlueprintNamePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(CollectXpPayload.ID, CollectXpPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(HovercraftInputPayload.ID, HovercraftInputPayload.CODEC);
     }
     
 
@@ -908,6 +909,32 @@ public class ModNetworking {
         public static final PacketCodec<PacketByteBuf, QuarryResetHeightPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, QuarryResetHeightPayload::quarryPos,
             QuarryResetHeightPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for hovercraft input (client -> server)
+     */
+    public record HovercraftInputPayload(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<HovercraftInputPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "hovercraft_input"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, HovercraftInputPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.INTEGER, HovercraftInputPayload::entityId,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::forward,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::backward,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::left,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::right,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::up,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::down,
+            HovercraftInputPayload::new
         );
         
         @Override

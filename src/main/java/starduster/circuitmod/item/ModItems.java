@@ -75,6 +75,9 @@ public final class ModItems {
             .maxCount(1)
             .maxDamage(128)
             .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(15)));
+    
+    // Vehicle items
+    public static final Item HOVERCRAFT = register("hovercraft", HovercraftItem::new, new Item.Settings().maxCount(1));
 
 
 

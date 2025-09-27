@@ -240,6 +240,7 @@ public class Circuitmod implements ModInitializer {
 		
 		
 		
+		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());

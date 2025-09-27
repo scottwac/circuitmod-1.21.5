@@ -21,6 +21,16 @@ public class ModEntityTypes {
             .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "mining_explosive")))
     );
     
+    public static final EntityType<HovercraftEntity> HOVERCRAFT = Registry.register(
+        Registries.ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "hovercraft"),
+        EntityType.Builder.<HovercraftEntity>create(HovercraftEntity::new, SpawnGroup.MISC)
+            .dimensions(1.375F, 0.5625F) // Similar to minecart dimensions
+            .maxTrackingRange(8)
+            .trackingTickInterval(3)
+            .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "hovercraft")))
+    );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod entity types");
     }
