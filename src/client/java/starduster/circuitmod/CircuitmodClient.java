@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.render.DimensionEffects;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
@@ -15,6 +16,7 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
@@ -23,6 +25,7 @@ import starduster.circuitmod.client.render.LaserMiningDrillBlockEntityRenderer;
 import starduster.circuitmod.client.render.ConstructorBlockEntityRenderer;
 import starduster.circuitmod.client.render.HovercraftEntityRenderer;
 import starduster.circuitmod.client.HovercraftInputHandler;
+import starduster.circuitmod.client.render.sky.LunaSkyRenderer;
 import starduster.circuitmod.screen.DrillScreen;
 import starduster.circuitmod.screen.LaserMiningDrillScreen;
 import starduster.circuitmod.screen.ModScreenHandlers;
@@ -45,8 +48,11 @@ public class CircuitmodClient implements ClientModInitializer {
 	
     // Identifier used by dimension_type effects mapping
     @SuppressWarnings("unused")
-    private static final Identifier NO_MOON_ID = Identifier.of("circuitmod", "no_moon");
-    private static final Identifier LUNA_ID = Identifier.of("circuitmod", "luna_effects");
+    private static final Identifier NO_MOON_ID = Identifier.of(Circuitmod.MOD_ID, "no_moon");
+    private static final Identifier LUNA_ID = Identifier.of(Circuitmod.MOD_ID, "luna");
+
+    public static final RegistryKey<World> LUNA_KEY =
+            RegistryKey.of(RegistryKeys.WORLD, LUNA_ID);
 
 	@Override
 	public void onInitializeClient() {
@@ -87,7 +93,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
-		
+
 		// Register color providers for biome-based tinting
 		registerColorProviders();
 		
@@ -96,7 +102,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		
 		// Initialize hovercraft input handler
 		HovercraftInputHandler.initialize();
-		
+
 		// Initialize client network animator
 		starduster.circuitmod.network.ClientNetworkAnimator.initialize();
 		
@@ -136,8 +142,13 @@ public class CircuitmodClient implements ClientModInitializer {
         });
         // Disable clouds for our dimension (draw nothing)
         DimensionRenderingRegistry.registerCloudRenderer(
-            net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "luna")),
+                net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "luna")),
             context -> {}
+        );
+
+        DimensionRenderingRegistry.registerSkyRenderer(
+                net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "luna")),
+                new LunaSkyRenderer()
         );
 
         Circuitmod.LOGGER.info("[CLIENT] CircuitmodClient initialization complete");
