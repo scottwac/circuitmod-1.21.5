@@ -116,12 +116,12 @@ public class CircuitmodClient implements ClientModInitializer {
 			Circuitmod.LOGGER.info("[CLIENT] Disconnected from server");
 		});
 		
-        // Force black sky background for our dimension while keeping NORMAL sky behavior (sun/stars)
+        // Force black sky background for our dimension - use NORMAL sky type to allow custom sky renderers
         DimensionRenderingRegistry.registerDimensionEffects(LUNA_ID,
             new DimensionEffects(
                 192,                     // clouds height
                 false,                    // alternate sky color (use getSkyColor below)
-                DimensionEffects.SkyType.NORMAL,
+                DimensionEffects.SkyType.NORMAL,  // Use NORMAL type to allow custom sky renderers
                 false,                   // brightenLighting
                 true)                    // darkened (dim ambient lighting)
         {
@@ -146,10 +146,8 @@ public class CircuitmodClient implements ClientModInitializer {
             context -> {}
         );
 
-        DimensionRenderingRegistry.registerSkyRenderer(
-                net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, Identifier.of("circuitmod", "luna")),
-                new LunaSkyRenderer()
-        );
+        // Don't register the sky renderer through Fabric - we'll handle it with our mixin
+        Circuitmod.LOGGER.info("[CLIENT] Sky rendering will be handled by WorldRendererSkyMixin");
 
         Circuitmod.LOGGER.info("[CLIENT] CircuitmodClient initialization complete");
 	}
