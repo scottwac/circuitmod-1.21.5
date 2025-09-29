@@ -14,7 +14,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
     private static final Identifier SUN_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/block/natural/luna/lunar_ice.png");
-    private static final Identifier MOON_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/block/natural/luna/lunar_basalt.png");
+    private static final Identifier MOON_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/environment/earth_wide.png");
 
     @Override
     public void render(WorldRenderContext context) {
@@ -47,18 +47,18 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         // ---- Sun ----
         matrices.push();
         Circuitmod.LOGGER.info("[CLIENT] About to render sun...");
-        drawTexturedQuad(matrices, SUN_TEXTURE, 30.0F, 100.0F);
+        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 100.0F);
         Circuitmod.LOGGER.info("[CLIENT] Sun rendered successfully");
         matrices.pop();
 
         // ---- Moon ----
-        matrices.push();
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
-        matrices.translate(100.0, 0.0, -100.0);
-        Circuitmod.LOGGER.info("[CLIENT] About to render moon...");
-        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 0.0F);
-        Circuitmod.LOGGER.info("[CLIENT] Moon rendered successfully");
-        matrices.pop();
+//        matrices.push();
+//        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
+//        matrices.translate(0.0, 0.0, -0.0);
+//        Circuitmod.LOGGER.info("[CLIENT] About to render moon...");
+//        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 0.0F);
+//        Circuitmod.LOGGER.info("[CLIENT] Moon rendered successfully");
+//        matrices.pop();
 
         matrices.pop();
         Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer completed successfully");
@@ -139,8 +139,8 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: color=0x{}", Integer.toHexString(color));
 
         vc.vertex(mat, -size, yOffset, -size).texture(0.0F, 0.0F).color(color);
-        vc.vertex(mat,  size, yOffset, -size).texture(1.0F, 0.0F).color(color);
-        vc.vertex(mat,  size, yOffset,  size).texture(1.0F, 1.0F).color(color);
+        vc.vertex(mat,  size, yOffset, -size).texture(0.2F, 0.0F).color(color);
+        vc.vertex(mat,  size, yOffset,  size).texture(0.2F, 1.0F).color(color);
         vc.vertex(mat, -size, yOffset,  size).texture(0.0F, 1.0F).color(color);
 
         Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: calling consumers.draw()");
@@ -183,18 +183,18 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         // ---- Sun ----
         matrices.push();
         Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render sun...");
-        drawTexturedQuad(matrices, SUN_TEXTURE, 30.0F, 100.0F);
+        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 100.0F);
         Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Sun rendered successfully");
         matrices.pop();
 
         // ---- Moon ----
-        matrices.push();
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
-        matrices.translate(100.0, 0.0, -100.0);
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render moon...");
-        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 0.0F);
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Moon rendered successfully");
-        matrices.pop();
+//        matrices.push();
+//        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
+//        matrices.translate(0.0, 0.0, 0.0);
+//        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render moon...");
+//        drawTexturedQuad(matrices, MOON_TEXTURE, 20.0F, 100.0F);
+//        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Moon rendered successfully");
+//        matrices.pop();
 
         matrices.pop();
         Circuitmod.LOGGER.info("[CLIENT] renderDirectly completed successfully");
