@@ -8,12 +8,10 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.random.Random;
 import org.joml.Matrix4f;
 import starduster.circuitmod.Circuitmod;
 
 public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
-    private static final Identifier SUN_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/block/natural/luna/lunar_ice.png");
     private static final Identifier MOON_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/environment/earth_wide.png");
 
     @Override
@@ -74,53 +72,8 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
             return;
         }
 
-        // Always show stars in space - don't depend on world brightness
-        float brightness = 1.0F; // Full brightness for space
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: brightness = {}", brightness);
-        
-        // Use a simple white texture for stars - same approach as sun/moon
-        Identifier whiteTexture = Identifier.ofVanilla("textures/misc/white.png");
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: using texture {}", whiteTexture);
-        
-        // Get vertex consumers from the world render context
-        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
-        VertexConsumer consumer = consumers.getBuffer(RenderLayer.getCelestial(whiteTexture));
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: got vertex consumer");
-        
-        Random random = Random.create(10842L);
-        Matrix4f matrix4f = matrices.peek().getPositionMatrix();
-        
-        // White stars
-        int color = ColorHelper.getWhite(brightness);
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: color = 0x{}", Integer.toHexString(color));
-        
-        int starsRendered = 0;
-        // Render MASSIVE stars for testing
-        for (int i = 0; i < 50; i++) {  // Much fewer stars but HUGE
-            double x = random.nextFloat() * 2.0F - 1.0F;
-            double y = random.nextFloat() * 2.0F - 1.0F;
-            double z = random.nextFloat() * 2.0F - 1.0F;
-            double scale = 2.0F + random.nextFloat() * 1.5F; // HUGE stars for testing
-            double distance = x * x + y * y + z * z;
-            
-            if (distance < 1.0 && distance > 0.01) {
-                double factor = 100.0 / Math.sqrt(distance);
-                x *= factor;
-                y *= factor;
-                z *= factor;
-                
-                // Draw star as textured quad (like sun/moon)
-                consumer.vertex(matrix4f, (float)(x - scale), (float)(y - scale), (float)z).texture(0.0F, 0.0F).color(color);
-                consumer.vertex(matrix4f, (float)(x + scale), (float)(y - scale), (float)z).texture(1.0F, 0.0F).color(color);
-                consumer.vertex(matrix4f, (float)(x + scale), (float)(y + scale), (float)z).texture(1.0F, 1.0F).color(color);
-                consumer.vertex(matrix4f, (float)(x - scale), (float)(y + scale), (float)z).texture(0.0F, 1.0F).color(color);
-                starsRendered++;
-            }
-        }
-        
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: rendered {} stars, calling consumers.draw()", starsRendered);
-        consumers.draw();
-        Circuitmod.LOGGER.info("[CLIENT] renderStars: consumers.draw() completed");
+        // No custom stars - let vanilla star rendering handle this
+        Circuitmod.LOGGER.info("[CLIENT] renderStars: skipping custom star rendering");
     }
 
     /**

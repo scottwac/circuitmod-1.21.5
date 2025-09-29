@@ -3,7 +3,6 @@ package starduster.circuitmod.mixin.client;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Fog;
 import net.minecraft.client.render.SkyRendering;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -13,13 +12,11 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 /**
- * Suppress moon rendering and replace stars with our custom stars in the Luna dimension.
+ * Suppress moon rendering and replace sun rendering with our custom Luna sky renderer in the Luna dimension.
  */
 @Environment(EnvType.CLIENT)
 @Mixin(SkyRendering.class)
@@ -34,6 +31,28 @@ public abstract class SkyRenderingNoMoonMixin {
 
     @Invoker("renderMoon")
     abstract void circuitmod$invokeRenderMoon(int phase, float alpha, VertexConsumerProvider vertexConsumers, MatrixStack matrices);
+
+    @Invoker("renderSun")
+    abstract void circuitmod$invokeRenderSun(float alpha, VertexConsumerProvider vertexConsumers, MatrixStack matrices);
+
+    @Redirect(
+            method = "renderCelestialBodies",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/render/SkyRendering;renderSun(FLnet/minecraft/client/render/VertexConsumerProvider;Lnet/minecraft/client/util/math/MatrixStack;)V"
+            )
+    )
+    private void circuitmod$replaceSunWithLunaRender(SkyRendering self, float alpha, VertexConsumerProvider vertexConsumers, MatrixStack matrices) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world != null && client.world.getRegistryKey().equals(CIRCUIT_DIM_KEY)) {
+            starduster.circuitmod.Circuitmod.LOGGER.info("[CLIENT] Replacing vanilla sun rendering with custom Luna sky renderer!");
+            // Call our custom Luna sky rendering instead of the sun
+            LUNA_SKY_RENDERER.renderDirectly();
+            return;
+        }
+        // Other dimensions: call vanilla sun rendering
+        this.circuitmod$invokeRenderSun(alpha, vertexConsumers, matrices);
+    }
 
     @Redirect(
             method = "renderCelestialBodies",
@@ -52,19 +71,7 @@ public abstract class SkyRenderingNoMoonMixin {
         this.circuitmod$invokeRenderMoon(phase, alpha, vertexConsumers, matrices);
     }
 
-    @Inject(method = "renderStars", at = @At("HEAD"), cancellable = true)
-    private void circuitmod$replaceStarsInLuna(Fog fog, float color, MatrixStack matrices, CallbackInfo ci) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world != null && client.world.getRegistryKey().equals(CIRCUIT_DIM_KEY)) {
-            starduster.circuitmod.Circuitmod.LOGGER.info("[CLIENT] Replacing vanilla stars with custom Luna stars!");
-            // Call our custom star rendering
-            LUNA_SKY_RENDERER.renderDirectly();
-            // Cancel vanilla star rendering
-            ci.cancel();
-        }
-        // For other dimensions, let vanilla star rendering proceed normally
-    }
 
-    // Sun rendering is allowed; only the moon is suppressed above.
+    // Sun rendering is replaced with Luna sky renderer; moon is suppressed above.
 }
 
