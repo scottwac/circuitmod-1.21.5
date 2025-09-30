@@ -100,6 +100,9 @@ public class ModCreativeTabs {
                             entries.add(ModItems.HOVERCRAFT);
 
                             entries.add(ModItems.STIMULANTS);
+                            
+                            // Oxygen system
+                            entries.add(ModItems.OXYGEN_TANK);
 
 
                             // Add more mod items here as they are created

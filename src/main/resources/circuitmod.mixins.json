@@ -7,7 +7,12 @@
 		"PlayerFallDamageMixin",
 		"CircuitDimensionDamageMixin",
 		"MoonGravityMixin",
-		"AnvilRepairMixin"
+		"AnvilRepairMixin",
+		"PlayerManagerMixin",
+		"PlayerInventoryMixin",
+		"PlayerScreenHandlerMixin",
+		"PlayerEntityAccessor",
+		"ScreenHandlerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -30,6 +30,9 @@
   "item.circuitmod.pulse_stick": "Pulse Stick",
   "item.circuitmod.hovercraft": "Hovercraft",
   "entity.circuitmod.hovercraft": "Hovercraft",
+  "item.circuitmod.oxygen_tank": "Oxygen Tank",
+  "item.circuitmod.oxygen_tank.oxygen": "Oxygen: %s/%s",
+  "item.circuitmod.oxygen_tank.empty": "Empty",
 
 
   "block.circuitmod.steel_block": "Block of Steel",
