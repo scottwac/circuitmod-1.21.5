@@ -45,7 +45,7 @@ public abstract class SkyRenderingNoMoonMixin {
     private void circuitmod$replaceSunWithLunaRender(SkyRendering self, float alpha, VertexConsumerProvider vertexConsumers, MatrixStack matrices) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world != null && client.world.getRegistryKey().equals(CIRCUIT_DIM_KEY)) {
-            starduster.circuitmod.Circuitmod.LOGGER.info("[CLIENT] Replacing vanilla sun rendering with custom Luna sky renderer!");
+            // starduster.circuitmod.Circuitmod.LOGGER.info("[CLIENT] Replacing vanilla sun rendering with custom Luna sky renderer!");
             // Call our custom Luna sky rendering instead of the sun
             LUNA_SKY_RENDERER.renderDirectly();
             return;
