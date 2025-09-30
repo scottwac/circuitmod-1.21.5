@@ -9,10 +9,11 @@
 		"MoonGravityMixin",
 		"AnvilRepairMixin",
 		"PlayerManagerMixin",
-		"PlayerInventoryMixin",
+		"PlayerEntityInventoryMixin",
 		"PlayerScreenHandlerMixin",
 		"PlayerScreenHandlerQuickMoveMixin",
 		"PlayerEntityAccessor",
+		"PlayerEntityNbtMixin",
 		"ScreenHandlerAccessor"
 	],
 	"injectors": {

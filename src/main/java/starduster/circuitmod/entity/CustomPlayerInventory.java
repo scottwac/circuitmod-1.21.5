@@ -134,10 +134,9 @@ public class CustomPlayerInventory extends PlayerInventory {
     public void readNbt(NbtList nbtList) {
         System.out.println("[CircuitMod] CustomPlayerInventory.readNbt called with " + nbtList.size() + " items");
         
-        // Clear oxygen tanks first
-        this.oxygenTanks.clear();
-        for (int i = 0; i < 2; i++) {
-            this.oxygenTanks.add(ItemStack.EMPTY);
+        // Reset oxygen tanks to empty
+        for (int i = 0; i < this.oxygenTanks.size(); i++) {
+            this.oxygenTanks.set(i, ItemStack.EMPTY);
         }
         
         // Separate the NBT list into oxygen tanks and regular items
