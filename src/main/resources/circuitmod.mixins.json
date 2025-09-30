@@ -11,6 +11,7 @@
 		"PlayerManagerMixin",
 		"PlayerInventoryMixin",
 		"PlayerScreenHandlerMixin",
+		"PlayerScreenHandlerQuickMoveMixin",
 		"PlayerEntityAccessor",
 		"ScreenHandlerAccessor"
 	],

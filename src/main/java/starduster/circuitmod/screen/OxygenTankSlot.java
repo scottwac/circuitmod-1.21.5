@@ -23,4 +23,16 @@ public class OxygenTankSlot extends Slot {
     public int getMaxItemCount() {
         return 1; // Only one oxygen tank per slot
     }
+    
+    @Override
+    public void setStack(ItemStack stack) {
+        System.out.println("[CircuitMod] OxygenTankSlot.setStack called - slot index: " + this.getIndex() + ", stack: " + stack);
+        super.setStack(stack);
+    }
+    
+    @Override
+    public ItemStack takeStack(int amount) {
+        System.out.println("[CircuitMod] OxygenTankSlot.takeStack called - slot index: " + this.getIndex() + ", amount: " + amount);
+        return super.takeStack(amount);
+    }
 }

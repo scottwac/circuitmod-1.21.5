@@ -25,13 +25,12 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         
         // Debug: Check current dimension
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world != null) {
-            var currentDim = client.world.getRegistryKey();
-            Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer called in dimension: {}", currentDim);
-        }
-        
-        // Debug logging - remove this later
-        Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer executing - rendering stars, Earth, and Luna sun");
+        // Muted debug logging
+        // if (client.world != null) {
+        //     var currentDim = client.world.getRegistryKey();
+        //     Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer called in dimension: {}", currentDim);
+        // }
+        // Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer executing - rendering stars, Earth, and Luna sun");
 
         matrices.push();
 
@@ -39,27 +38,27 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
 
         // ---- Stars ----
-        Circuitmod.LOGGER.info("[CLIENT] About to render stars...");
+        // Circuitmod.LOGGER.info("[CLIENT] About to render stars...");
         renderStars(matrices);
-        Circuitmod.LOGGER.info("[CLIENT] Stars rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] Stars rendered successfully");
 
         // ---- Earth (stationary, replacing vanilla sun position) ----
         matrices.push();
-        Circuitmod.LOGGER.info("[CLIENT] About to render Earth...");
+        // Circuitmod.LOGGER.info("[CLIENT] About to render Earth...");
         
         // Position Earth in the sky - stationary at a visible location
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(0.0F)); // Fixed position
         matrices.translate(0.0, 50.0, -100.0); // Move Earth up and out to sky distance
         
-        Circuitmod.LOGGER.info("[CLIENT] Earth rendered at fixed position");
+        // Circuitmod.LOGGER.info("[CLIENT] Earth rendered at fixed position");
         // Earth uses only left 20% of its atlas (uMax=0.2), vMax=1.0
         drawTexturedQuad(matrices, EARTH_TEXTURE, 30.0F, 0.0F, 0.2F, 1.0F);
-        Circuitmod.LOGGER.info("[CLIENT] Earth rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] Earth rendered successfully");
         matrices.pop();
 
         // ---- Luna Sun ----
         matrices.push();
-        Circuitmod.LOGGER.info("[CLIENT] About to render Luna Sun...");
+        // Circuitmod.LOGGER.info("[CLIENT] About to render Luna Sun...");
         
         // Get world time for Luna sun movement
         float worldTime = client.world.getTimeOfDay();
@@ -70,16 +69,16 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(lunaSunAngle));
         matrices.translate(0.0, 30.0, -100.0); // Move Luna sun up and out to sky distance
         
-        Circuitmod.LOGGER.info("[CLIENT] Luna Sun angle: {} degrees (world time: {})", lunaSunAngle, worldTime);
+        // Circuitmod.LOGGER.info("[CLIENT] Luna Sun angle: {} degrees (world time: {})", lunaSunAngle, worldTime);
         // Sun uses full texture (1.0, 1.0)
         drawTexturedQuad(matrices, LUNA_SUN_TEXTURE, 25.0F, 0.0F, 1.0F, 1.0F);
-        Circuitmod.LOGGER.info("[CLIENT] Luna Sun rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] Luna Sun rendered successfully");
         matrices.pop();
 
       
 
         matrices.pop();
-        Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer completed successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] Luna sky renderer completed successfully");
     }
 
     /**
@@ -104,7 +103,7 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
      * Draws a textured quad with custom UV bounds.
      */
     private void drawTexturedQuad(MatrixStack matrices, Identifier texture, float size, float yOffset, float uMax, float vMax) {
-        Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: texture={}, size={}, yOffset={}, uMax={}, vMax={}", texture, size, yOffset, uMax, vMax);
+        // Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: texture={}, size={}, yOffset={}, uMax={}, vMax={}", texture, size, yOffset, uMax, vMax);
         
         VertexConsumerProvider.Immediate consumers =
                 MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
@@ -113,16 +112,16 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         Matrix4f mat = matrices.peek().getPositionMatrix();
         int color = ColorHelper.getWhite(1.0F);
         
-        Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: color=0x{}", Integer.toHexString(color));
+        // Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: color=0x{}", Integer.toHexString(color));
 
         vc.vertex(mat, -size, yOffset, -size).texture(0.0F, 0.0F).color(color);
         vc.vertex(mat,  size, yOffset, -size).texture(uMax, 0.0F).color(color);
         vc.vertex(mat,  size, yOffset,  size).texture(uMax, vMax).color(color);
         vc.vertex(mat, -size, yOffset,  size).texture(0.0F, vMax).color(color);
 
-        Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: calling consumers.draw()");
+        // Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: calling consumers.draw()");
         consumers.draw();
-        Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: completed");
+        // Circuitmod.LOGGER.info("[CLIENT] drawTexturedQuad: completed");
     }
     
     /**
@@ -130,7 +129,7 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
      * This is called from our mixin to bypass Fabric's context system.
      */
     public void renderDirectly() {
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly called");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly called");
         
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) {
@@ -139,13 +138,13 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         }
         
         // Debug: Check current dimension
-        var currentDim = client.world.getRegistryKey();
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly called in dimension: {}", currentDim);
+        // var currentDim = client.world.getRegistryKey();
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly called in dimension: {}", currentDim);
         
         MatrixStack matrices = new MatrixStack();
         
         // Debug logging
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly executing - rendering stars, Earth, and Luna sun");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly executing - rendering stars, Earth, and Luna sun");
 
         matrices.push();
 
@@ -153,27 +152,27 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
 
         // ---- Stars ----
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render stars...");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render stars...");
         renderStars(matrices);
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Stars rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Stars rendered successfully");
 
         // ---- Earth (stationary, replacing vanilla sun position) ----
         matrices.push();
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render Earth...");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render Earth...");
         
         // Position Earth in the sky - stationary at a visible location
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(0.0F)); // Fixed position
         matrices.translate(0.0, 50.0, -100.0); // Move Earth up and out to sky distance
         
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Earth rendered at fixed position");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Earth rendered at fixed position");
         // Earth uses only left 20% of its atlas (uMax=0.2), vMax=1.0
         drawTexturedQuad(matrices, EARTH_TEXTURE, 30.0F, 0.0F, 0.2F, 1.0F);
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Earth rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Earth rendered successfully");
         matrices.pop();
 
         // ---- Luna Sun ----
         matrices.push();
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render Luna Sun...");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: About to render Luna Sun...");
         
         // Get world time for Luna sun movement
         float worldTime = client.world.getTimeOfDay();
@@ -184,10 +183,10 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(lunaSunAngle));
         matrices.translate(0.0, 30.0, -100.0); // Move Luna sun up and out to sky distance
         
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Luna Sun angle: {} degrees (world time: {})", lunaSunAngle, worldTime);
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Luna Sun angle: {} degrees (world time: {})", lunaSunAngle, worldTime);
         // Sun uses full texture (1.0, 1.0)
         drawTexturedQuad(matrices, LUNA_SUN_TEXTURE, 25.0F, 0.0F, 1.0F, 1.0F);
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Luna Sun rendered successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly: Luna Sun rendered successfully");
         matrices.pop();
 
         // ---- Moon ----
@@ -200,6 +199,6 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
 //        matrices.pop();
 
         matrices.pop();
-        Circuitmod.LOGGER.info("[CLIENT] renderDirectly completed successfully");
+        // Circuitmod.LOGGER.info("[CLIENT] renderDirectly completed successfully");
     }
 }

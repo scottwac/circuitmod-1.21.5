@@ -19,6 +19,14 @@ public class OxygenTankItem extends Item {
     }
     
     @Override
+    public ItemStack getDefaultStack() {
+        ItemStack stack = super.getDefaultStack();
+        // Set oxygen to full by default
+        setOxygen(stack, maxOxygen);
+        return stack;
+    }
+    
+    @Override
     public void appendTooltip(ItemStack stack, Item.TooltipContext context, net.minecraft.component.type.TooltipDisplayComponent displayComponent, java.util.function.Consumer<Text> consumer, net.minecraft.item.tooltip.TooltipType type) {
         super.appendTooltip(stack, context, displayComponent, consumer, type);
         
@@ -38,7 +46,9 @@ public class OxygenTankItem extends Item {
      * @return Current oxygen level
      */
     public int getOxygen(ItemStack stack) {
-        return stack.getOrDefault(net.minecraft.component.DataComponentTypes.DAMAGE, 0);
+        // Damage represents how much oxygen is USED, so oxygen = maxOxygen - damage
+        int damage = stack.getOrDefault(net.minecraft.component.DataComponentTypes.DAMAGE, 0);
+        return maxOxygen - damage;
     }
     
     /**
@@ -47,7 +57,9 @@ public class OxygenTankItem extends Item {
      * @param oxygen New oxygen level
      */
     public void setOxygen(ItemStack stack, int oxygen) {
-        stack.set(net.minecraft.component.DataComponentTypes.DAMAGE, Math.max(0, Math.min(oxygen, maxOxygen)));
+        // Damage represents how much oxygen is USED, so damage = maxOxygen - oxygen
+        int damage = maxOxygen - Math.max(0, Math.min(oxygen, maxOxygen));
+        stack.set(net.minecraft.component.DataComponentTypes.DAMAGE, damage);
     }
     
     /**
