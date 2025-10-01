@@ -5,7 +5,8 @@
 	"client": [
 		"ExampleClientMixin",
 		"SkyRenderingNoMoonMixin",
-		"WorldRendererSkyMixin"
+		"WorldRendererSkyMixin",
+		"ClientWorldMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

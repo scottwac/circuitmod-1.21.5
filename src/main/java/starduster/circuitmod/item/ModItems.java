@@ -78,9 +78,9 @@ public final class ModItems {
     
     // Vehicle items
     public static final Item HOVERCRAFT = register("hovercraft", HovercraftItem::new, new Item.Settings().maxCount(1));
-
-
-
+    
+    // Oxygen tank items
+    public static final Item OXYGEN_TANK = register("oxygen_tank", settings -> new OxygenTankItem(settings, 1000), new Item.Settings().maxCount(1).maxDamage(1000));
 
     public static final Item MOON = register("moon", Item::new, new Item.Settings());
 
