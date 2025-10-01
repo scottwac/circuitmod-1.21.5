@@ -1,16 +1,26 @@
 package starduster.circuitmod.client.render.sky;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.TriState;
+import net.minecraft.util.Util;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.client.render.CustomRenderLayers;
+
+import java.util.function.Function;
 
 public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
     private static final Identifier EARTH_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/environment/earth_map_mirrored.png");
@@ -109,15 +119,15 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
                 MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
 
         //uses getText instead of getCelestial, since getCelestial turns black pixels transparent
-        VertexConsumer vc = consumers.getBuffer(RenderLayer.getText(texture));
+        VertexConsumer vc = consumers.getBuffer(CustomRenderLayers.alphaCelestial(texture));
 
         Matrix4f mat = matrices.peek().getPositionMatrix();
         int color = 0xFFFFFFFF;
 
-        vc.vertex(mat, -size, yOffset, -size).color(color).texture(uOff, vOff).light(0xF000F0).normal(0f, 1f, 0f);
-        vc.vertex(mat,  size, yOffset, -size).color(color).texture(uOff + uMax, vOff).light(0xF000F0).normal(0f, 1f, 0f);
-        vc.vertex(mat,  size, yOffset,  size).color(color).texture(uOff + uMax, vOff + vMax).light(0xF000F0).normal(0f, 1f, 0f);
-        vc.vertex(mat, -size, yOffset,  size).color(color).texture(uOff, vOff + vMax).light(0xF000F0).normal(0f, 1f, 0f);
+        vc.vertex(mat, -size, yOffset, -size).color(color).texture(uOff, vOff).light(0xF000F0).normal(0f, 0f, 0f);
+        vc.vertex(mat,  size, yOffset, -size).color(color).texture(uOff + uMax, vOff).light(0xF000F0).normal(0f, 0f, 0f);
+        vc.vertex(mat,  size, yOffset,  size).color(color).texture(uOff + uMax, vOff + vMax).light(0xF000F0).normal(0f, 0f, 0f);
+        vc.vertex(mat, -size, yOffset,  size).color(color).texture(uOff, vOff + vMax).light(0xF000F0).normal(0f, 0f, 0f);
 
         consumers.draw();
     }
@@ -195,9 +205,21 @@ public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-90.0F)); //Rotate to make move east-west
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-lunaSunAngle)); //Apply day angle to sun position
         //matrices.translate(0.0, 0.0, 0.0); //Unused transform
-        drawTexturedQuad(matrices, LUNA_SUN_TEXTURE, 30.0F, 101.0F, 1.0F, 1.0F,0,0); // Sun uses full texture (1.0, 1.0)
+        drawTexturedQuad(matrices, LUNA_SUN_TEXTURE, 30.0F, 100.0F, 1.0F, 1.0F,0,0); // Sun uses full texture (1.0, 1.0)
         matrices.pop();
 
         matrices.pop();
     }
+
+
+
+
+
+
+
+
+
+
+
+
 }
