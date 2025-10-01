@@ -32,7 +32,6 @@ public class OxygenTankSlot extends Slot {
     
     @Override
     public ItemStack takeStack(int amount) {
-        System.out.println("[CircuitMod] OxygenTankSlot.takeStack called - slot index: " + this.getIndex() + ", amount: " + amount);
         return super.takeStack(amount);
     }
 }

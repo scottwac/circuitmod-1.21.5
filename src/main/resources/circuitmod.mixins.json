@@ -14,7 +14,9 @@
 		"PlayerScreenHandlerQuickMoveMixin",
 		"PlayerEntityAccessor",
 		"PlayerEntityNbtMixin",
-		"ScreenHandlerAccessor"
+		"ScreenHandlerAccessor",
+		"ServerWorldMixin",
+		"WorldMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

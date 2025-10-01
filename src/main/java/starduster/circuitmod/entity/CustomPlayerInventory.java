@@ -110,7 +110,7 @@ public class CustomPlayerInventory extends PlayerInventory {
         // Write regular inventory
         nbtList = super.writeNbt(nbtList);
         
-        System.out.println("[CircuitMod] CustomPlayerInventory.writeNbt - Writing oxygen tanks");
+        // Writing oxygen tanks
         
         // Write oxygen tanks
         for (int i = 0; i < this.oxygenTanks.size(); i++) {
@@ -119,21 +119,14 @@ public class CustomPlayerInventory extends PlayerInventory {
                 NbtCompound nbtCompound = new NbtCompound();
                 nbtCompound.putByte("Slot", (byte) (OXYGEN_TANK_1_SLOT + i));
                 nbtList.add(stack.toNbt(this.player.getRegistryManager(), nbtCompound));
-                System.out.println("[CircuitMod] Wrote oxygen tank " + (i+1) + " to slot " + (OXYGEN_TANK_1_SLOT + i) + ": " + stack);
-            } else {
-                System.out.println("[CircuitMod] Oxygen tank " + (i+1) + " is empty, not writing");
             }
         }
-        
-        System.out.println("[CircuitMod] Total items in NBT list: " + nbtList.size());
         
         return nbtList;
     }
     
     @Override
     public void readNbt(NbtList nbtList) {
-        System.out.println("[CircuitMod] CustomPlayerInventory.readNbt called with " + nbtList.size() + " items");
-        
         // Reset oxygen tanks to empty
         for (int i = 0; i < this.oxygenTanks.size(); i++) {
             this.oxygenTanks.set(i, ItemStack.EMPTY);
@@ -146,16 +139,12 @@ public class CustomPlayerInventory extends PlayerInventory {
             NbtCompound nbtCompound = nbtList.getCompoundOrEmpty(i);
             int slot = nbtCompound.getByte("Slot", (byte)0) & 255;
             
-            System.out.println("[CircuitMod] Reading slot " + slot);
-            
             if (slot == OXYGEN_TANK_1_SLOT) {
                 ItemStack stack = ItemStack.fromNbt(this.player.getRegistryManager(), nbtCompound).orElse(ItemStack.EMPTY);
                 this.oxygenTanks.set(0, stack);
-                System.out.println("[CircuitMod] Loaded oxygen tank 1: " + stack);
             } else if (slot == OXYGEN_TANK_2_SLOT) {
                 ItemStack stack = ItemStack.fromNbt(this.player.getRegistryManager(), nbtCompound).orElse(ItemStack.EMPTY);
                 this.oxygenTanks.set(1, stack);
-                System.out.println("[CircuitMod] Loaded oxygen tank 2: " + stack);
             } else {
                 // Add to regular items list for parent to handle
                 regularItems.add(nbtCompound);
@@ -164,9 +153,6 @@ public class CustomPlayerInventory extends PlayerInventory {
         
         // Let parent handle regular inventory slots
         super.readNbt(regularItems);
-        
-        System.out.println("[CircuitMod] After readNbt - Oxygen tank 1: " + this.oxygenTanks.get(0));
-        System.out.println("[CircuitMod] After readNbt - Oxygen tank 2: " + this.oxygenTanks.get(1));
     }
     
     /**

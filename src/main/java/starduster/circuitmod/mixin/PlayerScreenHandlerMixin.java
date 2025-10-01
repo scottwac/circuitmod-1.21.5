@@ -23,12 +23,11 @@ public class PlayerScreenHandlerMixin {
     private void circuitmod$addOxygenTankSlots(PlayerInventory inventory, boolean onServer, PlayerEntity owner, CallbackInfo ci) {
         PlayerScreenHandler self = (PlayerScreenHandler) (Object) this;
         
-        System.out.println("[CircuitMod] PlayerScreenHandler init - Adding oxygen tank slots");
+        // Adding oxygen tank slots
         
         // Add oxygen tank slots above the shield slot (offhand)
         // Shield is at x=77, y=62, so put oxygen slots at x=77, y=26 and x=77, y=44
         ((ScreenHandlerAccessor) self).invokeAddSlot(new OxygenTankSlot(inventory, 41, 77, 26));
         ((ScreenHandlerAccessor) self).invokeAddSlot(new OxygenTankSlot(inventory, 42, 77, 44));
-        System.out.println("[CircuitMod] Oxygen tank slots added at positions (77, 26) and (77, 44)");
     }
 }

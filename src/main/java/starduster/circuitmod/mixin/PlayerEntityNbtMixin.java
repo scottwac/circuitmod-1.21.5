@@ -29,7 +29,7 @@ public abstract class PlayerEntityNbtMixin {
         PlayerInventory inventory = this.getInventory();
         
         if (inventory instanceof CustomPlayerInventory customInv) {
-            System.out.println("[CircuitMod] Writing oxygen tanks to player NBT");
+            // Writing oxygen tanks to player NBT
             
             NbtList oxygenTanksNbt = new NbtList();
             
@@ -40,12 +40,10 @@ public abstract class PlayerEntityNbtMixin {
                     stackNbt.putByte("Slot", (byte) i);
                     PlayerEntity self = (PlayerEntity) (Object) this;
                     oxygenTanksNbt.add(stack.toNbt(self.getRegistryManager(), stackNbt));
-                    System.out.println("[CircuitMod] Wrote oxygen tank " + (i+1) + ": " + stack);
                 }
             }
             
             nbt.put("OxygenTanks", oxygenTanksNbt);
-            System.out.println("[CircuitMod] Finished writing oxygen tanks");
         }
     }
     
@@ -57,7 +55,7 @@ public abstract class PlayerEntityNbtMixin {
         PlayerInventory inventory = this.getInventory();
         
         if (inventory instanceof CustomPlayerInventory customInv && nbt.contains("OxygenTanks")) {
-            System.out.println("[CircuitMod] Reading oxygen tanks from player NBT");
+            // Reading oxygen tanks from player NBT
             
             NbtList oxygenTanksNbt = nbt.getList("OxygenTanks").orElse(new NbtList());
             
@@ -70,11 +68,8 @@ public abstract class PlayerEntityNbtMixin {
                 
                 if (slot >= 0 && slot < 2) {
                     customInv.setOxygenTank(slot, stack);
-                    System.out.println("[CircuitMod] Read oxygen tank " + (slot+1) + ": " + stack);
                 }
             }
-            
-            System.out.println("[CircuitMod] Finished reading oxygen tanks");
         }
     }
 }
