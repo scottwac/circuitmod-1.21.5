@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_torch_wall",
+  "textures": {
+    "torch": "circuitmod:block/misc/extinguished_torch"
+  }
+}

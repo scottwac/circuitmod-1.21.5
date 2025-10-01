@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "circuitmod:block/extinguished_torch/extinguished_torch"
+    }
+  }
+}

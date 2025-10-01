@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "circuitmod:block/extinguished_torch/extinguished_wall_torch"
+    },
+    "facing=north": {
+      "model": "circuitmod:block/extinguished_torch/extinguished_wall_torch",
+      "y": 270
+    },
+    "facing=south": {
+      "model": "circuitmod:block/extinguished_torch/extinguished_wall_torch",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "circuitmod:block/extinguished_torch/extinguished_wall_torch",
+      "y": 180
+    }
+  }
+}
