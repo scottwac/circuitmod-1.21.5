@@ -29,7 +29,8 @@
     },
     "title": {
       "translate": "circuitmod.advancements.luna.arch.title"
-    }
+    },
+    "hidden": true
   },
   "requirements": [
     [

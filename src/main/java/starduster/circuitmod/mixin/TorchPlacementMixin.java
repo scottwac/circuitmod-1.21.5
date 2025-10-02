@@ -1,13 +1,13 @@
 package starduster.circuitmod.mixin;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.WallTorchBlock;
+import net.minecraft.block.*;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.property.EnumProperty;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,13 +27,14 @@ public class TorchPlacementMixin {
     @Inject(method = "setBlockState(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;I)Z", at = @At("HEAD"), cancellable = true)
     private void circuitmod$replaceTorchesInLuna(BlockPos pos, BlockState state, int flags, CallbackInfoReturnable<Boolean> cir) {
         World world = (World) (Object) this;
+        EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
         
         // Only apply to Luna dimension
         if (world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "luna"))) {
             Block block = state.getBlock();
             
             // Check if placing a regular torch
-            if (block == Blocks.TORCH) {
+            if (block == Blocks.TORCH || block == Blocks.SOUL_TORCH || block == Blocks.REDSTONE_TORCH) {
                 // Replace with extinguished torch, preserving all other state properties
                 BlockState extinguishedState = ModBlocks.EXTINGUISHED_TORCH.getDefaultState();
                 
@@ -42,7 +43,11 @@ public class TorchPlacementMixin {
                 
                 // Play extinguish sound effect
                 if (result) {
-                    world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 0.5f, 0.8f);
+                    world.playSound(null, pos, SoundEvents.BLOCK_CANDLE_EXTINGUISH, SoundCategory.BLOCKS, 1f, 1f);
+                    double d = pos.getX() + 0.5;
+                    double e = pos.getY() + 0.7;
+                    double f = pos.getZ() + 0.5;
+                    world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
                 }
                 
                 cir.setReturnValue(result);
@@ -50,7 +55,7 @@ public class TorchPlacementMixin {
             }
             
             // Check if placing a wall torch
-            if (block == Blocks.WALL_TORCH) {
+            if (block == Blocks.WALL_TORCH || block == Blocks.SOUL_WALL_TORCH || block == Blocks.REDSTONE_WALL_TORCH) {
                 // Replace with extinguished wall torch, preserving facing direction
                 BlockState extinguishedState = ModBlocks.EXTINGUISHED_WALL_TORCH.getDefaultState();
                 
@@ -64,7 +69,15 @@ public class TorchPlacementMixin {
                 
                 // Play extinguish sound effect
                 if (result) {
-                    world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 0.5f, 1.0f);
+                    world.playSound(null, pos, SoundEvents.BLOCK_CANDLE_EXTINGUISH, SoundCategory.BLOCKS, 1f, 1f);
+                    Direction direction = state.get(FACING);
+                    double d = pos.getX() + 0.5;
+                    double e = pos.getY() + 0.7;
+                    double f = pos.getZ() + 0.5;
+                    double g = 0.22;
+                    double h = 0.27;
+                    Direction direction2 = direction.getOpposite();
+                    world.addParticleClient(ParticleTypes.SMOKE, d + 0.27 * direction2.getOffsetX(), e + 0.20, f + 0.27 * direction2.getOffsetZ(), 0.0, 0.0, 0.0);
                 }
                 
                 cir.setReturnValue(result);

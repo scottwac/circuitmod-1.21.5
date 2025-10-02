@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "circuitmod:extinguished_torch",
+    "#minecraft:soul_fire_base_blocks"
+  ],
+  "result": {
+    "count": 1,
+    "id": "minecraft:soul_torch"
+  }
+}

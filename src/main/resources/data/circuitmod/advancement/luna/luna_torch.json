@@ -1,0 +1,42 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:extinguished_torch"
+    },
+    "title": {
+      "translate": "circuitmod.advancements.luna.torch.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.luna.torch.description"
+    },
+    "frame": "task",
+    "hidden": false
+  },
+  "parent": "circuitmod:luna/root",
+  "criteria": {
+    "placed_torch_luna": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:location_check",
+            "predicate": {
+              "dimension": "circuitmod:luna",
+              "block": {
+                "blocks": [
+                  "minecraft:torch"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "placed_torch_luna"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

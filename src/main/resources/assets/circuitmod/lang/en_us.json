@@ -33,6 +33,7 @@
   "item.circuitmod.oxygen_tank": "Oxygen Tank",
   "item.circuitmod.oxygen_tank.oxygen": "Oxygen: %s/%s",
   "item.circuitmod.oxygen_tank.empty": "Empty",
+  "item.circuitmod.extinguished_torch": "Extinguished Torch",
 
 
   "block.circuitmod.steel_block": "Block of Steel",
@@ -134,5 +135,7 @@
   "circuitmod.advancements.luna.root.title": "The Moon",
 
   "circuitmod.advancements.luna.arch.description": "Find a lunar anomaly",
-  "circuitmod.advancements.luna.arch.title": "MÜN OR BUST"
+  "circuitmod.advancements.luna.arch.title": "MÜN OR BUST",
+  "circuitmod.advancements.luna.torch.description": "Smother a torch in the atmosphereless vacuum of the Moon",
+  "circuitmod.advancements.luna.torch.title": "Did you expect that to burn in a vacuum?"
 }
