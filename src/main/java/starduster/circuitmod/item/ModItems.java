@@ -84,6 +84,17 @@ public final class ModItems {
 
     public static final Item MOON = register("moon", Item::new, new Item.Settings());
 
+    // Extinguished torch item (for Luna dimension)
+    public static final Item EXTINGUISHED_TORCH = register("extinguished_torch", 
+        settings -> new net.minecraft.item.VerticallyAttachableBlockItem(
+            starduster.circuitmod.block.ModBlocks.EXTINGUISHED_TORCH,
+            starduster.circuitmod.block.ModBlocks.EXTINGUISHED_WALL_TORCH,
+            net.minecraft.util.math.Direction.DOWN,
+            settings
+        ), 
+        new Item.Settings()
+    );
+
     // Registration helper
     public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {
         final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod", path));

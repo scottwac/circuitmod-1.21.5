@@ -556,6 +556,30 @@ public final class ModBlocks {
                     .requiresTool()
     );
 
+    /**
+     * EXTINGUISHED TORCHES (for Luna dimension)
+     */
+
+    public static final Block EXTINGUISHED_TORCH = registerWithoutItem(
+            "extinguished_torch",
+            ExtinguishedTorchBlock::new,
+            Block.Settings.create()
+                    .noCollision()
+                    .breakInstantly()
+                    .sounds(BlockSoundGroup.WOOD)
+                    .pistonBehavior(net.minecraft.block.piston.PistonBehavior.DESTROY)
+    );
+
+    public static final Block EXTINGUISHED_WALL_TORCH = registerWithoutItem(
+            "extinguished_wall_torch",
+            ExtinguishedWallTorchBlock::new,
+            Block.Settings.create()
+                    .noCollision()
+                    .breakInstantly()
+                    .sounds(BlockSoundGroup.WOOD)
+                    .pistonBehavior(net.minecraft.block.piston.PistonBehavior.DESTROY)
+    );
+
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
         final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);
@@ -584,6 +608,13 @@ public final class ModBlocks {
                 new Item.Settings()
         );
         return block;
+    }
+
+    // Register a block without creating a BlockItem (for wall variants that share items)
+    private static Block registerWithoutItem(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
+        final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);
+        final RegistryKey<Block> registryKey = RegistryKey.of(RegistryKeys.BLOCK, identifier);
+        return Blocks.register(registryKey, factory, settings);
     }
 
     public static void initialize() {
