@@ -27,6 +27,7 @@ import starduster.circuitmod.block.entity.QuarryBlockEntity;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.block.entity.LaserMiningDrillBlockEntity;
 import starduster.circuitmod.item.ModToolMaterials;
+import starduster.circuitmod.item.ModArmorMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
@@ -74,6 +75,7 @@ public class Circuitmod implements ModInitializer {
 		ModItemTags.initialize();
 		ModBlockTags.initialize();
 		ModToolMaterials.initialize();
+		ModArmorMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
 		starduster.circuitmod.effect.ModStatusEffects.initialize();
