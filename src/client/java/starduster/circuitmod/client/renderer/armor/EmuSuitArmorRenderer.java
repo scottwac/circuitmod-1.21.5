@@ -1,7 +1,9 @@
 package starduster.circuitmod.client.renderer.armor;
 
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.state.BipedEntityRenderState;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.model.DefaultedItemGeoModel;
 import software.bernie.geckolib.renderer.GeoArmorRenderer;
 import software.bernie.geckolib.renderer.base.GeoRenderState;
@@ -18,5 +20,10 @@ public final class EmuSuitArmorRenderer<R extends BipedEntityRenderState & GeoRe
 
         // Add glowing layer for the glowmask textures
         addRenderLayer(new AutoGlowingGeoLayer<>(this));
+    }
+
+    @Override
+    public @Nullable RenderLayer getRenderType(R renderState, Identifier texture) {
+        return RenderLayer.getEntityTranslucent(texture);
     }
 }
