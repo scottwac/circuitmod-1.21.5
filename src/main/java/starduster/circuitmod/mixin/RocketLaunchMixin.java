@@ -24,9 +24,9 @@ import java.util.List;
 @Mixin(RocketEntity.class)
 public class RocketLaunchMixin {
     
-    private static final float MAX_LAUNCH_SPEED = 2.0f;
-    private static final int LAUNCH_ACCELERATION_TIME = 600; // 3 seconds at 20 ticks/second
-    private static final double LUNA_ARRIVAL_HEIGHT = 2000.0; // Height to teleport to Luna from Overworld
+    private static final float MAX_LAUNCH_SPEED = 8.0f;
+    private static final int LAUNCH_ACCELERATION_TIME = 240; // 3 seconds at 20 ticks/second
+    private static final double LUNA_ARRIVAL_HEIGHT = 4000.0; // Height to teleport to Luna from Overworld
     private static final double EARTH_ARRIVAL_HEIGHT = 1000.0; // Height to teleport to Earth from Luna
     private static final double LUNA_SPAWN_HEIGHT = 500.0; // Height to spawn at on Luna
     private static final double EARTH_SPAWN_HEIGHT = 500.0; // Height to spawn at on Earth

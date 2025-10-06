@@ -71,8 +71,8 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                 setPitch(passenger.getPitch() * 0.5f);
                 this.setRotation(getYaw(), getPitch());
 
-                this.bodyYaw = this.getYaw();
-                this.headYaw = this.bodyYaw;
+                //this.bodyYaw = this.getYaw();
+                //this.headYaw = this.bodyYaw;
                 float x = passenger.sidewaysSpeed * 0.5F;
                 float z = passenger.forwardSpeed;
                 float y = 0.0f;
@@ -93,7 +93,7 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                     z = 0;
                 }
 
-                this.setMovementSpeed(0.3f);
+                this.setMovementSpeed(0.0f);
                 super.travel(new Vec3d(x, y, z));
             }
         }
