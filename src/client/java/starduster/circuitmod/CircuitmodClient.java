@@ -94,8 +94,6 @@ public class CircuitmodClient implements ClientModInitializer {
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
 
-		// GeckoLib armor renderers are automatically handled through the item's createGeoRenderer method
-
 		// Register color providers for biome-based tinting
 		registerColorProviders();
 		

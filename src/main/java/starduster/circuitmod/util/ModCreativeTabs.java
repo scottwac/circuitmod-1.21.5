@@ -104,11 +104,6 @@ public class ModCreativeTabs {
                             // Oxygen system
                             entries.add(ModItems.OXYGEN_TANK);
 
-                            // EMU Space Suit armor
-                            entries.add(ModItems.EMU_SUIT_HELMET);
-                            entries.add(ModItems.EMU_SUIT_CHESTPLATE);
-                            entries.add(ModItems.EMU_SUIT_LEGGINGS);
-                            entries.add(ModItems.EMU_SUIT_BOOTS);
 
                             // Add more mod items here as they are created
                         })
