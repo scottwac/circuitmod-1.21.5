@@ -55,6 +55,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(BlueprintNameRequestPayload.ID, BlueprintNameRequestPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(CollectXpPayload.ID, CollectXpPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(HovercraftInputPayload.ID, HovercraftInputPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RocketSpacebarInputPayload.ID, RocketSpacebarInputPayload.CODEC);
     }
     
 
@@ -935,6 +936,27 @@ public class ModNetworking {
             PacketCodecs.BOOLEAN, HovercraftInputPayload::up,
             PacketCodecs.BOOLEAN, HovercraftInputPayload::down,
             HovercraftInputPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for rocket spacebar input (client -> server)
+     */
+    public record RocketSpacebarInputPayload(int entityId, boolean spacePressed) implements CustomPayload {
+        // Define the ID for this payload type
+        public static final CustomPayload.Id<RocketSpacebarInputPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "rocket_spacebar_input"));
+        
+        // Define the codec for serializing/deserializing the payload
+        public static final PacketCodec<PacketByteBuf, RocketSpacebarInputPayload> CODEC = PacketCodec.tuple(
+            PacketCodecs.INTEGER, RocketSpacebarInputPayload::entityId,
+            PacketCodecs.BOOLEAN, RocketSpacebarInputPayload::spacePressed,
+            RocketSpacebarInputPayload::new
         );
         
         @Override

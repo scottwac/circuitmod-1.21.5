@@ -108,6 +108,9 @@ public class CircuitmodClient implements ClientModInitializer {
 		
 		// Initialize hovercraft input handler
 		HovercraftInputHandler.initialize();
+		
+		// Initialize rocket input handler
+		starduster.circuitmod.client.RocketInputHandler.initialize();
 
 		// Initialize client network animator
 		starduster.circuitmod.network.ClientNetworkAnimator.initialize();

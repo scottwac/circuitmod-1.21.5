@@ -14,6 +14,8 @@
 		"PlayerScreenHandlerQuickMoveMixin",
 		"PlayerEntityAccessor",
 		"PlayerEntityNbtMixin",
+		"RocketLandingMixin",
+		"RocketLaunchMixin",
 		"ScreenHandlerAccessor",
 		"ServerWorldMixin",
 		"TorchPlacementMixin",

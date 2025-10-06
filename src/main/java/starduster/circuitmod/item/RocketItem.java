@@ -36,7 +36,8 @@ public class RocketItem extends Item {
             
             // Check if there's enough space
             if (world.isSpaceEmpty(null, ModEntities.ROCKET.getDimensions().getBoxAt(spawnPos))) {
-                RocketEntity rocket = new RocketEntity(world, spawnPos.x, spawnPos.y, spawnPos.z);
+                RocketEntity rocket = new RocketEntity(ModEntities.ROCKET, world);
+                rocket.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
                 rocket.setYaw(player.getYaw());
                 
                 world.spawnEntity(rocket);
@@ -71,7 +72,8 @@ public class RocketItem extends Item {
             
             // Check if there's enough space
             if (world.isSpaceEmpty(null, ModEntities.ROCKET.getDimensions().getBoxAt(spawnPos))) {
-                RocketEntity rocket = new RocketEntity(world, spawnPos.x, spawnPos.y, spawnPos.z);
+                RocketEntity rocket = new RocketEntity(ModEntities.ROCKET, world);
+                rocket.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
                 rocket.setYaw(user.getYaw());
                 
                 world.spawnEntity(rocket);

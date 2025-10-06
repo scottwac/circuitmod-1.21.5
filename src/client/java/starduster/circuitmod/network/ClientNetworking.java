@@ -594,4 +594,19 @@ public class ClientNetworking {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send hovercraft input: {}", e.getMessage(), e);
         }
     }
+    
+    /**
+     * Send rocket spacebar input to the server
+     * 
+     * @param entityId The ID of the rocket entity
+     * @param spacePressed Whether the spacebar is pressed
+     */
+    public static void sendRocketSpacebarInput(int entityId, boolean spacePressed) {
+        try {
+            ModNetworking.RocketSpacebarInputPayload payload = new ModNetworking.RocketSpacebarInputPayload(entityId, spacePressed);
+            ClientPlayNetworking.send(payload);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send rocket spacebar input: {}", e.getMessage(), e);
+        }
+    }
 } 

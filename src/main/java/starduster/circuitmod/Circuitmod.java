@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.registry.FuelRegistryEvents;
+import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -247,6 +248,20 @@ public class Circuitmod implements ModInitializer {
 		
 		
 		
+		
+		// Register rocket spacebar input handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.RocketSpacebarInputPayload.ID, (payload, context) -> {
+			int entityId = payload.entityId();
+			boolean spacePressed = payload.spacePressed();
+			context.server().execute(() -> {
+				// Find the rocket entity by ID
+				Entity entity = context.player().getWorld().getEntityById(entityId);
+				if (entity instanceof starduster.circuitmod.entity.RocketEntity rocket) {
+					rocket.setSpacePressed(spacePressed);
+					LOGGER.info("[SERVER] Rocket spacebar input: {} for entity {}", spacePressed, entityId);
+				}
+			});
+		});
 		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
