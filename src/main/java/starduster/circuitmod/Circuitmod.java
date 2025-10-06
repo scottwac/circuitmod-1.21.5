@@ -74,6 +74,7 @@ public class Circuitmod implements ModInitializer {
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
 		starduster.circuitmod.entity.ModEntityTypes.initialize();
+		starduster.circuitmod.entity.ModEntities.initialize();
 		ModScreenHandlers.initialize();
 		ModNetworking.initialize();
 		ModItemTags.initialize();

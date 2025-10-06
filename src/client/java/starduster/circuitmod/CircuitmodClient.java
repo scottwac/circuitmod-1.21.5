@@ -43,6 +43,8 @@ import starduster.circuitmod.screen.XpGeneratorScreen;
 import starduster.circuitmod.screen.FluidTankScreen;
 import starduster.circuitmod.screen.SortingPipeScreen;
 import starduster.circuitmod.entity.ModEntityTypes;
+import starduster.circuitmod.entity.ModEntities;
+import starduster.circuitmod.entity.client.RocketEntityRenderer;
 
 public class CircuitmodClient implements ClientModInitializer {
 	
@@ -96,6 +98,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
+		EntityRendererRegistry.register(ModEntities.ROCKET, RocketEntityRenderer::new);
 
 		// Register color providers for biome-based tinting
 		registerColorProviders();

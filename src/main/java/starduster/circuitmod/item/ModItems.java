@@ -101,6 +101,9 @@ public final class ModItems {
         new Item.Settings()
     );
 
+    // Rocket item for spawning rocket entities
+    public static final Item ROCKET = register("rocket", RocketItem::new, new Item.Settings().maxCount(1));
+
     // Registration helper
     public static Item register(String path, Function<Item.Settings, Item> factory, Item.Settings settings) {
         final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod", path));
