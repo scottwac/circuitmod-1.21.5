@@ -15,22 +15,8 @@
   "parent": "circuitmod:luna/root",
   "criteria": {
     "placed_torch_luna": {
-      "trigger": "minecraft:placed_block",
-      "conditions": {
-        "location": [
-          {
-            "condition": "minecraft:location_check",
-            "predicate": {
-              "dimension": "circuitmod:luna",
-              "block": {
-                "blocks": [
-                  "minecraft:torch"
-                ]
-              }
-            }
-          }
-        ]
-      }
+      "trigger": "minecraft:circuitmod/torch_placed_luna",
+      "conditions": {}
     }
   },
   "requirements": [

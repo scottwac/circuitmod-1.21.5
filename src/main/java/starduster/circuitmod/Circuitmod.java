@@ -20,6 +20,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import starduster.circuitmod.advancement.TorchPlacementCriterion;
 import starduster.circuitmod.item.ModItems;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.ModBlockEntities;
@@ -44,6 +45,10 @@ public class Circuitmod implements ModInitializer {
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger("circuitmod");
 	public static final String MOD_ID = "circuitmod";
+	
+
+	// Custom criterion for torch placement advancement
+	public static final TorchPlacementCriterion TORCH_PLACED_IN_LUNA = net.minecraft.advancement.criterion.Criteria.register("circuitmod/torch_placed_luna", new TorchPlacementCriterion());
 
 	@Override
 	public void onInitialize() {
