@@ -16,7 +16,7 @@ import starduster.circuitmod.item.EmuSuitArmorItem;
  */
 public final class EmuSuitArmorRenderer<R extends BipedEntityRenderState & GeoRenderState> extends GeoArmorRenderer<EmuSuitArmorItem, R> {
     public EmuSuitArmorRenderer() {
-        super(new DefaultedItemGeoModel<>(Identifier.of(Circuitmod.MOD_ID, "armor/emu_suit")));
+        super(new DefaultedItemGeoModel<>(Identifier.of(Circuitmod.MOD_ID, "emu_suit/emu_suit")));
 
         // Add glowing layer for the glowmask textures
         addRenderLayer(new AutoGlowingGeoLayer<>(this));
