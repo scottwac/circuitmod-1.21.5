@@ -10,8 +10,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.entity.CustomPlayerInventory;
+import starduster.circuitmod.item.EmuSuitArmorItem;
 import starduster.circuitmod.item.OxygenTankItem;
 
 @Mixin(PlayerEntity.class)
@@ -33,13 +33,16 @@ public class CircuitDimensionDamageMixin {
         
         // Check if player is in the luna dimension
         if (world.getRegistryKey().getValue().equals(Identifier.of("circuitmod", "luna"))) {
+            // Check if player is wearing the full emu suit
+            boolean hasFullSuit = isWearingFullEmuSuit(player);
+            
             // Check if player has oxygen tanks with oxygen
             boolean hasOxygen = false;
-            int oxygenConsumed = 0;
             
             PlayerInventory inventory = player.getInventory();
             
-            if (inventory instanceof CustomPlayerInventory customInv) {
+            // Only check for oxygen if wearing full emu suit
+            if (hasFullSuit && inventory instanceof CustomPlayerInventory customInv) {
                 // Check both oxygen tank slots
                 ItemStack tank1 = customInv.getStack(CustomPlayerInventory.OXYGEN_TANK_1_SLOT);
                 ItemStack tank2 = customInv.getStack(CustomPlayerInventory.OXYGEN_TANK_2_SLOT);
@@ -52,7 +55,7 @@ public class CircuitDimensionDamageMixin {
                         // Consume 1 oxygen per tick (20 oxygen per second)
                         damageTimer++;
                         if (damageTimer >= 20) { // Every second
-                            oxygenConsumed = oxygenTank1.consumeOxygen(tank1, 20);
+                            oxygenTank1.consumeOxygen(tank1, 20);
                             damageTimer = 0;
                         }
                     }
@@ -65,14 +68,15 @@ public class CircuitDimensionDamageMixin {
                         hasOxygen = true;
                         damageTimer++;
                         if (damageTimer >= 20) { // Every second
-                            oxygenConsumed = oxygenTank2.consumeOxygen(tank2, 20);
+                            oxygenTank2.consumeOxygen(tank2, 20);
                             damageTimer = 0;
                         }
                     }
                 }
             }
             
-            if (!hasOxygen) {
+            // Damage player if they don't have full suit or oxygen
+            if (!hasFullSuit || !hasOxygen) {
                 damageTimer++;
                 
                 // Damage player every DAMAGE_INTERVAL ticks
@@ -87,5 +91,20 @@ public class CircuitDimensionDamageMixin {
             // Reset timer if not in luna dimension
             damageTimer = 0;
         }
+    }
+    
+    /**
+     * Checks if the player is wearing all four pieces of the emu suit armor.
+     */
+    private boolean isWearingFullEmuSuit(PlayerEntity player) {
+        ItemStack helmet = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD);
+        ItemStack chestplate = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST);
+        ItemStack leggings = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS);
+        ItemStack boots = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.FEET);
+        
+        return helmet.getItem() instanceof EmuSuitArmorItem &&
+               chestplate.getItem() instanceof EmuSuitArmorItem &&
+               leggings.getItem() instanceof EmuSuitArmorItem &&
+               boots.getItem() instanceof EmuSuitArmorItem;
     }
 } 
