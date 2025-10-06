@@ -57,6 +57,9 @@ public class CircuitmodClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		Circuitmod.LOGGER.info("[CLIENT] Initializing CircuitmodClient");
+		
+		// Register GeckoLib armor renderers for split-source compatibility
+		registerArmorRenderers();
 
 		// Set block render layers
 		BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.TESLA_COIL, RenderLayer.getCutout());
@@ -150,6 +153,88 @@ public class CircuitmodClient implements ClientModInitializer {
         Circuitmod.LOGGER.info("[CLIENT] Sky rendering will be handled by WorldRendererSkyMixin");
 
         Circuitmod.LOGGER.info("[CLIENT] CircuitmodClient initialization complete");
+	}
+	
+	/**
+	 * Register GeckoLib armor renderers using the split-source pattern
+	 */
+	private static void registerArmorRenderers() {
+		// Set the render providers for each emu suit armor piece
+		((starduster.circuitmod.item.EmuSuitArmorItem) starduster.circuitmod.item.ModItems.EMU_SUIT_HELMET).renderProviderHolder.setValue(
+			new software.bernie.geckolib.animatable.client.GeoRenderProvider() {
+				private starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<?> renderer;
+
+				@org.jetbrains.annotations.Nullable
+				@Override
+				public <S extends net.minecraft.client.render.entity.state.BipedEntityRenderState> software.bernie.geckolib.renderer.GeoArmorRenderer<?, ?> getGeoArmorRenderer(
+						@org.jetbrains.annotations.Nullable S renderState,
+						net.minecraft.item.ItemStack itemStack,
+						net.minecraft.entity.EquipmentSlot equipmentSlot,
+						net.minecraft.client.render.entity.equipment.EquipmentModel.LayerType type,
+						@org.jetbrains.annotations.Nullable net.minecraft.client.render.entity.model.BipedEntityModel<S> original) {
+					if (this.renderer == null)
+						this.renderer = new starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<>();
+					return this.renderer;
+				}
+			}
+		);
+		
+		((starduster.circuitmod.item.EmuSuitArmorItem) starduster.circuitmod.item.ModItems.EMU_SUIT_CHESTPLATE).renderProviderHolder.setValue(
+			new software.bernie.geckolib.animatable.client.GeoRenderProvider() {
+				private starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<?> renderer;
+
+				@org.jetbrains.annotations.Nullable
+				@Override
+				public <S extends net.minecraft.client.render.entity.state.BipedEntityRenderState> software.bernie.geckolib.renderer.GeoArmorRenderer<?, ?> getGeoArmorRenderer(
+						@org.jetbrains.annotations.Nullable S renderState,
+						net.minecraft.item.ItemStack itemStack,
+						net.minecraft.entity.EquipmentSlot equipmentSlot,
+						net.minecraft.client.render.entity.equipment.EquipmentModel.LayerType type,
+						@org.jetbrains.annotations.Nullable net.minecraft.client.render.entity.model.BipedEntityModel<S> original) {
+					if (this.renderer == null)
+						this.renderer = new starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<>();
+					return this.renderer;
+				}
+			}
+		);
+		
+		((starduster.circuitmod.item.EmuSuitArmorItem) starduster.circuitmod.item.ModItems.EMU_SUIT_LEGGINGS).renderProviderHolder.setValue(
+			new software.bernie.geckolib.animatable.client.GeoRenderProvider() {
+				private starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<?> renderer;
+
+				@org.jetbrains.annotations.Nullable
+				@Override
+				public <S extends net.minecraft.client.render.entity.state.BipedEntityRenderState> software.bernie.geckolib.renderer.GeoArmorRenderer<?, ?> getGeoArmorRenderer(
+						@org.jetbrains.annotations.Nullable S renderState,
+						net.minecraft.item.ItemStack itemStack,
+						net.minecraft.entity.EquipmentSlot equipmentSlot,
+						net.minecraft.client.render.entity.equipment.EquipmentModel.LayerType type,
+						@org.jetbrains.annotations.Nullable net.minecraft.client.render.entity.model.BipedEntityModel<S> original) {
+					if (this.renderer == null)
+						this.renderer = new starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<>();
+					return this.renderer;
+				}
+			}
+		);
+		
+		((starduster.circuitmod.item.EmuSuitArmorItem) starduster.circuitmod.item.ModItems.EMU_SUIT_BOOTS).renderProviderHolder.setValue(
+			new software.bernie.geckolib.animatable.client.GeoRenderProvider() {
+				private starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<?> renderer;
+
+				@org.jetbrains.annotations.Nullable
+				@Override
+				public <S extends net.minecraft.client.render.entity.state.BipedEntityRenderState> software.bernie.geckolib.renderer.GeoArmorRenderer<?, ?> getGeoArmorRenderer(
+						@org.jetbrains.annotations.Nullable S renderState,
+						net.minecraft.item.ItemStack itemStack,
+						net.minecraft.entity.EquipmentSlot equipmentSlot,
+						net.minecraft.client.render.entity.equipment.EquipmentModel.LayerType type,
+						@org.jetbrains.annotations.Nullable net.minecraft.client.render.entity.model.BipedEntityModel<S> original) {
+					if (this.renderer == null)
+						this.renderer = new starduster.circuitmod.client.renderer.armor.EmuSuitArmorRenderer<>();
+					return this.renderer;
+				}
+			}
+		);
 	}
 	
 	/**

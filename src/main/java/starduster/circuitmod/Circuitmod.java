@@ -74,6 +74,7 @@ public class Circuitmod implements ModInitializer {
 		ModItemTags.initialize();
 		ModBlockTags.initialize();
 		ModToolMaterials.initialize();
+		starduster.circuitmod.item.ModArmorMaterials.initialize();
 		ModRecipes.initialize();
 		ModSounds.initialize();
 		starduster.circuitmod.effect.ModStatusEffects.initialize();

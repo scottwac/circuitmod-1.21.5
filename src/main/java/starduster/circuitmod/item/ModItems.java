@@ -82,6 +82,12 @@ public final class ModItems {
     // Oxygen tank items
     public static final Item OXYGEN_TANK = register("oxygen_tank", settings -> new OxygenTankItem(settings, 1000), new Item.Settings().maxCount(1).maxDamage(1000));
 
+    // Emu Suit Armor items
+    public static final Item EMU_SUIT_HELMET = register("emu_suit_helmet", properties -> new EmuSuitArmorItem(ModArmorMaterials.EMU_SUIT_MATERIAL, net.minecraft.item.equipment.EquipmentType.HELMET, properties), new Item.Settings());
+    public static final Item EMU_SUIT_CHESTPLATE = register("emu_suit_chestplate", properties -> new EmuSuitArmorItem(ModArmorMaterials.EMU_SUIT_MATERIAL, net.minecraft.item.equipment.EquipmentType.CHESTPLATE, properties), new Item.Settings());
+    public static final Item EMU_SUIT_LEGGINGS = register("emu_suit_leggings", properties -> new EmuSuitArmorItem(ModArmorMaterials.EMU_SUIT_MATERIAL, net.minecraft.item.equipment.EquipmentType.LEGGINGS, properties), new Item.Settings());
+    public static final Item EMU_SUIT_BOOTS = register("emu_suit_boots", properties -> new EmuSuitArmorItem(ModArmorMaterials.EMU_SUIT_MATERIAL, net.minecraft.item.equipment.EquipmentType.BOOTS, properties), new Item.Settings());
+
     public static final Item MOON = register("moon", Item::new, new Item.Settings());
 
     // Extinguished torch item (for Luna dimension)
