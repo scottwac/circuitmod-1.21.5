@@ -44,6 +44,10 @@
   "item.circuitmod.steel_shovel": "Steel Shovel",
   "item.circuitmod.steel_sword": "Steel Sword",
 
+  "item.circuitmod.emu_suit_helmet": "EMU Spacesuit Helmet",
+  "item.circuitmod.emu_suit_chestplate": "EMU Spacesuit Torso",
+  "item.circuitmod.emu_suit_leggings": "EMU Spacesuit Leggings",
+  "item.circuitmod.emu_suit_boots": "EMU Spacesuit Boots",
 
   "block.circuitmod.bauxite_ore": "Bauxite Ore",
   "block.circuitmod.deepslate_bauxite_ore": "Deepslate Bauxite Ore",
