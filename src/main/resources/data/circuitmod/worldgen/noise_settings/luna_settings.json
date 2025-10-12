@@ -170,7 +170,7 @@
         "then_run": {
           "type": "minecraft:block",
           "result_state": {
-            "Name": "minecraft:black_concrete"
+            "Name": "circuitmod:lunar_mantlerock"
           }
         }
       },

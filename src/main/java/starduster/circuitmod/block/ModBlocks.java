@@ -400,7 +400,7 @@ public final class ModBlocks {
     public static final Block LUNAR_IMPACT_GLASS = register(
             "lunar_impact_glass",
             Block::new,
-            Block.Settings.create().sounds(BlockSoundGroup.TUFF)
+            Block.Settings.create().sounds(BlockSoundGroup.CALCITE)
                     .strength(3.5F, 4.0F)
                     .mapColor(MapColor.GRAY)
     );

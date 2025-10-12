@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "circuitmod:item/",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
+  }
+}
