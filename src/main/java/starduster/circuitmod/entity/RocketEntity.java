@@ -44,7 +44,7 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     // Track if rocket came from Luna (for despawning logic)
     private boolean cameFromLuna = false;
     private int landingTimer = 0;
-    private static final int DESPAWN_DELAY_TICKS = 100; // 5 seconds at 20 ticks/second
+    private static final int DESPAWN_DELAY_TICKS = 20; // 1 second at 20 ticks/second
 
     public RocketEntity(EntityType<? extends AnimalEntity> entityType, World world) {
         super(entityType, world);
@@ -54,7 +54,11 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     @Override
     public ActionResult interactMob(PlayerEntity player, Hand hand) {
         if (!this.hasPassengers()) {
+            // Set rocket rotation to face the direction it was placed, not player direction
+            // This keeps the rocket orientation consistent
             player.startRiding(this);
+            Circuitmod.LOGGER.info("Player {} mounted rocket. Rocket rotation fixed at yaw: {}, pitch: {}", 
+                player.getName().getString(), this.getYaw(), this.getPitch());
             return ActionResult.SUCCESS;
         }
 
@@ -65,29 +69,25 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     @Override
     protected void playStepSound(BlockPos pos, BlockState block) {}
 
-    // Apply player-controlled movement
+    // Apply player-controlled movement (WASD disabled, only spacebar for launch)
     @Override
     public void travel(Vec3d pos) {
         if (this.isAlive()) {
             if (this.hasPassengers()) {
+                // Debug: Log spacebar input only
                 LivingEntity passenger = (LivingEntity)getControllingPassenger();
+                if (spacePressed && !isLaunching) {
+                    Circuitmod.LOGGER.info("Rocket launch triggered by spacebar!");
+                    startLaunch();
+                }
                 
-                // Debug: Log movement input values
-                Circuitmod.LOGGER.info("Rocket travel - pos.x: {}, pos.y: {}, pos.z: {}", pos.x, pos.y, pos.z);
-                Circuitmod.LOGGER.info("Rocket travel - sidewaysSpeed: {}, forwardSpeed: {}", passenger.sidewaysSpeed, passenger.forwardSpeed);
-                Circuitmod.LOGGER.info("Rocket travel - isLaunching: {}, spacePressed: {}", isLaunching, spacePressed);
+                // Keep rocket rotation fixed - don't follow player camera
+                // Don't update yaw/pitch from passenger
                 
-                this.lastYaw = this.getYaw();
-                this.lastPitch = this.getPitch();
-
-                setYaw(passenger.getYaw());
-                setPitch(passenger.getPitch() * 0.5f);
-                this.setRotation(getYaw(), getPitch());
-
-                this.bodyYaw = this.getYaw();
-                this.headYaw = this.bodyYaw;
-                float x = passenger.sidewaysSpeed * 0.5F;
-                float z = passenger.forwardSpeed;
+                // Disable all WASD movement - rocket doesn't respond to movement keys
+                // Ignore passenger.sidewaysSpeed and passenger.forwardSpeed
+                float x = 0.0f;
+                float z = 0.0f;
                 float y = 0.0f;
 
                 // Check if spacebar is pressed to trigger launch
@@ -96,18 +96,14 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                     startLaunch();
                 }
 
-                // Normal movement (launch mechanics handled by mixin)
-                if (!isLaunching) {
-                    if (z <= 0)
-                        z *= 0.25f;
-                } else {
-                    // Disable horizontal movement during launch for more dramatic effect
-                    x = 0;
-                    z = 0;
-                }
-
-                this.setMovementSpeed(0.3f);
+                // Rocket only moves vertically when launching (handled by mixin)
+                // No horizontal movement allowed at any time
+                
+                this.setMovementSpeed(0.0f); // Disable movement speed
                 super.travel(new Vec3d(x, y, z));
+            } else {
+                // No passengers - use default travel behavior
+                super.travel(pos);
             }
         }
     }
@@ -121,7 +117,7 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
 
     @Override
     public boolean canMoveVoluntarily() {
-        return true;
+        return true; // Allow input tracking for spacebar, but ignore WASD in travel()
     }
 
     // Adjust the rider's position while riding
@@ -233,20 +229,38 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
             return;
         }
         
+        // Debug logging every 100 ticks (5 seconds) when rocket came from Luna
+        if (cameFromLuna && this.age % 100 == 0) {
+            boolean isInOverworld = getWorld().getRegistryKey().getValue().equals(Identifier.of("minecraft", "overworld"));
+            double velocitySquared = this.getVelocity().lengthSquared();
+            Circuitmod.LOGGER.info("Rocket from Luna debug - InOverworld: {}, IsLaunching: {}, OnGround: {}, VelocitySquared: {}, LandingTimer: {}", 
+                isInOverworld, isLaunching, this.isOnGround(), velocitySquared, landingTimer);
+        }
+        
         // Check if rocket came from Luna and is now in Overworld
         if (cameFromLuna) {
             boolean isInOverworld = getWorld().getRegistryKey().getValue().equals(Identifier.of("minecraft", "overworld"));
             
             if (isInOverworld && !isLaunching) {
-                // Check if rocket has landed (is on ground and has low velocity)
-                boolean hasLanded = this.isOnGround() && this.getVelocity().lengthSquared() < 0.1;
+                // More lenient landing detection - check if rocket has low velocity and is close to ground
+                double velocitySquared = this.getVelocity().lengthSquared();
+                boolean hasLowVelocity = velocitySquared < 1.0; // Increased threshold
+                boolean isCloseToGround = this.isOnGround() || this.getVelocity().y > -0.5; // Also check if falling slowly
+                boolean hasLanded = hasLowVelocity && isCloseToGround;
                 
                 if (hasLanded) {
                     landingTimer++;
                     
-                    // Log landing progress
+                    // Log landing progress more frequently
                     if (landingTimer == 1) {
-                        Circuitmod.LOGGER.info("Rocket from Luna has landed on Earth. Starting despawn timer...");
+                        Circuitmod.LOGGER.info("Rocket from Luna has landed on Earth! Starting despawn timer... (Velocity: {}, OnGround: {})", 
+                            Math.sqrt(velocitySquared), this.isOnGround());
+                    }
+                    
+                    // Log countdown every second
+                    if (landingTimer % 20 == 0) {
+                        int secondsLeft = (DESPAWN_DELAY_TICKS - landingTimer) / 20;
+                        Circuitmod.LOGGER.info("Rocket despawn countdown: {} seconds remaining", secondsLeft);
                     }
                     
                     // Despawn after delay
@@ -255,6 +269,7 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                         
                         // Dismount any passengers first
                         if (this.hasPassengers()) {
+                            Circuitmod.LOGGER.info("Dismounting {} passengers before despawn", this.getPassengerList().size());
                             this.removeAllPassengers();
                         }
                         
@@ -276,10 +291,15 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                         }
                         
                         // Remove the rocket
+                        Circuitmod.LOGGER.info("Rocket successfully despawned!");
                         this.discard();
                     }
                 } else {
-                    // Reset timer if rocket is no longer landed
+                    // Reset timer if rocket is no longer landed, but log why
+                    if (landingTimer > 0) {
+                        Circuitmod.LOGGER.info("Rocket landing timer reset - HasLowVelocity: {}, IsCloseToGround: {}", 
+                            hasLowVelocity, isCloseToGround);
+                    }
                     landingTimer = 0;
                 }
             }
@@ -376,5 +396,37 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     public void setCameFromLuna(boolean cameFromLuna) {
         this.cameFromLuna = cameFromLuna;
         Circuitmod.LOGGER.info("Rocket Luna origin flag set to: {}", cameFromLuna);
+    }
+    
+    // Debug method to force despawn (for testing)
+    public void forceDespawn() {
+        if (!getWorld().isClient) {
+            Circuitmod.LOGGER.info("Force despawning rocket for debugging");
+            
+            // Dismount passengers
+            if (this.hasPassengers()) {
+                this.removeAllPassengers();
+            }
+            
+            // Play effects
+            getWorld().playSound(null, getBlockPos(), SoundEvents.ENTITY_ITEM_PICKUP, 
+                SoundCategory.NEUTRAL, 1.0f, 0.8f);
+                
+            // Spawn particles
+            if (getWorld() instanceof ServerWorld serverWorld) {
+                for (int i = 0; i < 10; i++) {
+                    double offsetX = (random.nextDouble() - 0.5) * 2.0;
+                    double offsetY = random.nextDouble() * 2.0;
+                    double offsetZ = (random.nextDouble() - 0.5) * 2.0;
+                    
+                    serverWorld.spawnParticles(ParticleTypes.POOF,
+                        getX() + offsetX, getY() + offsetY, getZ() + offsetZ,
+                        1, 0.0, 0.0, 0.0, 0.0);
+                }
+            }
+            
+            // Remove the rocket
+            this.discard();
+        }
     }
 }

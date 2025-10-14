@@ -24,8 +24,6 @@ import java.util.List;
 @Mixin(RocketEntity.class)
 public class RocketLaunchMixin {
     
-    private static final float MAX_LAUNCH_SPEED = 2.0f;
-    private static final int LAUNCH_ACCELERATION_TIME = 600; // 3 seconds at 20 ticks/second
     private static final double LUNA_ARRIVAL_HEIGHT = 2000.0; // Height to teleport to Luna from Overworld
     private static final double EARTH_ARRIVAL_HEIGHT = 1000.0; // Height to teleport to Earth from Luna
     private static final double LUNA_SPAWN_HEIGHT = 500.0; // Height to spawn at on Luna
@@ -70,18 +68,24 @@ public class RocketLaunchMixin {
         // Get current velocity
         Vec3d velocity = rocket.getVelocity();
         
-        // Calculate launch speed based on launch ticks (progressive acceleration)
+        // Calculate launch speed with continuous acceleration throughout the trip
         int launchTicks = rocket.getLaunchTicks();
-        float progress = Math.min((float) launchTicks / LAUNCH_ACCELERATION_TIME, 1.0f);
         
-        // Use quadratic easing for smooth acceleration
-        float easedProgress = progress * progress;
-        float launchSpeed = easedProgress * MAX_LAUNCH_SPEED;
+        // Continuous acceleration - speed increases throughout the entire journey
+        // Start with a base acceleration and increase over time
+        float baseAcceleration = 0.02f; // Starting acceleration per tick
+        float accelerationIncrease = 0.0001f; // How much acceleration increases per tick
         
-        // Once we reach max speed, maintain it
-        if (progress >= 1.0f) {
-            launchSpeed = MAX_LAUNCH_SPEED;
-        }
+        // Calculate current acceleration (increases over time)
+        float currentAcceleration = baseAcceleration + (accelerationIncrease * launchTicks);
+        
+        // Calculate speed by integrating acceleration over time
+        // This gives us ever-increasing speed throughout the journey
+        float launchSpeed = baseAcceleration * launchTicks + 0.5f * accelerationIncrease * launchTicks * launchTicks;
+        
+        // Apply a reasonable maximum to prevent extreme speeds that could cause issues
+        float maxReasonableSpeed = 10.0f; // Much higher than before, but still reasonable
+        launchSpeed = Math.min(launchSpeed, maxReasonableSpeed);
         
         // Apply upward velocity
         rocket.setVelocity(velocity.x, launchSpeed, velocity.z);
@@ -89,8 +93,9 @@ public class RocketLaunchMixin {
         
         // Debug logging every 20 ticks (once per second)
         if (launchTicks % 20 == 0) {
-            Circuitmod.LOGGER.info("Rocket launch - Y: {}, Speed: {}, Ticks: {}, Progress: {}, HasNoGravity: {}", 
-                String.format("%.1f", rocket.getY()), launchSpeed, launchTicks, String.format("%.2f", progress), rocket.hasNoGravity());
+            Circuitmod.LOGGER.info("Rocket launch - Y: {}, Speed: {}, Acceleration: {}, Ticks: {}, HasNoGravity: {}", 
+                String.format("%.1f", rocket.getY()), String.format("%.3f", launchSpeed), 
+                String.format("%.6f", currentAcceleration), launchTicks, rocket.hasNoGravity());
         }
         
         // Increment launch ticks
@@ -226,7 +231,7 @@ public class RocketLaunchMixin {
             // Mark that this rocket came from Luna (for despawn logic)
             earthRocket.setCameFromLuna(true);
             
-            Circuitmod.LOGGER.info("Rocket successfully teleported to Earth!");
+            Circuitmod.LOGGER.info("Rocket successfully teleported to Earth! CameFromLuna flag set to: {}", earthRocket.getCameFromLuna());
             
             // Teleport and remount passengers
             for (Entity passenger : passengers) {
