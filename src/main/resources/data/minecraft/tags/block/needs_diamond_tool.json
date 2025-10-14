@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:mantlerock_diamond_ore",
+    "circuitmod:mantlerock_uranium_ore",
+    "circuitmod:mantlerock_titanium_ore"
+  ]
+} 

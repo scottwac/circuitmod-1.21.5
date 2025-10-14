@@ -16,6 +16,12 @@
     "circuitmod:blueprint_desk",
     "circuitmod:mass_fabricator",
     "circuitmod:steel_block",
-    "circuitmod:launch_pad"
+    "circuitmod:launch_pad",
+
+    "circuitmod:anorthosite_iron_ore",
+    "circuitmod:anorthosite_copper_ore",
+    "circuitmod:deepbasalt_iron_ore",
+    "circuitmod:deepbasalt_copper_ore"
+
   ]
 } 

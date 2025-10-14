@@ -17,6 +17,17 @@
     "circuitmod:creative_consumer",
     "circuitmod:mass_fabricator",
     "circuitmod:steel_block",
-    "circuitmod:launch_pad"
+    "circuitmod:launch_pad",
+
+    "circuitmod:anorthosite_gold_ore",
+    "circuitmod:anorthosite_diamond_ore",
+    "circuitmod:anorthosite_zircon_ore",
+    "circuitmod:anorthosite_titanium_ore",
+
+    "circuitmod:deepbasalt_gold_ore",
+    "circuitmod:deepbasalt_diamond_ore",
+    "circuitmod:deepbasalt_zircon_ore",
+    "circuitmod:deepbasalt_uranium_ore",
+    "circuitmod:deepbasalt_titanium_ore"
   ]
 } 

@@ -34,6 +34,24 @@
     "circuitmod:output_pipe",
     "circuitmod:sorting_pipe",
     "circuitmod:power_cable",
-    "circuitmod:electric_carpet"
+    "circuitmod:electric_carpet",
+
+    "circuitmod:anorthosite_iron_ore",
+    "circuitmod:anorthosite_copper_ore",
+    "circuitmod:deepbasalt_iron_ore",
+    "circuitmod:deepbasalt_copper_ore",
+    "circuitmod:anorthosite_gold_ore",
+    "circuitmod:anorthosite_diamond_ore",
+    "circuitmod:anorthosite_zircon_ore",
+    "circuitmod:anorthosite_titanium_ore",
+    "circuitmod:deepbasalt_gold_ore",
+    "circuitmod:deepbasalt_diamond_ore",
+    "circuitmod:deepbasalt_zircon_ore",
+    "circuitmod:deepbasalt_uranium_ore",
+    "circuitmod:deepbasalt_titanium_ore",
+    "circuitmod:mantlerock_diamond_ore",
+    "circuitmod:mantlerock_uranium_ore",
+    "circuitmod:mantlerock_titanium_ore"
+
   ]
 } 
