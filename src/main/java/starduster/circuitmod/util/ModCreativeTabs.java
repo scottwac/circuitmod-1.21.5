@@ -131,7 +131,7 @@ public class ModCreativeTabs {
                             entries.add(ModItems.PLASTIC_PELLET);
                             entries.add(ModItems.PLASTIC_BAR);
 
-                            entries.add(ModBlocks.LAUNCH_PAD);
+                            
 
                             // Add consumable items
                             entries.add(ModItems.MINING_EXPLOSIVE);
