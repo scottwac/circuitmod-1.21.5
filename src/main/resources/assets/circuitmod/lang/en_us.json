@@ -68,6 +68,26 @@
   "block.circuitmod.lunar_ice":  "Lunar Ice",
   "block.circuitmod.lunar_mantlerock":  "Lunar Mantlerock",
 
+  "block.circuitmod.anorthosite_iron_ore":  "Anorthosite Iron Ore",
+  "block.circuitmod.anorthosite_copper_ore":  "Anorthosite Copper Ore",
+  "block.circuitmod.anorthosite_gold_ore":  "Anorthosite Gold Ore",
+  "block.circuitmod.anorthosite_diamond_ore":  "Anorthosite Diamond Ore",
+  "block.circuitmod.anorthosite_zircon_ore":  "Anorthosite Zircon Ore",
+  "block.circuitmod.anorthosite_titanium_ore":  "Anorthosite Titanium Ore",
+
+  "block.circuitmod.deepbasalt_iron_ore":  "Deepbasalt Iron Ore",
+  "block.circuitmod.deepbasalt_copper_ore":  "Deepbasalt Copper Ore",
+  "block.circuitmod.deepbasalt_gold_ore":  "Deepbasalt Gold Ore",
+  "block.circuitmod.deepbasalt_diamond_ore":  "Deepbasalt Diamond Ore",
+  "block.circuitmod.deepbasalt_zircon_ore":  "Deepbasalt Zircon Ore",
+  "block.circuitmod.deepbasalt_uranium_ore":  "Deepbasalt Uranium Ore",
+  "block.circuitmod.deepbasalt_titanium_ore":  "Deepbasalt Titanium Ore",
+
+  "block.circuitmod.mantlerock_diamond_ore":  "Mantlerock Diamond Ore",
+  "block.circuitmod.mantlerock_uranium_ore":  "Mantlerock Uranium Ore",
+  "block.circuitmod.mantlerock_titanium_ore":  "Mantlerock Titanium Ore",
+
+
 
   "block.circuitmod.bloomery": "Bloomery",
 
