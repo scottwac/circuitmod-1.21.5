@@ -14,6 +14,11 @@ public class ModSounds {
     public static final SoundEvent NUKE_MID = registerSoundEvent("nuke_mid");
     public static final SoundEvent NUKE_FAR = registerSoundEvent("nuke_far");
     public static final SoundEvent BURNING_FUEL_GENERATOR = registerSoundEvent("burning_fuel_generator");
+    
+    // Rocket sounds
+    public static final SoundEvent ROCKET_LAUNCH = registerSoundEvent("rocket_launch");
+    public static final SoundEvent ROCKET_FLYING = registerSoundEvent("rocket_flying");
+    public static final SoundEvent ROCKET_LANDING = registerSoundEvent("rocket_landing");
 
     private static SoundEvent registerSoundEvent(String name) {
         Identifier id = Identifier.of(Circuitmod.MOD_ID, name);

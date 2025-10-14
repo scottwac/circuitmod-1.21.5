@@ -223,6 +223,9 @@ public class RocketLaunchMixin {
             // Re-enable gravity for landing
             earthRocket.setNoGravity(false);
             
+            // Mark that this rocket came from Luna (for despawn logic)
+            earthRocket.setCameFromLuna(true);
+            
             Circuitmod.LOGGER.info("Rocket successfully teleported to Earth!");
             
             // Teleport and remount passengers
