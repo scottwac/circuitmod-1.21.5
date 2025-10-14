@@ -12,6 +12,20 @@ public class ModBiomes {
     
     public static final RegistryKey<Biome> TECHNO_JUNGLE = RegistryKey.of(RegistryKeys.BIOME, 
         Identifier.of(Circuitmod.MOD_ID, "techno_jungle"));
+
+    public static final RegistryKey<Biome> LUNAR_MARIA = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_maria"));
+    public static final RegistryKey<Biome> LUNAR_ROCKY_MARIA = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_rocky_maria"));
+    public static final RegistryKey<Biome> LUNAR_TERRAE = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_terrae"));
+    public static final RegistryKey<Biome> LUNAR_ROCKY_TERRAE = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_rocky_terrae"));
+    public static final RegistryKey<Biome> LUNAR_GLACIES = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_glacies"));
+    public static final RegistryKey<Biome> LUNAR_ROCKY_GLACIES = RegistryKey.of(RegistryKeys.BIOME,
+            Identifier.of(Circuitmod.MOD_ID, "lunar_rocky_glacies"));
+
     
     public static void initialize() {
         // The biome is defined in the data pack, so we just need to register the key

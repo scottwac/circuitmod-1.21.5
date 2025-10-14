@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:ore",
+  "config": {
+    "size": 10,
+    "discard_chance_on_air_exposure": 0.0,
+    "targets": [
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "circuitmod:anorthosite_ore_replaceables"
+        },
+        "state": {
+          "Name": "circuitmod:anorthosite_copper_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "circuitmod:deepbasalt_ore_replaceables"
+        },
+        "state": {
+          "Name": "circuitmod:deepbasalt_copper_ore"
+        }
+      }
+    ]
+  }
+}

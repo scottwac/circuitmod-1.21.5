@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:ore",
+  "config": {
+    "size": 11,
+    "discard_chance_on_air_exposure": 0.5,
+    "targets": [
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "circuitmod:anorthosite_ore_replaceables"
+        },
+        "state": {
+          "Name": "circuitmod:anorthosite_titanium_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "circuitmod:deepbasalt_ore_replaceables"
+        },
+        "state": {
+          "Name": "circuitmod:deepbasalt_titanium_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "circuitmod:mantlerock_ore_replaceables"
+        },
+        "state": {
+          "Name": "circuitmod:mantlerock_titanium_ore"
+        }
+      }
+    ]
+  }
+}
