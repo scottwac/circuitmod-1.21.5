@@ -5,18 +5,26 @@ import net.minecraft.registry.Registerable;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.collection.Pool;
+import net.minecraft.util.collection.WeightedList;
 import net.minecraft.util.math.intprovider.ConstantIntProvider;
+import net.minecraft.util.math.intprovider.IntProvider;
+import net.minecraft.util.math.intprovider.WeightedListIntProvider;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 import net.minecraft.world.gen.feature.Feature;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 import net.minecraft.world.gen.feature.size.TwoLayersFeatureSize;
 import net.minecraft.world.gen.stateprovider.BlockStateProvider;
+import net.minecraft.world.gen.trunk.CherryTrunkPlacer;
 import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.worldgen.tree.MegaFoliagePlacer;
 import starduster.circuitmod.worldgen.tree.MegaTrunkPlacer;
 
 public class ModConfiguredFeatures {
-    
+
+    public static final RegistryKey<ConfiguredFeature<?,?>> SHARINGA_TREE_KEY = registerKey("sharinga_tree");
+
     public static final RegistryKey<ConfiguredFeature<?, ?>> MEGA_TREE_KEY = registerKey("mega_tree");
     
     public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> context) {
@@ -34,6 +42,13 @@ public class ModConfiguredFeatures {
             // Large minimum size requirement
             new TwoLayersFeatureSize(3, 0, 5)
         ).dirtProvider(BlockStateProvider.of(Blocks.DIRT)).build());
+
+
+
+//        register(context, SHARINGA_TREE_KEY, Feature.TREE, new TreeFeatureConfig.Builder(
+//                BlockStateProvider.of(ModBlocks.SHARINGA_LOG),
+//                new CherryTrunkPlacer(9,1,0, new WeightedListIntProvider(),0,0,0),
+//        ));
     }
     
     public static RegistryKey<ConfiguredFeature<?, ?>> registerKey(String name) {

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "circuitmod:block/sharinga/sharinga_sapling"
+    }
+  }
+}

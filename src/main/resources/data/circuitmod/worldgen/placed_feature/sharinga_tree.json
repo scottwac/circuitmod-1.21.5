@@ -1,0 +1,9 @@
+{
+  "feature": "circuitmod:sharinga_tree",
+  "placement": [
+    {
+      "type": "heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    }
+  ]
+}

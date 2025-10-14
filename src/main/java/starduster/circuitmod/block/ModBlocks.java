@@ -5,6 +5,8 @@ import java.util.function.Function;
 import net.minecraft.block.*;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
+import net.minecraft.particle.EntityEffectParticleEffect;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.sound.BlockSoundGroup;
@@ -15,6 +17,7 @@ import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
 import starduster.circuitmod.block.machines.XpGenerator;
 import starduster.circuitmod.block.networkblocks.*;
+import starduster.circuitmod.worldgen.tree.ModSaplingGenerators;
 
 
 public final class ModBlocks {
@@ -578,6 +581,43 @@ public final class ModBlocks {
                     .breakInstantly()
                     .sounds(BlockSoundGroup.WOOD)
                     .pistonBehavior(net.minecraft.block.piston.PistonBehavior.DESTROY)
+    );
+
+
+    /**
+     * SHARINGA TREE BLOCKS (RUBBER TREE)
+     */
+
+    public static final Block SHARINGA_LOG = register(
+            "sharinga_log", (settings) ->
+                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_LOG)
+    );
+    public static final Block SHARINGA_WOOD = register(
+            "sharinga_wood", (settings) ->
+                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_WOOD)
+    );
+    public static final Block STRIPPED_SHARINGA_LOG = register(
+            "stripped_sharinga_log", (settings) ->
+                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.STRIPPED_JUNGLE_LOG)
+    );
+    public static final Block STRIPPED_SHARINGA_WOOD = register(
+            "stripped_sharinga_wood", (settings) ->
+                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.STRIPPED_JUNGLE_WOOD)
+    );
+
+    public static final Block SHARINGA_PLANKS = register(
+            "sharinga_planks", (settings) ->
+                    new Block(settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_PLANKS)
+    );
+    public static final Block SHARINGA_LEAVES = register(
+            "sharinga_leaves", (settings) ->
+                    new UntintedParticleLeavesBlock(0.1F, EntityEffectParticleEffect.create(ParticleTypes.TINTED_LEAVES, -9399763), settings) {
+                    }, AbstractBlock.Settings.copy(Blocks.JUNGLE_LEAVES)
+    );
+
+    public static final Block SHARINGA_SAPLING = register(
+            "sharinga_sapling", (settings) ->
+                    new SaplingBlock(ModSaplingGenerators.SHARINGA, settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_SAPLING)
     );
 
 

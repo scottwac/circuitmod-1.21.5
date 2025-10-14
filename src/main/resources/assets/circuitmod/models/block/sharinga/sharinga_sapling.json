@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "circuitmod:block/sharinga/sharinga_sapling"
+  }
+}

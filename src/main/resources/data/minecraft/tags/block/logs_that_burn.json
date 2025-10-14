@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:sharinga_log",
+    "circuitmod:sharinga_wood",
+    "circuitmod:stripped_sharinga_log",
+    "circuitmod:stripped_sharinga_wood"
+  ]
+} 

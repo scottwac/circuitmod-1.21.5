@@ -8,6 +8,7 @@ import starduster.circuitmod.Circuitmod;
 
 public class ModBlockTags {
     public static final TagKey<Block> EXAMPLE_ORES = TagKey.of(RegistryKeys.BLOCK, Identifier.of("circuitmod", "heightmaps_ignore"));
+    public static final TagKey<Block> SHARINGA_LOGS = TagKey.of(RegistryKeys.BLOCK, Identifier.of("circuitmod", "sharinga_logs"));
 
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod block tags");

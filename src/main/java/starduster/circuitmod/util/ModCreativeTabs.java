@@ -17,6 +17,15 @@ public class ModCreativeTabs {
     public static void initialize() {
         Circuitmod.LOGGER.info("ModCreativeTabs initialized");
 
+        /**
+         *
+         *
+         * PLEASE CHECK WHICH TAB YOU ARE ADDING NEW ITEMS TO
+         * ALWAYS PUT NEW STUFF IN THE "ALT" GROUP UNTIL IT IS A FINISHED FEATURE
+         *
+         *
+         */
+
         Registry.register(Registries.ITEM_GROUP, Identifier.of(Circuitmod.MOD_ID, "main"),
                 FabricItemGroup.builder()
                         .icon(() -> new ItemStack(ModItems.STEEL_INGOT))

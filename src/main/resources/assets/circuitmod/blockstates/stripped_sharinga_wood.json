@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "circuitmod:block/sharinga/stripped_sharinga_wood",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "circuitmod:block/sharinga/stripped_sharinga_wood"
+    },
+    "axis=z": {
+      "model": "circuitmod:block/sharinga/stripped_sharinga_wood",
+      "x": 90
+    }
+  }
+}

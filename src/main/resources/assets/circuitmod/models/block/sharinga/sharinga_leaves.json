@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/leaves",
+  "textures": {
+    "all": "circuitmod:block/sharinga/sharinga_leaves"
+  }
+}

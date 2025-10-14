@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.registry.FuelRegistryEvents;
+import net.fabricmc.fabric.api.registry.StrippableBlockRegistry;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -33,6 +34,7 @@ import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
 import starduster.circuitmod.screen.ModScreenHandlers;
 import starduster.circuitmod.sound.ModSounds;
+import starduster.circuitmod.util.CircuitmodRegistries;
 import starduster.circuitmod.util.ModBlockTags;
 import starduster.circuitmod.util.ModCreativeTabs;
 import starduster.circuitmod.util.ModItemTags;
@@ -89,6 +91,7 @@ public class Circuitmod implements ModInitializer {
 		starduster.circuitmod.power.EnergyNetworkTickHandler.initialize();
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		ModCreativeTabs.initialize();
+        CircuitmodRegistries.initialize();
 		
 		// Initialize dimension and portal registration
 		ModPortals.register();
@@ -272,5 +275,8 @@ public class Circuitmod implements ModInitializer {
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
 			LOGGER.info("[SERVER] Player left: " + handler.player.getName().getString());
 		});
+
+
+
 	}
 }
