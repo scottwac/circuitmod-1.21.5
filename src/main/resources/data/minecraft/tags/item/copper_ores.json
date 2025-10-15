@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:anorthosite_copper_ore",
+    "circuitmod:deepbasalt_copper_ore"
+  ]
+}

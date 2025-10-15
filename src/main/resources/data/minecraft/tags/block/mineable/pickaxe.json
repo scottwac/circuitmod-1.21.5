@@ -51,7 +51,15 @@
     "circuitmod:deepbasalt_titanium_ore",
     "circuitmod:mantlerock_diamond_ore",
     "circuitmod:mantlerock_uranium_ore",
-    "circuitmod:mantlerock_titanium_ore"
+    "circuitmod:mantlerock_titanium_ore",
+
+    "circuitmod:lunar_deepbasalt",
+    "circuitmod:lunar_mantlerock",
+    "circuitmod:lunar_basalt",
+    "circuitmod:lunar_anorthosite",
+    "circuitmod:lunar_breccia",
+    "circuitmod:lunar_impact_glass",
+    "circuitmod:lunar_ice"
 
   ]
 } 

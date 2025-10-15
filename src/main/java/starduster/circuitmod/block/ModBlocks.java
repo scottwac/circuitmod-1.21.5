@@ -370,6 +370,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.NETHERRACK)
                     .strength(3.0F, 6.0F)
                     .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
     );
     public static final Block LUNAR_MANTLEROCK = register(
             "lunar_mantlerock",
@@ -377,6 +378,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.NETHERRACK)
                     .strength(4.0F, 7.0F)
                     .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
     );
     public static final Block LUNAR_BASALT = register(
             "lunar_basalt",
@@ -384,6 +386,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.BASALT)
                     .strength(1.25F, 4.2F)
                     .mapColor(MapColor.DEEPSLATE_GRAY)
+                    .requiresTool()
     );
     public static final Block LUNAR_ANORTHOSITE = register(
             "lunar_anorthosite",
@@ -391,6 +394,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.TUFF)
                     .strength(1.5F, 6.0F)
                     .mapColor(MapColor.IRON_GRAY)
+                    .requiresTool()
     );
 
     public static final Block LUNAR_BRECCIA = register(
@@ -399,6 +403,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.TUFF)
                     .strength(3.5F, 6.0F)
                     .mapColor(MapColor.TERRACOTTA_CYAN)
+                    .requiresTool()
     );
     public static final Block LUNAR_IMPACT_GLASS = register(
             "lunar_impact_glass",
@@ -406,6 +411,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.CALCITE)
                     .strength(3.5F, 4.0F)
                     .mapColor(MapColor.GRAY)
+                    .requiresTool()
     );
     public static final Block LUNAR_EJECTA = register(
             "lunar_ejecta",
@@ -420,6 +426,7 @@ public final class ModBlocks {
             Block.Settings.create().sounds(BlockSoundGroup.GLASS)
                     .strength(2.5F, 2.8F)
                     .mapColor(MapColor.PALE_PURPLE)
+                    .requiresTool()
     );
 
     /**

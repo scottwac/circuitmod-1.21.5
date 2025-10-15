@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "circuitmod:anorthosite_diamond_ore",
+    "circuitmod:deepbasalt_diamond_ore",
+    "circuitmod:mantlerock_diamond_ore"
+  ]
+}
