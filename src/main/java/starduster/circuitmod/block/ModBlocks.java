@@ -627,6 +627,14 @@ public final class ModBlocks {
                     new SaplingBlock(ModSaplingGenerators.SHARINGA, settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_SAPLING)
     );
 
+    public static final Block RUBBER_TAP = register(
+            "rubber_tap",
+            RubberTapBlock::new,
+            Block.Settings.create()
+                    .strength(4.0f, 10.0f)
+                    .nonOpaque()
+    );
+
 
     private static Block register(String path, Function<AbstractBlock.Settings, Block> factory, AbstractBlock.Settings settings) {
         final Identifier identifier = Identifier.of(Circuitmod.MOD_ID, path);

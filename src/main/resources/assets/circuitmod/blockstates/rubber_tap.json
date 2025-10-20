@@ -1,0 +1,73 @@
+{
+  "variants": {
+    "facing=east,fill_level=0": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_base",
+      "y": 90
+    },
+    "facing=north,fill_level=0": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_base"
+    },
+    "facing=south,fill_level=0": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_base",
+      "y": 180
+    },
+    "facing=west,fill_level=0": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_base",
+      "y": 270
+    },
+
+
+    "facing=east,fill_level=1": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_1",
+      "y": 90
+    },
+    "facing=north,fill_level=1": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_1"
+    },
+    "facing=south,fill_level=1": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_1",
+      "y": 180
+    },
+    "facing=west,fill_level=1": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_1",
+      "y": 270
+    },
+
+
+    "facing=east,fill_level=2": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_2",
+      "y": 90
+    },
+    "facing=north,fill_level=2": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_2"
+    },
+    "facing=south,fill_level=2": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_2",
+      "y": 180
+    },
+    "facing=west,fill_level=2": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_2",
+      "y": 270
+    },
+
+
+    "facing=east,fill_level=3": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_3",
+      "y": 90
+    },
+    "facing=north,fill_level=3": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_3"
+    },
+    "facing=south,fill_level=3": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_3",
+      "y": 180
+    },
+    "facing=west,fill_level=3": {
+      "model": "circuitmod:block/rubber_tap/rubber_tap_fill_3",
+      "y": 270
+    }
+
+
+
+  }
+}
