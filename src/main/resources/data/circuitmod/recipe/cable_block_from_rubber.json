@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": "#minecraft:wool",
+    "B": "#circuitmod:rubber",
     "C": "minecraft:copper_ingot"
   },
   "pattern": [
@@ -11,7 +11,7 @@
     "BBB"
   ],
   "result": {
-    "count": 10,
+    "count": 12,
     "id": "circuitmod:power_cable"
   }
 } 

@@ -15,6 +15,7 @@ public class ModItemTags {
     public static final TagKey<Item> PULSE_STICK_REPAIR_MATERIALS = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","pulse_stick_repair_materials"));
     public static final TagKey<Item> FUEL = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","fuel"));
     public static final TagKey<Item> SHARINGA_LOGS = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","sharinga_logs"));
+    public static final TagKey<Item> RUBBER = TagKey.of(RegistryKeys.ITEM, Identifier.of("circuitmod","rubber"));
 
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod item tags");

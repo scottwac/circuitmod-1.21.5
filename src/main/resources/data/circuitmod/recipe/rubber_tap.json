@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "minecraft:bowl",
+    "N": "minecraft:iron_nugget",
+    "I": "minecraft:iron_ingot"
+  },
+  "pattern": [
+    " I ",
+    "NBN",
+    " N "
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:rubber_tap"
+  }
+} 
