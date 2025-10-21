@@ -3,11 +3,19 @@ package starduster.circuitmod.block;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
@@ -17,6 +25,10 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 import org.jetbrains.annotations.Nullable;
+import starduster.circuitmod.block.entity.BloomeryBlockEntity;
+import starduster.circuitmod.block.entity.ModBlockEntities;
+import starduster.circuitmod.block.entity.QuarryBlockEntity;
+import starduster.circuitmod.block.entity.RubberTapBlockEntity;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -24,6 +36,7 @@ import java.util.Map;
 public class RubberTapBlock extends BlockWithEntity implements BlockEntityProvider {
     public static final IntProperty FILL_LEVEL = IntProperty.of("fill_level",0,3);
     private static final VoxelShape BASE_SHAPE = Block.createCuboidShape(4.5, 0.0, 8.5, 11.5, 5.5, 16.0);
+
     private static final Map<Direction, VoxelShape> SHAPES = createShapes();
 
     private static Map<Direction, VoxelShape> createShapes() {
@@ -112,8 +125,33 @@ public class RubberTapBlock extends BlockWithEntity implements BlockEntityProvid
         return null;
     }
 
+
+    // Create the block entity
     @Override
-    public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return null;
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new RubberTapBlockEntity(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+        if(world.isClient()) {
+            return null;
+        }
+
+        return validateTicker(type, ModBlockEntities.RUBBER_TAP_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> blockEntity.tick(world1, pos, state1, blockEntity));
+    }
+
+    @Override
+    protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos,
+                                         PlayerEntity player, Hand hand, BlockHitResult hit) {
+        if (!world.isClient) {
+            NamedScreenHandlerFactory screenHandlerFactory = ((RubberTapBlockEntity) world.getBlockEntity(pos));
+            if (screenHandlerFactory != null) {
+                player.openHandledScreen(screenHandlerFactory);
+            }
+        }
+        return ActionResult.SUCCESS;
     }
 }

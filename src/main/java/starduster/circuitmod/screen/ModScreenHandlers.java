@@ -115,6 +115,14 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(BloomeryScreenHandler::new, FeatureSet.empty())
         );
 
+    // Register Rubber Tap screen handler
+    public static final ScreenHandlerType<RubberTapScreenHandler> RUBBER_TAP_SCREEN_HANDLER =
+            Registry.register(
+                    Registries.SCREEN_HANDLER,
+                    Identifier.of(Circuitmod.MOD_ID, "rubber_tap"),
+                    new ScreenHandlerType<>(RubberTapScreenHandler::new, FeatureSet.empty())
+            );
+
     // Register crusher screen handler
     public static final ScreenHandlerType<CrusherScreenHandler> CRUSHER_SCREEN_HANDLER =
             Registry.register(

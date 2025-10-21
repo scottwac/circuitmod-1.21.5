@@ -19,7 +19,8 @@
       "state": {
         "Name": "circuitmod:sharinga_log",
         "Properties": {
-          "axis": "y"
+          "axis": "y",
+          "natural": "true"
         }
       }
     },

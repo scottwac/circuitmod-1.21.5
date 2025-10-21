@@ -58,6 +58,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(BloomeryBlockEntity::new, ModBlocks.BLOOMERY).build()
     );
 
+    // Add rubber tap block entity
+    public static final BlockEntityType<RubberTapBlockEntity> RUBBER_TAP_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(Circuitmod.MOD_ID, "rubber_tap"),
+            FabricBlockEntityTypeBuilder.create(RubberTapBlockEntity::new, ModBlocks.RUBBER_TAP).build()
+    );
+
     // Add power cable block entity
     public static final BlockEntityType<PowerCableBlockEntity> POWER_CABLE_BLOCK_ENTITY = Registry.register(
         Registries.BLOCK_ENTITY_TYPE,

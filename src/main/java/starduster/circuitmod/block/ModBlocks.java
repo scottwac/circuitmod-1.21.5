@@ -595,9 +595,12 @@ public final class ModBlocks {
      * SHARINGA TREE BLOCKS (RUBBER TREE)
      */
 
+//    public static final Block SHARINGA_LOG = register(
+//            "sharinga_log", (settings) ->
+//                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_LOG)
+//    );
     public static final Block SHARINGA_LOG = register(
-            "sharinga_log", (settings) ->
-                    new PillarBlock(settings), AbstractBlock.Settings.copy(Blocks.JUNGLE_LOG)
+            "sharinga_log", SharingaLogBlock::new, AbstractBlock.Settings.copy(Blocks.JUNGLE_WOOD)
     );
     public static final Block SHARINGA_WOOD = register(
             "sharinga_wood", (settings) ->
