@@ -17,6 +17,7 @@ public final class ModItems {
     public static final Item RAW_BAUXITE = register("raw_bauxite", Item::new, new Item.Settings());
     public static final Item CRUSHED_BAUXITE = register("crushed_bauxite", Item::new, new Item.Settings());
     public static final Item ALUMINUM_INGOT = register("aluminum_ingot", Item::new, new Item.Settings());
+    public static final Item ALUMINUM_POWDER = register("aluminum_powder", Item::new, new Item.Settings());
 
     public static final Item GRAPHITE = register("graphite", Item::new, new Item.Settings());
     public static final Item GRAPHITE_POWDER = register("graphite_powder", Item::new, new Item.Settings());
@@ -26,6 +27,7 @@ public final class ModItems {
     public static final Item LEAD_INGOT = register("lead_ingot", Item::new, new Item.Settings());
 
     public static final Item IRON_POLE = register("iron_pole", Item::new, new Item.Settings());
+    public static final Item IRON_POWDER = register("iron_powder", Item::new, new Item.Settings());
     public static final Item BLOOM = register("bloom", Item::new, new Item.Settings());
     public static final Item STEEL_INGOT = register("steel_ingot", Item::new, new Item.Settings());
 
@@ -48,6 +50,16 @@ public final class ModItems {
 
     public static final Item SOLAR_CELL = register("solar_cell", Item::new, new Item.Settings());
     public static final Item SOLAR_MODULE = register("solar_module", Item::new, new Item.Settings());
+
+    public static final Item RUBBER_UNDERSUIT_BOOTS = register("rubber_undersuit_boots", Item::new, new Item.Settings());
+    public static final Item RUBBER_UNDERSUIT_LEGGINGS = register("rubber_undersuit_leggings", Item::new, new Item.Settings());
+    public static final Item RUBBER_UNDERSUIT_CHESTPLATE = register("rubber_undersuit_chestplate", Item::new, new Item.Settings());
+    public static final Item RUBBER_UNDERSUIT_HELMET = register("rubber_undersuit_helmet", Item::new, new Item.Settings());
+
+    public static final Item SOLID_FUEL_SEGMENT = register("solid_fuel_segment", Item::new, new Item.Settings().maxCount(1));
+    public static final Item APCP_ROCKET_PROPELLANT = register("apcp_rocket_propellant", Item::new, new Item.Settings().maxCount(1));
+    public static final Item SOLID_ROCKET_MOTOR = register("solid_rocket_motor", Item::new, new Item.Settings().maxCount(1));
+    public static final Item LIFE_SUPPORT_MODULE = register("life_support_module", Item::new, new Item.Settings().maxCount(1));
 
     public static final Item STEEL_SWORD = register("steel_sword", Item::new, (new Item.Settings()).sword(ModToolMaterials.STEEL_TOOL_MATERIAL, 3.0F, -2.4F)
             .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));

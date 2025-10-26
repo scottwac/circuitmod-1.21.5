@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "circuitmod:item/components/solid_fuel_segment"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "circuitmod:item/components/apcp_bucket"
+  }
+} 

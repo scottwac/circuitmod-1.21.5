@@ -76,6 +76,8 @@ public class ModCreativeTabs {
                             entries.add(ModItems.CRUSHED_BAUXITE);
                             entries.add(ModItems.CRUSHED_URANIUM);
 
+                            entries.add(ModItems.ALUMINUM_POWDER);
+                            entries.add(ModItems.IRON_POWDER);
                             entries.add(ModItems.LEAD_POWDER);
                             entries.add(ModItems.ZIRCONIUM_POWDER);
                             entries.add(ModItems.STONE_DUST);
