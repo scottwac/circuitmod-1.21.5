@@ -2,6 +2,8 @@
   "item.circuitmod.raw_bauxite": "Raw Bauxite",
   "item.circuitmod.crushed_bauxite": "Crushed Bauxite",
   "item.circuitmod.aluminum_ingot": "Aluminum Ingot",
+  "item.circuitmod.aluminum_powder": "Aluminum Powder",
+  "item.circuitmod.iron_powder": "Iron Powder",
   "item.circuitmod.graphite": "Graphite",
   "item.circuitmod.graphite_powder": "Graphite Powder",
   "item.circuitmod.raw_lead": "Raw Lead",
@@ -25,16 +27,28 @@
   "item.circuitmod.lead_ingot": "Lead Ingot",
   "item.circuitmod.blueprint": "Blueprint",
   "item.circuitmod.blank_blueprint": "Blank Blueprint",
+
+  "item.circuitmod.solar_cell": "Solar Cell",
+  "item.circuitmod.solar_module": "Solar Module",
+
+  "item.circuitmod.rubber_undersuit_helmet": "Rubber Undersuit Cap",
+  "item.circuitmod.rubber_undersuit_chestplate": "Rubber Undersuit Torso",
+  "item.circuitmod.rubber_undersuit_leggings": "Rubber Undersuit Leggings",
+  "item.circuitmod.rubber_undersuit_boots": "Rubber Undersuit Boots",
+
+  "item.circuitmod.solid_fuel_segment": "Solid Fuel Rocket Motor Segment",
+  "item.circuitmod.apcp_rocket_propellant": "APCP Propellant",
+  "item.circuitmod.solid_rocket_motor": "Solid Rocket Motor",
+  "item.circuitmod.life_support_module": "Life Support Module",
+
+  "item.circuitmod.rocket": "Moon Rocket",
+
+
   "item.circuitmod.stimulants": "Stimulants",
   "item.circuitmod.mining_explosive": "Mining Explosive",
   "item.circuitmod.pulse_stick": "Pulse Stick",
   "item.circuitmod.hovercraft": "Hovercraft",
   "entity.circuitmod.hovercraft": "Hovercraft",
-  "item.circuitmod.oxygen_tank": "Oxygen Tank",
-  "item.circuitmod.oxygen_tank.oxygen": "Oxygen: %s/%s",
-  "item.circuitmod.oxygen_tank.empty": "Empty",
-  "item.circuitmod.extinguished_torch": "Extinguished Torch",
-
 
   "block.circuitmod.steel_block": "Block of Steel",
 
@@ -46,10 +60,21 @@
 
   "block.circuitmod.rubber_tap": "Rubber Tap",
 
+  "block.circuitmod.sharinga_log": "Sharinga Log",
+  "block.circuitmod.sharinga_wood": "Sharinga Wood",
+  "block.circuitmod.stripped_sharinga_log": "Stripped Sharinga Log",
+  "block.circuitmod.stripped_sharinga_wood": "Stripped Sharinga Wood",
+  "block.circuitmod.sharinga_leaves": "Sharinga Leaves",
+  "block.circuitmod.sharinga_sapling": "Sharinga Sapling",
+
   "item.circuitmod.emu_suit_helmet": "EMU Spacesuit Helmet",
   "item.circuitmod.emu_suit_chestplate": "EMU Spacesuit Torso",
   "item.circuitmod.emu_suit_leggings": "EMU Spacesuit Leggings",
   "item.circuitmod.emu_suit_boots": "EMU Spacesuit Boots",
+
+  "item.circuitmod.oxygen_tank": "Oxygen Tank",
+  "item.circuitmod.oxygen_tank.oxygen": "Oxygen: %s/%s",
+  "item.circuitmod.oxygen_tank.empty": "Empty",
 
   "block.circuitmod.bauxite_ore": "Bauxite Ore",
   "block.circuitmod.deepslate_bauxite_ore": "Deepslate Bauxite Ore",
@@ -89,12 +114,12 @@
   "block.circuitmod.mantlerock_uranium_ore":  "Mantlerock Uranium Ore",
   "block.circuitmod.mantlerock_titanium_ore":  "Mantlerock Titanium Ore",
 
-
+  "item.circuitmod.extinguished_torch": "Extinguished Torch",
 
   "block.circuitmod.bloomery": "Bloomery",
 
-  "block.circuitmod.quarry_block": "Quarry",
-  "block.circuitmod.drill_block": "Drill",
+  "item.circuitmod.quarry_block": "Quarry",
+  "item.circuitmod.drill_block": "Drill",
   "block.circuitmod.laser_mining_drill_block": "Laser Mining Drill",
   "block.circuitmod.constructor_block": "Constructor",
   "block.circuitmod.blueprint_desk": "Blueprint Desk",

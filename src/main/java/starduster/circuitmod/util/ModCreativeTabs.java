@@ -31,34 +31,33 @@ public class ModCreativeTabs {
                         .icon(() -> new ItemStack(ModItems.STEEL_INGOT))
                         .displayName(Text.translatable("itemgroup.circuitmod.main"))
                         .entries((context, entries) -> {
-                            // Add blocks first
                             entries.add(ModBlocks.BATTERY);
                             entries.add(ModBlocks.POWER_CABLE);
+
+                            entries.add(ModBlocks.SOLAR_PANEL);
+                            entries.add(ModBlocks.GENERATOR);
+                            entries.add(ModBlocks.REACTOR_BLOCK);
+
                             entries.add(ModBlocks.BLOOMERY);
                             entries.add(ModBlocks.CRUSHER);
                             entries.add(ModBlocks.ELECTRIC_FURNACE);
                             entries.add(ModBlocks.XP_GENERATOR);
-                            entries.add(ModBlocks.GENERATOR);
-                            entries.add(ModBlocks.SOLAR_PANEL);
-                            entries.add(ModBlocks.TESLA_COIL);
+                            entries.add(ModBlocks.QUARRY_BLOCK);
                             entries.add(ModBlocks.DRILL_BLOCK);
                             entries.add(ModBlocks.LASER_MINING_DRILL_BLOCK);
-                            entries.add(ModBlocks.QUARRY_BLOCK);
-                            entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
                             entries.add(ModBlocks.BLUEPRINT_DESK);
+                            entries.add(ModBlocks.CONSTRUCTOR_BLOCK);
 
-
+                            entries.add(ModBlocks.TESLA_COIL);
                             entries.add(ModBlocks.ELECTRIC_CARPET);
+                            entries.add(ModBlocks.NUKE);
+
                             entries.add(ModBlocks.ITEM_PIPE);
                             entries.add(ModBlocks.OUTPUT_PIPE);
                             entries.add(ModBlocks.SORTING_PIPE);
-                            entries.add(ModBlocks.REACTOR_BLOCK);
-                            entries.add(ModBlocks.NUKE);
 
-                            // Add ingots and materials
-                            entries.add(ModItems.BLOOM);
+                            entries.add(ModBlocks.RUBBER_TAP);
 
-                            // Add ores
                             entries.add(ModBlocks.BAUXITE_ORE);
                             entries.add(ModBlocks.DEEPSLATE_BAUXITE_ORE);
                             entries.add(ModBlocks.LEAD_ORE);
@@ -68,60 +67,75 @@ public class ModCreativeTabs {
                             entries.add(ModBlocks.ZIRCON_ORE);
                             entries.add(ModBlocks.DEEPSLATE_ZIRCON_ORE);
 
-                            entries.add(ModItems.RAW_BAUXITE);
-                            entries.add(ModItems.RAW_LEAD);
-                            entries.add(ModItems.RAW_URANIUM);
-                            entries.add(ModItems.ZIRCON);
-
-                            entries.add(ModItems.CRUSHED_BAUXITE);
-                            entries.add(ModItems.CRUSHED_URANIUM);
-
-                            entries.add(ModItems.ALUMINUM_POWDER);
-                            entries.add(ModItems.IRON_POWDER);
-                            entries.add(ModItems.LEAD_POWDER);
-                            entries.add(ModItems.ZIRCONIUM_POWDER);
-                            entries.add(ModItems.STONE_DUST);
-
-                            entries.add(ModItems.ALUMINUM_INGOT);
-                            entries.add(ModItems.LEAD_INGOT);
+                            entries.add(ModItems.BLOOM);
                             entries.add(ModItems.STEEL_INGOT);
-                            entries.add(ModItems.URANIUM_PELLET);
-                            entries.add(ModItems.FUEL_ROD);
-                            entries.add(ModItems.ZIRCONIUM_INGOT);
+
+                            entries.add(ModItems.RAW_BAUXITE);
+                            entries.add(ModItems.CRUSHED_BAUXITE);
+                            entries.add(ModItems.ALUMINUM_INGOT);
+                            entries.add(ModItems.ALUMINUM_POWDER);
 
                             entries.add(ModItems.GRAPHITE);
                             entries.add(ModItems.GRAPHITE_POWDER);
 
-                            entries.add(ModItems.IRON_POLE);
-                            entries.add(ModItems.ZIRCONIUM_TUBE);
+                            entries.add(ModItems.RAW_LEAD);
+                            entries.add(ModItems.LEAD_POWDER);
+                            entries.add(ModItems.LEAD_INGOT);
+
+                            entries.add(ModItems.RAW_URANIUM);
+                            entries.add(ModItems.CRUSHED_URANIUM);
+                            entries.add(ModItems.URANIUM_PELLET);
+
+                            entries.add(ModItems.ZIRCON);
+                            entries.add(ModItems.ZIRCONIUM_POWDER);
+                            entries.add(ModItems.ZIRCONIUM_INGOT);
+
+                            entries.add(ModItems.STONE_DUST);
+                            entries.add(ModItems.IRON_POWDER);
 
                             entries.add(ModBlocks.STEEL_BLOCK);
 
+                            entries.add(ModItems.IRON_POLE);
+                            entries.add(ModItems.ZIRCONIUM_TUBE);
+                            entries.add(ModItems.FUEL_ROD);
+
+                            entries.add(ModItems.SOLAR_CELL);
+                            entries.add(ModItems.SOLAR_MODULE);
+
+                            entries.add(ModItems.NATURAL_RUBBER);
+
+                            entries.add(ModItems.RUBBER_UNDERSUIT_HELMET);
+                            entries.add(ModItems.RUBBER_UNDERSUIT_CHESTPLATE);
+                            entries.add(ModItems.RUBBER_UNDERSUIT_LEGGINGS);
+                            entries.add(ModItems.RUBBER_UNDERSUIT_BOOTS);
+
+                            entries.add(ModItems.APCP_ROCKET_PROPELLANT);
+                            entries.add(ModItems.SOLID_FUEL_SEGMENT);
+                            entries.add(ModItems.SOLID_ROCKET_MOTOR);
+                            entries.add(ModItems.LIFE_SUPPORT_MODULE);
+                            entries.add(ModItems.ROCKET);
+
+                            entries.add(ModItems.STEEL_SWORD);
                             entries.add(ModItems.STEEL_SHOVEL);
                             entries.add(ModItems.STEEL_PICKAXE);
                             entries.add(ModItems.STEEL_AXE);
                             entries.add(ModItems.STEEL_HOE);
-                            entries.add(ModItems.STEEL_SWORD);
 
-                            // Add blank blueprint item
                             entries.add(ModItems.BLANK_BLUEPRINT);
 
-                            // Add movement items
-                            entries.add(ModItems.PULSE_STICK);
-                            entries.add(ModItems.HOVERCRAFT);
-
-                            entries.add(ModItems.STIMULANTS);
-                            
-                            // Oxygen system
                             entries.add(ModItems.OXYGEN_TANK);
-
-                            // Emu Suit Armor
                             entries.add(ModItems.EMU_SUIT_HELMET);
                             entries.add(ModItems.EMU_SUIT_CHESTPLATE);
                             entries.add(ModItems.EMU_SUIT_LEGGINGS);
                             entries.add(ModItems.EMU_SUIT_BOOTS);
 
-                            // Add more mod items here as they are created
+                            entries.add(ModBlocks.SHARINGA_LOG);
+                            entries.add(ModBlocks.SHARINGA_WOOD);
+                            entries.add(ModBlocks.STRIPPED_SHARINGA_LOG);
+                            entries.add(ModBlocks.STRIPPED_SHARINGA_WOOD);
+                            entries.add(ModBlocks.SHARINGA_LEAVES);
+                            entries.add(ModBlocks.SHARINGA_SAPLING);
+
                         })
                         .build());
 
@@ -137,10 +151,14 @@ public class ModCreativeTabs {
 
                             entries.add(ModBlocks.FLUID_TANK);
 
-                            entries.add(ModItems.NATURAL_RUBBER);
                             entries.add(ModItems.SYNTHETIC_RUBBER);
                             entries.add(ModItems.PLASTIC_PELLET);
                             entries.add(ModItems.PLASTIC_BAR);
+
+                            // Add movement items
+                            entries.add(ModItems.PULSE_STICK);
+                            entries.add(ModItems.HOVERCRAFT);
+                            entries.add(ModItems.STIMULANTS);
 
                             entries.add(ModBlocks.LAUNCH_PAD);
 
