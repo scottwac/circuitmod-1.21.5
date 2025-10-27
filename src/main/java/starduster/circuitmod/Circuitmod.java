@@ -103,7 +103,7 @@ public class Circuitmod implements ModInitializer {
 		starduster.circuitmod.worldgen.tree.ModTrunkPlacerTypes.initialize();
 		starduster.circuitmod.worldgen.tree.ModFoliagePlacerTypes.initialize();
 		
-		// starduster.circuitmod.worldgen.ModTreeGeneration.generateTrees();
+		starduster.circuitmod.worldgen.ModTreeGeneration.generateTrees();
 		
 		// Initialize commands
 		starduster.circuitmod.command.ModCommands.initialize();

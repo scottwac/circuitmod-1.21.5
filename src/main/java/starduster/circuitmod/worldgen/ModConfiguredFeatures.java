@@ -45,10 +45,6 @@ public class ModConfiguredFeatures {
 
 
 
-//        register(context, SHARINGA_TREE_KEY, Feature.TREE, new TreeFeatureConfig.Builder(
-//                BlockStateProvider.of(ModBlocks.SHARINGA_LOG),
-//                new CherryTrunkPlacer(9,1,0, new WeightedListIntProvider(),0,0,0),
-//        ));
     }
     
     public static RegistryKey<ConfiguredFeature<?, ?>> registerKey(String name) {

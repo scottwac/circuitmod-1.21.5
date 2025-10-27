@@ -15,7 +15,11 @@ import java.util.List;
 public class ModPlacedFeatures {
     
     public static final RegistryKey<PlacedFeature> MEGA_TREE_PLACED_KEY = registerKey("mega_tree_placed");
-    
+
+    public static final RegistryKey<PlacedFeature> SHARINGA_TREE_PLACED_KEY = registerKey("sharinga_tree");
+    public static final RegistryKey<PlacedFeature> PLAINS_SHARINGA_TREE_PLACED_KEY = registerKey("plains_sharinga_tree");
+    public static final RegistryKey<PlacedFeature> SPARSE_JUNGLE_SHARINGA_TREE_PLACED_KEY = registerKey("sparse_jungle_sharinga_tree");
+
     public static void bootstrap(Registerable<PlacedFeature> context) {
         var configuredFeatures = context.getRegistryLookup(RegistryKeys.CONFIGURED_FEATURE);
         
