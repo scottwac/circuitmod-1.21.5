@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "circuitmod:steel_ingot"
+  },
+  "pattern": [
+    " S ",
+    "S S",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:oxygen_tank"
+  }
+} 

@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "circuitmod:steel_ingot",
+    "A": "circuitmod:aluminum_ingot",
+    "L": "circuitmod:life_support_module",
+    "G": "minecraft:glass",
+    "F": "circuitmod:solid_rocket_motor"
+  },
+  "pattern": [
+    "SGS",
+    "ALA",
+    "AFA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:rocket"
+  }
+} 

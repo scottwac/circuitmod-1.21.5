@@ -1,0 +1,8 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "circuitmod:aluminum_ingot",
+  "result_1": {
+    "count": 2,
+    "id": "circuitmod:aluminum_powder"
+  }
+} 

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "circuitmod:rubber_undersuit_helmet",
+    "G": "minecraft:glass",
+    "A": "circuitmod:aluminum_ingot"
+  },
+  "pattern": [
+    "GGG",
+    "GRG",
+    "AAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:emu_suit_helmet"
+  }
+} 

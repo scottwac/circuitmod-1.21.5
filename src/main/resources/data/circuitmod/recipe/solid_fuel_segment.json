@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "#circuitmod:rubber",
+    "A": "circuitmod:apcp_rocket_propellant"
+  },
+  "pattern": [
+    "RAR",
+    "RAR",
+    "RAR"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:solid_fuel_segment"
+  }
+} 

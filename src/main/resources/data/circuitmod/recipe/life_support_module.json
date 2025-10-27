@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "circuitmod:steel_ingot",
+    "A": "circuitmod:aluminum_ingot",
+    "P": "circuitmod:item_pipe",
+    "L": "#minecraft:leaves",
+    "C": "minecraft:comparator"
+  },
+  "pattern": [
+    "ASA",
+    "PLP",
+    "ACA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:life_support_module"
+  }
+} 

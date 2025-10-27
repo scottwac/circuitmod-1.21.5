@@ -1,0 +1,12 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "minecraft:iron_ore",
+  "result_1": {
+    "count": 3,
+    "id": "circuitmod:iron_powder"
+  },
+  "result_2": {
+    "count": 1,
+    "id": "circuitmod:stone_dust"
+  }
+} 

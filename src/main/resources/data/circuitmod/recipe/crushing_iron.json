@@ -1,0 +1,8 @@
+{
+  "type": "circuitmod:crusher",
+  "ingredient": "minecraft:iron_ingot",
+  "result_1": {
+    "count": 1,
+    "id": "circuitmod:iron_powder"
+  }
+} 

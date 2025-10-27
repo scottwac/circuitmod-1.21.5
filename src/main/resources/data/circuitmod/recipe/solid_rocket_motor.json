@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "circuitmod:steel_ingot",
+    "A": "circuitmod:solid_fuel_segment",
+    "B": "circuitmod:steel_block"
+  },
+  "pattern": [
+    "SAS",
+    "SAS",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:solid_rocket_motor"
+  }
+} 

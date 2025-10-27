@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "circuitmod:rubber_undersuit_chestplate",
+    "P": "circuitmod:item_pipe",
+    "A": "circuitmod:aluminum_ingot",
+    "B": "circuitmod:battery",
+    "L": "circuitmod:life_support_module",
+    "N": "minecraft:iron_nugget"
+  },
+  "pattern": [
+    "BLN",
+    "ARA",
+    "PAP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:emu_suit_chestplate"
+  }
+} 

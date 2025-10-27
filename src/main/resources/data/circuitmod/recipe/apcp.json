@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "circuitmod:iron_powder",
+    [
+      "minecraft:resin_clump",
+      "minecraft:resin_brick",
+      "minecraft:slime_ball"
+    ],
+    [
+      "minecraft:resin_clump",
+      "minecraft:resin_brick",
+      "minecraft:slime_ball"
+    ],
+    "circuitmod:aluminum_powder",
+    "minecraft:magma_cream",
+    "minecraft:magma_cream",
+    "circuitmod:aluminum_powder",
+    "circuitmod:aluminum_powder",
+    "circuitmod:aluminum_powder"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:apcp_rocket_propellant"
+  }
+}

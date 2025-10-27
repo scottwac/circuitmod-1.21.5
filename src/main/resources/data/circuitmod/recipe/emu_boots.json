@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "circuitmod:rubber_undersuit_boots",
+    "R": "#circuitmod:rubber",
+    "A": "circuitmod:aluminum_ingot",
+    "L": [
+      "minecraft:leather",
+      "minecraft:rabbit_hide"
+    ]
+  },
+  "pattern": [
+    "A A",
+    "LBL",
+    "R R"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:emu_suit_boots"
+  }
+} 

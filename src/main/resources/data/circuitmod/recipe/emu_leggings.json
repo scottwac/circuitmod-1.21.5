@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "circuitmod:rubber_undersuit_leggings",
+    "R": "#circuitmod:rubber",
+    "A": "circuitmod:aluminum_ingot",
+    "L": [
+      "minecraft:leather",
+      "minecraft:rabbit_hide"
+    ]
+  },
+  "pattern": [
+    "LRL",
+    "ABA",
+    "A A"
+  ],
+  "result": {
+    "count": 1,
+    "id": "circuitmod:emu_suit_leggings"
+  }
+} 
