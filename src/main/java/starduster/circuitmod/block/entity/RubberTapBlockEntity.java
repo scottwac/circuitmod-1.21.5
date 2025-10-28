@@ -47,10 +47,8 @@ public class RubberTapBlockEntity extends BlockEntity implements NamedScreenHand
 
     protected final PropertyDelegate propertyDelegate;
     private int progress = 0;
-    private int absMaxProgress = 3600; //time per rubber in ticks. 36000 = 30 minutes per item.
+    private int absMaxProgress = 36000; //time per rubber in ticks. 36000 = 30 minutes per item.
     private int maxProgress = absMaxProgress;
-
-    //TODO set absMaxProgress to 36000 once finished
 
     private int isOnLog = 0;
 
@@ -60,8 +58,8 @@ public class RubberTapBlockEntity extends BlockEntity implements NamedScreenHand
             @Override
             public int get(int index) {
                 switch (index) {
-                    case 0 -> {return RubberTapBlockEntity.this.progress;}
-                    case 1 -> {return RubberTapBlockEntity.this.maxProgress;}
+                    case 0 -> {return (RubberTapBlockEntity.this.progress / 10);}
+                    case 1 -> {return (RubberTapBlockEntity.this.maxProgress / 10);}
                     case 2 -> {return RubberTapBlockEntity.this.isOnLog;}
                     default -> {return 0;}
                 }
@@ -112,11 +110,12 @@ public class RubberTapBlockEntity extends BlockEntity implements NamedScreenHand
 
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
+        super.readNbt(nbt, registryLookup);
         Inventories.readNbt(nbt, inventory, registryLookup);
         progress = nbt.getInt("rubber_tap.progress").get();
         maxProgress = nbt.getInt("rubber_tap.max_progress").get();
         isOnLog = nbt.getInt("rubber_tap.is_on_log").get();
-        super.readNbt(nbt, registryLookup);
+
     }
 
 
@@ -164,6 +163,7 @@ public class RubberTapBlockEntity extends BlockEntity implements NamedScreenHand
     private void resetProgress() {
         this.progress = 0;
         this.maxProgress = absMaxProgress; //default max time
+        markDirty();
     }
 
     private void setIsOnLog() {
@@ -196,6 +196,7 @@ public class RubberTapBlockEntity extends BlockEntity implements NamedScreenHand
 
     private void increaseProgress() {
         this.progress++;
+        markDirty();
     }
 
 
