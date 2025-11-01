@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:rubber_tap",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.rubber_tap.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.rubber_tap.description"
+    }
+  },
+  "parent": "circuitmod:main/root",
+  "criteria": {
+    "rubber_tap": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:rubber_tap"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "rubber_tap"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

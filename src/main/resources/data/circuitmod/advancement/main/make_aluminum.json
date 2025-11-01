@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:aluminum_ingot",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.make_aluminum.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.make_aluminum.description"
+    }
+  },
+  "parent": "circuitmod:main/first_generator",
+  "criteria": {
+    "make_aluminum": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:aluminum_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "make_aluminum"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

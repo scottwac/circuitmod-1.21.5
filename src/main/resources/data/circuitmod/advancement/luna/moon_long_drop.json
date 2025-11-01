@@ -1,0 +1,46 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:emu_suit_boots",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.luna.fall.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.luna.fall.description"
+    },
+    "frame": "challenge",
+    "hidden": true
+  },
+  "parent": "circuitmod:luna/root",
+  "criteria": {
+    "fall_far_on_moon": {
+      "trigger": "minecraft:fall_from_height",
+      "conditions": {
+        "player": [
+          {
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+              "location": {
+                "dimension": "circuitmod:luna"
+              }
+            }
+          }
+        ],
+        "distance": {
+          "y": {
+            "min": 200
+          }
+        }
+      }
+    }
+  },
+  "requirements": [
+    [
+      "fall_far_on_moon"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

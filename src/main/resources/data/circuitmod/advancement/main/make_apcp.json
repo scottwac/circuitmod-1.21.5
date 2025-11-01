@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:apcp_rocket_propellant",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.make_apcp.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.make_apcp.description"
+    }
+  },
+  "parent": "circuitmod:main/make_aluminum",
+  "criteria": {
+    "make_apcp": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:apcp_rocket_propellant"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "make_apcp"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

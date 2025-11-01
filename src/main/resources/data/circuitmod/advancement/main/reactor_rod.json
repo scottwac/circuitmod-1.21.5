@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:fuel_rod",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.reactor_rod.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.reactor_rod.description"
+    }
+  },
+  "parent": "circuitmod:main/uranium_fever",
+  "criteria": {
+    "reactor_rod": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:fuel_rod"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "reactor_rod"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

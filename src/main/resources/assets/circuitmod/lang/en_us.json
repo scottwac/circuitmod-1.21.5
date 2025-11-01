@@ -175,18 +175,64 @@
   
   "biome.circuitmod.techno_jungle": "Techno Jungle",
   "generator.circuitmod.techno_world": "Techno World",
-  "advancements.circuitmod.root.title": "Circuit Breaker",
   "advancements.circuitmod.root.description": "Get your hands on some Circuitmod tech.",
-  "advancements.circuitmod.steel_axe_hit.title": "Axe to Grind",
-  "advancements.circuitmod.steel_axe_hit.description": "hits harder than diamond, but still chad complains",
-  "advancements.circuitmod.steel_upgrade_tools.title": "Upgrade: Steel Tools",
-  "advancements.circuitmod.steel_upgrade_tools.description": "Craft or obtain your first steel tool.",
 
-  "circuitmod.advancements.luna.root.description": "Hold space to slow down",
+  "circuitmod.advancements.main.root.title": "Circuit Mod",
+  "circuitmod.advancements.main.root.description": "The factory must grow",
+
+  "circuitmod.advancements.main.make_steel.title": "Steel Age",
+  "circuitmod.advancements.main.make_steel.description": "Blast Raw Bloom into a Steel Ingot",
+
+  "circuitmod.advancements.main.first_generator.title": "Combustion Junction",
+  "circuitmod.advancements.main.first_generator.description": "Place a Combustion Generator. Smells like progress!",
+
+  "circuitmod.advancements.main.solar_generator.title": "Free energy!",
+  "circuitmod.advancements.main.solar_generator.description": "Place a Solar Panel. Harness the unlimited power of the sun!",
+
+  "circuitmod.advancements.main.make_aluminum.title": "It's pronounced 'Aluminum'",
+  "circuitmod.advancements.main.make_aluminum.description": "Smelt an Aluminum Ingot",
+
+  "circuitmod.advancements.main.place_quarry.title": "Diggy Diggy Hole",
+  "circuitmod.advancements.main.place_quarry.description": "Place your first Quarry",
+
+  "circuitmod.advancements.main.make_apcp.title": "Hot Baker",
+  "circuitmod.advancements.main.make_apcp.description": "Make a batch of APCP. Don't lick the batter!",
+
+  "circuitmod.advancements.main.make_rocket_motor.title": "Boom Stick",
+  "circuitmod.advancements.main.make_rocket_motor.description": "Make a Solid Rocket Motor",
+
+  "circuitmod.advancements.main.make_rocket.title": "Check Yo' Staging!",
+  "circuitmod.advancements.main.make_rocket.description": "Build a moon Rocket",
+
+  "circuitmod.advancements.main.steel_tools.title": "Tough as Steel",
+  "circuitmod.advancements.main.steel_tools.description": "Properly upgrade your pickaxe",
+
+  "circuitmod.advancements.main.steel_axe_attack.title": "Axe to Grind",
+  "circuitmod.advancements.main.steel_axe_attack.description": "Hits harder than diamond, yet still Chad complains",
+
+  "circuitmod.advancements.main.rubber_tap.title": "Tappin' Trees",
+  "circuitmod.advancements.main.rubber_tap.description": "Craft a Rubber Tap",
+
+  "circuitmod.advancements.main.natural_rubber.title": "Liquid Gold",
+  "circuitmod.advancements.main.natural_rubber.description": "Obtain Rubber from a tapped tree",
+
+  "circuitmod.advancements.main.uranium_fever.title": "URANIUM FEVER",
+  "circuitmod.advancements.main.uranium_fever.description": "...has done and got me down!",
+
+  "circuitmod.advancements.main.reactor_rod.title": "Reactive Rods",
+  "circuitmod.advancements.main.reactor_rod.description": "Assemble a Reactor Fuel Rod",
+
+  "circuitmod.advancements.main.reactor.title": "The Most Fissionable Power",
+  "circuitmod.advancements.main.reactor.description": "Place a Fission Reactor",
+
   "circuitmod.advancements.luna.root.title": "The Moon",
+  "circuitmod.advancements.luna.root.description": "Hold space to slow down",
 
-  "circuitmod.advancements.luna.arch.description": "Find a lunar anomaly",
+  "circuitmod.advancements.luna.fall.title": "Low-G, High Anxiety",
+  "circuitmod.advancements.luna.fall.description": "Fall more than 200 blocks on the Moon without dying",
+
   "circuitmod.advancements.luna.arch.title": "MÜN OR BUST",
-  "circuitmod.advancements.luna.torch.description": "Smother a torch in the atmosphereless vacuum of the Moon",
-  "circuitmod.advancements.luna.torch.title": "Did you expect that to burn in a vacuum?"
+  "circuitmod.advancements.luna.arch.description": "Find a lunar anomaly",
+  "circuitmod.advancements.luna.torch.title": "Did you expect that to burn in a vacuum?",
+  "circuitmod.advancements.luna.torch.description": "Smother a torch in the atmosphereless vacuum of the Moon"
 }

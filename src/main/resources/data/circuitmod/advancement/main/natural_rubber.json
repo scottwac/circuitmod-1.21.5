@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:natural_rubber",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.natural_rubber.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.natural_rubber.description"
+    }
+  },
+  "parent": "circuitmod:main/rubber_tap",
+  "criteria": {
+    "natural_rubber": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:natural_rubber"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "natural_rubber"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:rocket",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.make_rocket.title"
+    },
+    "frame": "goal",
+    "description": {
+      "translate": "circuitmod.advancements.main.make_rocket.description"
+    }
+  },
+  "parent": "circuitmod:main/make_rocket_motor",
+  "criteria": {
+    "make_rocket": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:rocket"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "make_rocket"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

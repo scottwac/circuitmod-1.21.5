@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:steel_ingot",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.make_steel.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.make_steel.description"
+    }
+  },
+  "parent": "circuitmod:main/root",
+  "criteria": {
+    "make_steel": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:steel_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "make_steel"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

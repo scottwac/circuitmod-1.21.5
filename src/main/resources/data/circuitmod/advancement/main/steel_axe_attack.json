@@ -1,0 +1,41 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:steel_axe",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.steel_axe_attack.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.steel_axe_attack.description"
+    }
+  },
+  "parent": "circuitmod:main/make_steel",
+  "criteria": {
+    "hit_with_steel_axe": {
+      "trigger": "minecraft:player_hurt_entity",
+      "conditions": {
+        "player": [
+          {
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+              "equipment": {
+                "mainhand": {
+                  "items": "circuitmod:steel_axe"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "hit_with_steel_axe"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

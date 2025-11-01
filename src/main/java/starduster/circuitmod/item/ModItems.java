@@ -72,6 +72,9 @@ public final class ModItems {
     public static final Item STEEL_HOE = register("steel_hoe", Item::new, (new Item.Settings()).hoe(ModToolMaterials.STEEL_TOOL_MATERIAL, 2.0F, -1.0F)
             .component(net.minecraft.component.DataComponentTypes.ENCHANTABLE, new net.minecraft.component.type.EnchantableComponent(14)));
 
+    public static final Item WRENCH = register("wrench", Item::new, new Item.Settings().maxCount(1));
+    public static final Item GOLDEN_WRENCH = register("golden_wrench", Item::new, new Item.Settings().maxCount(1));
+
     // Blueprint items
     public static final Item BLUEPRINT = register("blueprint", BlueprintItem::new, new Item.Settings().maxCount(1));
     public static final Item BLANK_BLUEPRINT = register("blank_blueprint", BlankBlueprintItem::new, new Item.Settings().maxCount(16));

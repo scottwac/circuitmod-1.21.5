@@ -1,0 +1,34 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:generator",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.first_generator.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.first_generator.description"
+    }
+  },
+  "parent": "circuitmod:main/make_steel",
+  "criteria": {
+    "first_generator": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:block_state_property",
+            "block": "circuitmod:generator"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "first_generator"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

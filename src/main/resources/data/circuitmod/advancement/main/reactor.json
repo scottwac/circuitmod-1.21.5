@@ -1,0 +1,35 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:reactor_block",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.reactor.title"
+    },
+    "frame": "goal",
+    "description": {
+      "translate": "circuitmod.advancements.main.reactor.description"
+    }
+  },
+  "parent": "circuitmod:main/reactor_rod",
+  "criteria": {
+    "placed_reactor": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:block_state_property",
+            "block": "circuitmod:reactor_block"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "placed_reactor"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

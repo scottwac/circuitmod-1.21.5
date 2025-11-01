@@ -1,0 +1,68 @@
+{
+  "criteria": {
+    "bloomery": {
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:bloomery"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "uranium": {
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:raw_uranium"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "rubber": {
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:natural_rubber"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "rubber_tap": {
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:rubber_tap"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "circuitmod:block/misc/steel_block",
+    "description": {
+      "translate": "circuitmod.advancements.main.root.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "circuitmod:golden_wrench"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "circuitmod.advancements.main.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "bloomery",
+      "uranium",
+      "rubber",
+      "rubber_tap"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

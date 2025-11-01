@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:solid_rocket_motor",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.make_rocket_motor.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.make_rocket_motor.description"
+    }
+  },
+  "parent": "circuitmod:main/make_apcp",
+  "criteria": {
+    "make_rocket_motor": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:solid_rocket_motor"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "make_rocket_motor"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

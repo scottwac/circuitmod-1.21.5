@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:steel_pickaxe",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.steel_tools.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.steel_tools.description"
+    }
+  },
+  "parent": "circuitmod:main/make_steel",
+  "criteria": {
+    "steel_pickaxe": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:steel_pickaxe"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "steel_pickaxe"
+    ]
+  ],
+  "sends_telemetry_event": false
+}

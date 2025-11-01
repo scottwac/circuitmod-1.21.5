@@ -1,0 +1,33 @@
+{
+  "display": {
+    "icon": {
+      "id": "circuitmod:raw_uranium",
+      "count": 1
+    },
+    "title": {
+      "translate": "circuitmod.advancements.main.uranium_fever.title"
+    },
+    "description": {
+      "translate": "circuitmod.advancements.main.uranium_fever.description"
+    }
+  },
+  "parent": "circuitmod:main/root",
+  "criteria": {
+    "uranium": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "circuitmod:raw_uranium"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "uranium"
+    ]
+  ],
+  "sends_telemetry_event": false
+}
