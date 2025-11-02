@@ -8,11 +8,14 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import starduster.circuitmod.Circuitmod;
 
+import java.util.Optional;
+
 public class RubberTapScreen extends HandledScreen<RubberTapScreenHandler> {
     private static final Identifier TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/rubber_tap/rubber_tap_gui.png");
     private static final Identifier ARROW_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/rubber_tap/progress_bar.png");
     private static final Identifier GOOD_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/rubber_tap/good_tree.png");
     private static final Identifier ERROR_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/gui/rubber_tap/bad_tree.png");
+    private static final Text ERROR_TOOLTIP = Text.translatable("tooltip.circuitmod.container.rubber_tap.error_tooltip");
 
     public RubberTapScreen(RubberTapScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -33,7 +36,7 @@ public class RubberTapScreen extends HandledScreen<RubberTapScreenHandler> {
 
         renderTreeTexture(context,x,y);
         renderProgressArrow(context, x, y);
-
+        renderToolTips(context, mouseX, mouseY);
     }
 
     private void renderProgressArrow(DrawContext context, int x, int y) {
@@ -55,11 +58,20 @@ public class RubberTapScreen extends HandledScreen<RubberTapScreenHandler> {
 
     //59, 5
 
+    private void renderToolTips(DrawContext context, int mouseX, int mouseY) {
+        Optional<Text> optional = Optional.empty();
+        int valid = handler.isOnValidBlock();
+        if (valid != 1 && isPointWithinBounds(74, 9, 28, 37, (double)mouseX, (double)mouseY)) {
+            optional = Optional.of(ERROR_TOOLTIP);
+        }
+        optional.ifPresent((text) -> context.drawOrderedTooltip(textRenderer, textRenderer.wrapLines(text, 200), mouseX, mouseY));
+    }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         super.render(context, mouseX, mouseY, delta);
         drawMouseoverTooltip(context, mouseX, mouseY);
+
     }
 } 

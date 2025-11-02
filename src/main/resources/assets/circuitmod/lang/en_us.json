@@ -59,6 +59,7 @@
   "item.circuitmod.steel_sword": "Steel Sword",
 
   "block.circuitmod.rubber_tap": "Rubber Tap",
+  "tooltip.circuitmod.container.rubber_tap.error_tooltip": "§4§lIncorrect placement!§r\n§c§oMust be placed on a naturally generated Sharinga tree",
 
   "block.circuitmod.sharinga_log": "Sharinga Log",
   "block.circuitmod.sharinga_wood": "Sharinga Wood",
