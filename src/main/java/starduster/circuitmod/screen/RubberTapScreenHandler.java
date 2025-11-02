@@ -52,45 +52,39 @@ public class RubberTapScreenHandler extends ScreenHandler {
         return this.inventory.canPlayerUse(player);
     }
 
-
-    //TODO Fix quickMove
-    //Handle quick transfer (shift-clicking)
     @Override
-    public ItemStack quickMove(PlayerEntity player, int invSlot) {
+    public ItemStack quickMove(PlayerEntity player, int index) {
         ItemStack itemStack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(invSlot);
+        Slot slot = this.slots.get(index);
 
-//        if (slot != null && slot.hasStack()) {
-//            ItemStack slotStack = slot.getStack();
-//            itemStack = slotStack.copy();
-//
-//            if (invSlot == 0) {
-//                // From output slot to player inventory
-//                if (!this.insertItem(slotStack, 3, 39, true)) {
-//                    return ItemStack.EMPTY;
-//                }
-//
-//                slot.onQuickTransfer(slotStack, itemStack);
-//            } else {
-//                // From bloomery slots to player inventory
-//                if (!this.insertItem(slotStack, 3, 39, false)) {
-//                    return ItemStack.EMPTY;
-//                }
-//            }
-//
-//            if (slotStack.isEmpty()) {
-//                slot.setStack(ItemStack.EMPTY);
-//            } else {
-//                slot.markDirty();
-//            }
-//
-//            if (slotStack.getCount() == itemStack.getCount()) {
-//                return ItemStack.EMPTY;
-//            }
-//
-//            slot.onTakeItem(player, slotStack);
-//        }
+        if (slot != null && slot.hasStack()) {
+            ItemStack originalStack = slot.getStack();
+            itemStack = originalStack.copy();
 
+            if (index < 1) {
+                if (!this.insertItem(originalStack, 1, 37, true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else {
+                if (index >= 1 && index < 28) {
+                    if (!this.insertItem(originalStack, 28, 37, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else if (index >= 28 && index < 37) {
+                    if (!this.insertItem(originalStack, 1, 28, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else {
+                    return ItemStack.EMPTY;
+                }
+            }
+
+            if (originalStack.isEmpty()) {
+                slot.setStack(ItemStack.EMPTY);
+            } else {
+                slot.markDirty();
+            }
+        }
         return itemStack;
     }
     
