@@ -52,10 +52,10 @@ public class CircuitDimensionDamageMixin {
                     int currentOxygen = oxygenTank1.getOxygen(tank1);
                     if (currentOxygen > 0) {
                         hasOxygen = true;
-                        // Consume 1 oxygen per tick (20 oxygen per second)
+                        // Consume 1 oxygen per second
                         damageTimer++;
                         if (damageTimer >= 20) { // Every second
-                            oxygenTank1.consumeOxygen(tank1, 20);
+                            oxygenTank1.consumeOxygen(tank1, 1);
                             damageTimer = 0;
                         }
                     }
@@ -68,7 +68,7 @@ public class CircuitDimensionDamageMixin {
                         hasOxygen = true;
                         damageTimer++;
                         if (damageTimer >= 20) { // Every second
-                            oxygenTank2.consumeOxygen(tank2, 20);
+                            oxygenTank2.consumeOxygen(tank2, 1);
                             damageTimer = 0;
                         }
                     }

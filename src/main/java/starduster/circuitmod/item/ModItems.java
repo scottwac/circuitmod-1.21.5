@@ -95,7 +95,7 @@ public final class ModItems {
     public static final Item HOVERCRAFT = register("hovercraft", HovercraftItem::new, new Item.Settings().maxCount(1));
     
     // Oxygen tank items
-    public static final Item OXYGEN_TANK = register("oxygen_tank", settings -> new OxygenTankItem(settings, 1000), new Item.Settings().maxCount(1).maxDamage(1000));
+    public static final Item OXYGEN_TANK = register("oxygen_tank", settings -> new OxygenTankItem(settings, 1800), new Item.Settings().maxCount(1).maxDamage(1800));
 
     // Emu Suit Armor items
     public static final Item EMU_SUIT_HELMET = register("emu_suit_helmet", properties -> new EmuSuitArmorItem(ModArmorMaterials.EMU_SUIT_MATERIAL, net.minecraft.item.equipment.EquipmentType.HELMET, properties), new Item.Settings());
