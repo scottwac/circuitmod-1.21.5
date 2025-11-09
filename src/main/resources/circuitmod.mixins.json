@@ -16,6 +16,7 @@
 		"PlayerEntityNbtMixin",
 		"RocketLandingMixin",
 		"RocketLaunchMixin",
+		"RocketPassengerFallDamageMixin",
 		"ScreenHandlerAccessor",
 		"ServerWorldMixin",
 		"TorchPlacementMixin",

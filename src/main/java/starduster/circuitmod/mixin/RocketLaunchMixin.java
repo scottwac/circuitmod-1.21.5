@@ -225,8 +225,8 @@ public class RocketLaunchMixin {
             // Stop launching
             earthRocket.setLaunching(false);
             
-            // Re-enable gravity for landing
-            earthRocket.setNoGravity(false);
+            // Start controlled landing instead of just enabling gravity
+            earthRocket.setLanding(true);
             
             // Mark that this rocket came from Luna (for despawn logic)
             earthRocket.setCameFromLuna(true);

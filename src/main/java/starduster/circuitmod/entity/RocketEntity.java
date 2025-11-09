@@ -34,6 +34,10 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     private boolean isLaunching = false;
     private int launchTicks = 0;
     
+    // Rocket landing state
+    private boolean isLanding = false;
+    private int landingTicks = 0;
+    
     // Spacebar input state from client
     private boolean spacePressed = false;
     
@@ -74,11 +78,20 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
     public void travel(Vec3d pos) {
         if (this.isAlive()) {
             if (this.hasPassengers()) {
-                // Debug: Log spacebar input only
-                LivingEntity passenger = (LivingEntity)getControllingPassenger();
-                if (spacePressed && !isLaunching) {
+                // Check for spacebar input to trigger launch
+                // Only allow launch if rocket is not currently landing
+                if (spacePressed && !isLaunching && !isLanding && canLaunch()) {
                     Circuitmod.LOGGER.info("Rocket launch triggered by spacebar!");
                     startLaunch();
+                } else if (spacePressed && (isLanding || !canLaunch())) {
+                    // Log when player tries to launch during landing or before rocket has settled
+                    if (this.age % 40 == 0) { // Log every 2 seconds to avoid spam
+                        if (isLanding) {
+                            Circuitmod.LOGGER.info("Rocket launch blocked - rocket is currently landing. Please wait for landing to complete.");
+                        } else if (cameFromLuna && !this.isOnGround()) {
+                            Circuitmod.LOGGER.info("Rocket launch blocked - rocket hasn't fully landed yet. Please wait for rocket to settle on ground.");
+                        }
+                    }
                 }
                 
                 // Keep rocket rotation fixed - don't follow player camera
@@ -131,11 +144,18 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
         }
     }
     
+    
     // Launch mechanics
     private void startLaunch() {
         Circuitmod.LOGGER.info("Starting rocket launch!");
         isLaunching = true;
         launchTicks = 0;
+        
+        // Clear Luna origin flag when launching again
+        if (cameFromLuna) {
+            Circuitmod.LOGGER.info("Clearing Luna origin flag - rocket is launching again");
+            cameFromLuna = false;
+        }
         
         // Play launch sound using existing Minecraft sounds
         if (!getWorld().isClient) {
@@ -152,6 +172,9 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
         
         // Handle sound and particle effects
         handleSoundsAndParticles();
+        
+        // Handle controlled landing
+        handleControlledLanding();
         
         // Handle landing and despawn logic for rockets returning from Luna
         handleLandingAndDespawn();
@@ -216,6 +239,74 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
                     1, offsetX * 0.05, -0.05, offsetZ * 0.05, 0.0);
             }
         }
+    }
+    
+    private void handleControlledLanding() {
+        // Only handle on server side
+        if (getWorld().isClient) {
+            return;
+        }
+        
+        if (!isLanding) {
+            return;
+        }
+        
+        // Controlled descent with safe landing speed
+        Vec3d velocity = this.getVelocity();
+        
+        // Safe descent speed - slow enough to prevent fall damage
+        float safeDescentSpeed = -0.5f; // Negative because we're going down
+        
+        // Apply controlled descent velocity
+        this.setVelocity(velocity.x * 0.9, safeDescentSpeed, velocity.z * 0.9); // Reduce horizontal drift
+        this.velocityModified = true;
+        
+        // Check if rocket would collide with a block in the next tick
+        double nextY = this.getY() + safeDescentSpeed; // Where we'll be next tick
+        BlockPos nextPos = new BlockPos((int)this.getX(), (int)Math.floor(nextY), (int)this.getZ());
+        
+        // Check if the block at the next position is solid
+        boolean wouldHitBlock = !this.getWorld().getBlockState(nextPos).isAir();
+        
+        // Also check the block directly below the rocket's current position
+        BlockPos belowPos = new BlockPos((int)this.getX(), (int)Math.floor(this.getY() - 1), (int)this.getZ());
+        boolean blockDirectlyBelow = !this.getWorld().getBlockState(belowPos).isAir();
+        
+        // Stop landing if we would hit a block or there's a block directly below us
+        boolean shouldStopLanding = wouldHitBlock || blockDirectlyBelow;
+        
+        // Log landing progress
+        if (landingTicks % 20 == 0) { // Every second
+            Circuitmod.LOGGER.info("Controlled landing - Y: {}, NextY: {}, Velocity: {}, WouldHitBlock: {}, BlockBelow: {}, Ticks: {}", 
+                String.format("%.1f", this.getY()), String.format("%.1f", nextY), String.format("%.3f", velocity.y), 
+                wouldHitBlock, blockDirectlyBelow, landingTicks);
+        }
+        
+        // Stop controlled landing when we would hit a solid block
+        if (shouldStopLanding) {
+            Circuitmod.LOGGER.info("Controlled landing complete - rocket touching solid ground");
+            this.isLanding = false;
+            this.landingTicks = 0;
+            
+            // Position rocket properly on the ground
+            if (blockDirectlyBelow) {
+                // If there's a block below, position rocket just above it
+                double groundY = Math.floor(this.getY()) + 1.0; // 1 block above the ground
+                this.setPosition(this.getX(), groundY, this.getZ());
+            }
+            
+            // Stop all movement for a clean landing
+            this.setVelocity(0, 0, 0);
+            this.velocityModified = true;
+            
+            // Play landing sound
+            if (!getWorld().isClient) {
+                getWorld().playSound(null, getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, 
+                    SoundCategory.NEUTRAL, 0.5f, 1.5f);
+            }
+        }
+        
+        incrementLandingTicks();
     }
     
     private void handleLandingAndDespawn() {
@@ -365,20 +456,64 @@ public class RocketEntity extends AnimalEntity implements GeoEntity {
         this.launchTicks++;
     }
     
-    // Override gravity behavior during launch
+    // Public methods for landing state management
+    public boolean isLanding() {
+        return this.isLanding;
+    }
+    
+    public void setLanding(boolean landing) {
+        this.isLanding = landing;
+        if (landing) {
+            this.landingTicks = 0;
+            Circuitmod.LOGGER.info("Rocket entering controlled landing mode");
+        }
+    }
+    
+    public int getLandingTicks() {
+        return this.landingTicks;
+    }
+    
+    public void incrementLandingTicks() {
+        this.landingTicks++;
+    }
+    
+    // Check if rocket is ready to launch
+    public boolean canLaunch() {
+        // If rocket came from Luna, it must be on the ground and not landing
+        if (cameFromLuna) {
+            boolean onGround = this.isOnGround();
+            boolean hasLowVelocity = this.getVelocity().lengthSquared() < 0.1; // Very low velocity
+            boolean notLanding = !this.isLanding;
+            
+            boolean canLaunch = onGround && hasLowVelocity && notLanding;
+            
+            // Debug logging for launch readiness
+            if (!canLaunch && this.age % 60 == 0) { // Log every 3 seconds
+                Circuitmod.LOGGER.info("Rocket launch readiness - OnGround: {}, LowVelocity: {}, NotLanding: {}, CanLaunch: {}", 
+                    onGround, hasLowVelocity, notLanding, canLaunch);
+            }
+            
+            return canLaunch;
+        }
+        
+        // For rockets that didn't come from Luna, normal launch rules apply
+        return !this.isLanding;
+    }
+    
+    // Override gravity behavior during launch and landing
     @Override
     public boolean hasNoGravity() {
-        if (this.isLaunching) {
-            return true; // No gravity during launch
+        if (this.isLaunching || this.isLanding) {
+            return true; // No gravity during launch or controlled landing
         }
         return super.hasNoGravity();
     }
     
-    // Override ground detection during launch
+    // Override ground detection during launch and landing
     @Override
     public boolean isOnGround() {
-        if (this.isLaunching) {
-            return false; // Never on ground during launch
+        if (this.isLaunching || this.isLanding) {
+            return false; // Never on ground during launch or controlled landing
         }
         return super.isOnGround();
     }
