@@ -6,7 +6,8 @@
 		"ExampleClientMixin",
 		"SkyRenderingNoMoonMixin",
 		"WorldRendererSkyMixin",
-		"ClientWorldMixin"
+		"ClientWorldMixin",
+		"PlayerEntityRenderStateMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

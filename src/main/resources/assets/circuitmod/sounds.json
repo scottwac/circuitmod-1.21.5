@@ -34,5 +34,23 @@
     "sounds": [
       {"name": "circuitmod:fuel_generator"}
     ]
+  },
+  "rocket_launch": {
+    "subtitle": "sounds.circuitmod.rocket_launch",
+    "sounds": [
+      {"name": "circuitmod:rocket_launch", "attenuation_distance": 64}
+    ]
+  },
+  "rocket_flying": {
+    "subtitle": "sounds.circuitmod.rocket_flying",
+    "sounds": [
+      {"name": "circuitmod:rocket_flying", "attenuation_distance": 32}
+    ]
+  },
+  "rocket_landing": {
+    "subtitle": "sounds.circuitmod.rocket_landing",
+    "sounds": [
+      {"name": "circuitmod:rocket_landing", "attenuation_distance": 48}
+    ]
   }
 }

@@ -155,12 +155,7 @@ public class ModCreativeTabs {
                             entries.add(ModItems.PLASTIC_PELLET);
                             entries.add(ModItems.PLASTIC_BAR);
 
-                            // Add movement items
-                            entries.add(ModItems.PULSE_STICK);
-                            entries.add(ModItems.HOVERCRAFT);
-                            entries.add(ModItems.STIMULANTS);
-
-                            entries.add(ModBlocks.LAUNCH_PAD);
+                            
 
                             // Add consumable items
                             entries.add(ModItems.MINING_EXPLOSIVE);

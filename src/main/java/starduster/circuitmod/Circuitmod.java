@@ -93,8 +93,8 @@ public class Circuitmod implements ModInitializer {
 		ModCreativeTabs.initialize();
         CircuitmodRegistries.initialize();
 		
-		// Initialize dimension and portal registration
-		ModPortals.register();
+	
+		
 		
 		// Initialize world generation
 		starduster.circuitmod.worldgen.ModOreGeneration.generateOres();
