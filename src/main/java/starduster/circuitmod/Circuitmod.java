@@ -266,6 +266,36 @@ public class Circuitmod implements ModInitializer {
 			});
 		});
 		
+		// Register hovercraft input handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.HovercraftInputPayload.ID, (payload, context) -> {
+			int entityId = payload.entityId();
+			boolean forward = payload.forward();
+			boolean backward = payload.backward();
+			boolean left = payload.left();
+			boolean right = payload.right();
+			boolean up = payload.up();
+			boolean down = payload.down();
+			boolean boost = payload.boost();
+			context.server().execute(() -> {
+				// Find the hovercraft entity by ID
+				Entity entity = context.player().getWorld().getEntityById(entityId);
+				if (entity instanceof starduster.circuitmod.entity.HovercraftEntity hovercraft) {
+					// Verify the player is actually riding this hovercraft
+					if (hovercraft.hasPassenger(context.player())) {
+						hovercraft.setInputs(forward, backward, left, right, up, down, boost);
+						LOGGER.info("[SERVER] Hovercraft input received: F={} B={} L={} R={} U={} D={} BOOST={} for entity {}", 
+							forward, backward, left, right, up, down, boost, entityId);
+					} else {
+						LOGGER.warn("[SERVER] Player {} tried to send input for hovercraft {} but is not riding it", 
+							context.player().getName().getString(), entityId);
+					}
+				} else {
+					LOGGER.warn("[SERVER] Hovercraft entity {} not found for input from player {}", 
+						entityId, context.player().getName().getString());
+				}
+			});
+		});
+		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());

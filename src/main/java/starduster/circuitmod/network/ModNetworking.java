@@ -921,7 +921,7 @@ public class ModNetworking {
     /**
      * Payload for hovercraft input (client -> server)
      */
-    public record HovercraftInputPayload(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) implements CustomPayload {
+    public record HovercraftInputPayload(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down, boolean boost) implements CustomPayload {
         // Define the ID for this payload type
         public static final CustomPayload.Id<HovercraftInputPayload> ID =
             new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "hovercraft_input"));
@@ -935,6 +935,7 @@ public class ModNetworking {
             PacketCodecs.BOOLEAN, HovercraftInputPayload::right,
             PacketCodecs.BOOLEAN, HovercraftInputPayload::up,
             PacketCodecs.BOOLEAN, HovercraftInputPayload::down,
+            PacketCodecs.BOOLEAN, HovercraftInputPayload::boost,
             HovercraftInputPayload::new
         );
         

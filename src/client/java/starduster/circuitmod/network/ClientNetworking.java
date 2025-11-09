@@ -586,9 +586,9 @@ public class ClientNetworking {
      * @param up Whether the up key is pressed
      * @param down Whether the down key is pressed
      */
-    public static void sendHovercraftInput(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) {
+    public static void sendHovercraftInput(int entityId, boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down, boolean boost) {
         try {
-            ModNetworking.HovercraftInputPayload payload = new ModNetworking.HovercraftInputPayload(entityId, forward, backward, left, right, up, down);
+            ModNetworking.HovercraftInputPayload payload = new ModNetworking.HovercraftInputPayload(entityId, forward, backward, left, right, up, down, boost);
             ClientPlayNetworking.send(payload);
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send hovercraft input: {}", e.getMessage(), e);
