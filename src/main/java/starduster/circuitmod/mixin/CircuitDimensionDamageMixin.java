@@ -1,9 +1,13 @@
 package starduster.circuitmod.mixin;
 
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
@@ -12,10 +16,12 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.entity.CustomPlayerInventory;
 import starduster.circuitmod.entity.RocketEntity;
 import starduster.circuitmod.item.EmuSuitArmorItem;
 import starduster.circuitmod.item.OxygenTankItem;
+import starduster.circuitmod.util.ModDamageTypes;
 
 @Mixin(LivingEntity.class)
 public class CircuitDimensionDamageMixin {
@@ -23,7 +29,7 @@ public class CircuitDimensionDamageMixin {
     private static final Identifier LUNA_DIMENSION_ID = Identifier.of("circuitmod", "luna");
     private static final int DAMAGE_INTERVAL = 60; // Damage every 3 seconds (60 ticks)
     private static final int OXYGEN_TICK_INTERVAL = 20; // Consume 1 oxygen per second
-    private static final float DAMAGE_AMOUNT = 1.0f; // Half a heart of damage
+    private static final float DAMAGE_AMOUNT = 2.0f; // One heart of damage
 
     @Unique
     private int circuitmod$lunaDamageTimer = 0;
@@ -63,7 +69,10 @@ public class CircuitDimensionDamageMixin {
             circuitmod$lunaDamageTimer++;
 
             if (circuitmod$lunaDamageTimer >= DAMAGE_INTERVAL && world instanceof ServerWorld serverWorld) {
-                livingEntity.damage(serverWorld, world.getDamageSources().generic(), DAMAGE_AMOUNT);
+                DamageSource damageSource = new DamageSource(
+                        world.getRegistryManager().getOrThrow(RegistryKeys.DAMAGE_TYPE).getEntry(ModDamageTypes.SPACE_SUFFOCATION_DAMAGE.getValue()).get()
+                );
+                livingEntity.damage(serverWorld, damageSource, DAMAGE_AMOUNT);
                 circuitmod$lunaDamageTimer = 0;
             }
         } else {
