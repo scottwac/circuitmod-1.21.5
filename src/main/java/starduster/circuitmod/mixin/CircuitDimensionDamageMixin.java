@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import starduster.circuitmod.entity.CustomPlayerInventory;
+import starduster.circuitmod.entity.RocketEntity;
 import starduster.circuitmod.item.EmuSuitArmorItem;
 import starduster.circuitmod.item.OxygenTankItem;
 
@@ -37,6 +38,11 @@ public class CircuitDimensionDamageMixin {
 
         // Only run on server side
         if (world.isClient) {
+            return;
+        }
+
+        if (livingEntity instanceof RocketEntity) {
+            circuitmod$resetTimers();
             return;
         }
 
