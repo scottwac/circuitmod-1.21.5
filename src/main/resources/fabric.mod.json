@@ -1,12 +1,12 @@
 {
 	"schemaVersion": 1,
 	"id": "circuitmod",
-	"version": "Alpha 1.0.3",
+	"version": "1.1.0-alpha",
 	"name": "Circuit Mod",
-	"description": "This mod adds some seriously kewl technology to the game",
+	"description": "A flexible technology mod that adds machines ranging from Quarries to Nuclear Reactors; implementing ways for the player to automate and solve industrial and logistical challenges.",
 	"authors": [
-		"GreatCow, Primary Creative Design",
-		"StarDuster01, Primary Programmer"
+		"GreatCow, Creative Design",
+		"StarDuster01, Programmer"
 	],
 	"contact": {
 		"issues": "https://github.com/StarDuster01/circuitmod-1.21.5/issues",
@@ -50,5 +50,15 @@
 	},
 	"suggests": {
 		"another-mod": "*"
-	}
+	},
+    "custom": {
+      "modmenu": {
+        "links": {
+          "modmenu.discord": "https://discord.gg/xge5yygnVD",
+          "modmenu.modrinth": "https://modrinth.com/project/circuit-mod"
+        },
+        "badges": [],
+        "update_checker": true
+      }
+    }
 }
