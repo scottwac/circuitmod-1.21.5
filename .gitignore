@@ -16,6 +16,7 @@ classes/
 *.ipr
 *.iws
 
+source_code_test/
 # vscode
 
 .settings/
