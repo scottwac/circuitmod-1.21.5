@@ -209,6 +209,14 @@ public class ModScreenHandlers {
             new ScreenHandlerType<>(SortingPipeScreenHandler::new, FeatureSet.empty())
         );
     
+    // Register hovercraft screen handler
+    public static final ScreenHandlerType<HovercraftScreenHandler> HOVERCRAFT_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "hovercraft_screen_handler"),
+            new ScreenHandlerType<>(HovercraftScreenHandler::new, FeatureSet.empty())
+        );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("ModScreenHandlers initialized");
     }

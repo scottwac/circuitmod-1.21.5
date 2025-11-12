@@ -25,8 +25,8 @@ public class ModEntityTypes {
         Registries.ENTITY_TYPE,
         Identifier.of(Circuitmod.MOD_ID, "hovercraft"),
         EntityType.Builder.<HovercraftEntity>create(HovercraftEntity::new, SpawnGroup.MISC)
-            .dimensions(1.375F, 0.5625F) // Similar to minecart dimensions
-            .maxTrackingRange(8)
+            .dimensions(3.0F, 3.0F) // Large size to match rocket model
+            .maxTrackingRange(10)
             .trackingTickInterval(3)
             .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "hovercraft")))
     );

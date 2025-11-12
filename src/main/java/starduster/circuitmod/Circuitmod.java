@@ -283,8 +283,7 @@ public class Circuitmod implements ModInitializer {
 					// Verify the player is actually riding this hovercraft
 					if (hovercraft.hasPassenger(context.player())) {
 						hovercraft.setInputs(forward, backward, left, right, up, down, boost);
-						LOGGER.info("[SERVER] Hovercraft input received: F={} B={} L={} R={} U={} D={} BOOST={} for entity {}", 
-							forward, backward, left, right, up, down, boost, entityId);
+						// Debug logging removed to prevent spam
 					} else {
 						LOGGER.warn("[SERVER] Player {} tried to send input for hovercraft {} but is not riding it", 
 							context.player().getName().getString(), entityId);

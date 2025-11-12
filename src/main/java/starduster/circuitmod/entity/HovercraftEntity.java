@@ -6,32 +6,46 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.PositionInterpolator;
+import net.minecraft.entity.RideableInventory;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.entity.vehicle.VehicleEntity;
+import net.minecraft.entity.vehicle.VehicleInventory;
+import net.minecraft.inventory.StackReference;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.loot.LootTable;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.world.ServerWorld;
+import starduster.circuitmod.screen.HovercraftScreenHandler;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.ItemScatterer;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraft.world.event.GameEvent;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animatable.manager.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
+import starduster.circuitmod.Circuitmod;
+import starduster.circuitmod.item.FuelRodItem;
 import starduster.circuitmod.item.ModItems;
 
-public class HovercraftEntity extends VehicleEntity implements GeoEntity {
-    // Tracked data for synchronization (similar to boat's paddle states)
+public class HovercraftEntity extends VehicleEntity implements GeoEntity, VehicleInventory, RideableInventory {
+    // Tracked data for synchronization (similar to boat's paddle states and FurnaceMinecart's LIT)
     private static final TrackedData<Boolean> BOOST_ACTIVE = DataTracker.registerData(HovercraftEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Boolean> POWERED = DataTracker.registerData(HovercraftEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     
     // Movement constants (balanced like boat physics)
     private static final float ACCELERATION = 0.04F;
@@ -40,6 +54,9 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     private static final float MAX_VERTICAL_SPEED = 0.25F;
     private static final float BOOST_MULTIPLIER = 1.5F;
     private static final float ROTATION_SPEED = 2.0F;
+    
+    // Fuel consumption rate (damage fuel rod every 20 ticks = 1 second, like reactor)
+    private static final int FUEL_DAMAGE_INTERVAL = 20;
     
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
     private final PositionInterpolator interpolator = new PositionInterpolator(this, 3);
@@ -55,6 +72,16 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     // Physics state
     private float yawVelocity;
+    
+    // Inventory for fuel rod (single slot)
+    private static final int INVENTORY_SIZE = 1;
+    private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
+    @Nullable
+    private RegistryKey<LootTable> lootTable;
+    private long lootTableSeed;
+    
+    // Fuel tracking
+    private int tickCounter = 0;
     
     public HovercraftEntity(EntityType<? extends HovercraftEntity> entityType, World world) {
         super(entityType, world);
@@ -73,6 +100,7 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(BOOST_ACTIVE, false);
+        builder.add(POWERED, false);
     }
     
     @Override
@@ -110,15 +138,43 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
-        ActionResult actionResult = super.interact(player, hand);
-        if (actionResult != ActionResult.PASS) {
-            return actionResult;
-        } else if (player.shouldCancelInteraction()) {
-            return ActionResult.PASS;
-        } else {
-            // Similar to boat: allow mounting if not client and can start riding
-            return !this.getWorld().isClient && player.startRiding(this) ? ActionResult.SUCCESS : ActionResult.PASS;
+        // First check if super has anything to say (e.g., leash interactions)
+        if (!player.shouldCancelInteraction()) {
+            ActionResult actionResult = super.interact(player, hand);
+            if (actionResult != ActionResult.PASS) {
+                return actionResult;
+            }
         }
+        
+        // If player is sneaking, open the inventory
+        if (player.shouldCancelInteraction()) {
+            if (!this.getWorld().isClient) {
+                ActionResult actionResult = this.open(player);
+                if (actionResult.isAccepted()) {
+                    this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+                }
+                return actionResult;
+            }
+            return ActionResult.SUCCESS;
+        }
+        
+        // If player is not sneaking and can mount, mount them
+        if (this.canAddPassenger(player)) {
+            if (!this.getWorld().isClient) {
+                return player.startRiding(this) ? ActionResult.SUCCESS : ActionResult.PASS;
+            }
+            return ActionResult.SUCCESS;
+        }
+        
+        // If can't mount (already has passenger), open inventory
+        if (!this.getWorld().isClient) {
+            ActionResult actionResult = this.open(player);
+            if (actionResult.isAccepted()) {
+                this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+            }
+            return actionResult;
+        }
+        return ActionResult.SUCCESS;
     }
     
     @Override
@@ -151,15 +207,48 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
         super.tick();
         this.interpolator.tick();
         
+        // Update powered state on server side (like FurnaceMinecart updating LIT status)
+        if (!this.getWorld().isClient) {
+            ItemStack fuelStack = this.getStack(0);
+            boolean hasPower = !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD && FuelRodItem.hasDurability(fuelStack);
+            this.dataTracker.set(POWERED, hasPower);
+            
+            // Damage fuel rod on server side whenever powered
+            if (hasPower) {
+                this.damageFuelRod();
+            }
+        }
+        
         // Handle movement (similar to boat's tick logic)
         if (this.isLogicalSideForUpdatingMovement()) {
-            if (!(this.getFirstPassenger() instanceof PlayerEntity)) {
+            boolean hasPassenger = this.hasPassengers();
+            boolean isPlayerPassenger = this.getFirstPassenger() instanceof PlayerEntity;
+            
+            // Debug logging
+            if (!this.getWorld().isClient && this.age % 20 == 0) {
+                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG] Entity {}: hasPassengers={}, isPlayerPassenger={}, pressingForward={}, pressingLeft={}, pressingRight={}, pressingUp={}", 
+                    this.getId(), hasPassenger, isPlayerPassenger, this.pressingForward, this.pressingLeft, this.pressingRight, this.pressingUp);
+            }
+            
+            if (!isPlayerPassenger) {
                 // Reset inputs if no player is controlling
                 this.setInputs(false, false, false, false, false, false, false);
             }
             
-            this.updateVelocity();
-            this.move(MovementType.SELF, this.getVelocity());
+            // Check power status (synced from server via tracked data)
+            boolean powered = this.isPowered();
+            
+            // Only allow movement if powered
+            if (powered) {
+                this.updateVelocity();
+                this.move(MovementType.SELF, this.getVelocity());
+            } else {
+                // Not powered: apply deceleration only
+                Vec3d velocity = this.getVelocity();
+                velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+                this.setVelocity(velocity);
+                this.yawVelocity *= DECELERATION;
+            }
         } else {
             this.setVelocity(Vec3d.ZERO);
         }
@@ -171,6 +260,7 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
      * Update velocity based on inputs (inspired by boat's updateVelocity and updatePaddles)
      */
     private void updateVelocity() {
+        // Only process inputs if there's a passenger
         if (this.hasPassengers() && this.getFirstPassenger() instanceof PlayerEntity) {
             // Handle rotation (similar to boat turning)
             if (this.pressingLeft) {
@@ -199,7 +289,7 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
             
             this.setVelocity(velocity);
         } else {
-            // No passenger: decelerate
+            // No passenger: decelerate (but still allow powered state to be maintained)
             Vec3d velocity = this.getVelocity();
             velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
             this.setVelocity(velocity);
@@ -209,8 +299,14 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     /**
      * Calculate acceleration vector from inputs (inspired by boat's movement calculation)
+     * Only applies acceleration if the hovercraft is powered (has fuel rod with durability)
      */
     private Vec3d calculateAcceleration(float speedMultiplier) {
+        // Check power status - similar to FurnaceMinecart checking fuel > 0 before applying push
+        if (!this.isPowered()) {
+            return Vec3d.ZERO;
+        }
+        
         float yawRad = -this.getYaw() * (float)(Math.PI / 180.0);
         
         // Forward/backward in facing direction
@@ -361,12 +457,12 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
-        // Minimal NBT needed - inputs are transient
+        this.writeInventoryToNbt(nbt, this.getRegistryManager());
     }
     
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
-        // Minimal NBT needed - inputs are transient
+        this.readInventoryFromNbt(nbt, this.getRegistryManager());
     }
     
     @Override
@@ -404,6 +500,168 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
         // Reset inputs when passenger dismounts
         this.setInputs(false, false, false, false, false, false, false);
         return super.updatePassengerForDismount(passenger);
+    }
+    
+    /**
+     * Check if hovercraft is powered (has fuel rod with durability)
+     * Uses synced tracked data (like FurnaceMinecart's isLit())
+     */
+    public boolean isPowered() {
+        return this.dataTracker.get(POWERED);
+    }
+    
+    /**
+     * Damage the fuel rod when the hovercraft is powered (similar to reactor)
+     */
+    private void damageFuelRod() {
+        this.tickCounter++;
+        
+        // Only damage fuel rod every 20 ticks (once per second, like reactor)
+        if (this.tickCounter % FUEL_DAMAGE_INTERVAL != 0) {
+            return;
+        }
+        
+        ItemStack fuelStack = this.getStack(0);
+        if (!fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD) {
+            // Damage the fuel rod by 1 second every 20 ticks
+            boolean wasConsumed = FuelRodItem.reduceDurability(fuelStack, 1);
+            
+            if (wasConsumed) {
+                // Fuel rod was consumed, clear the slot using VehicleInventory method
+                this.setInventoryStack(0, ItemStack.EMPTY);
+            } else {
+                // Fuel rod was damaged but not consumed, update the slot using VehicleInventory method
+                this.setInventoryStack(0, fuelStack);
+            }
+            
+            this.markDirty();
+        }
+    }
+    
+    // VehicleInventory interface implementation
+    @Override
+    public DefaultedList<ItemStack> getInventory() {
+        return this.inventory;
+    }
+    
+    @Override
+    public void resetInventory() {
+        this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+    }
+    
+    @Nullable
+    @Override
+    public RegistryKey<LootTable> getLootTable() {
+        return this.lootTable;
+    }
+    
+    @Override
+    public void setLootTable(@Nullable RegistryKey<LootTable> lootTable) {
+        this.lootTable = lootTable;
+    }
+    
+    @Override
+    public long getLootTableSeed() {
+        return this.lootTableSeed;
+    }
+    
+    @Override
+    public void setLootTableSeed(long lootTableSeed) {
+        this.lootTableSeed = lootTableSeed;
+    }
+    
+    // RideableInventory interface implementation
+    @Override
+    public void openInventory(PlayerEntity player) {
+        player.openHandledScreen(this);
+        if (player.getWorld() instanceof ServerWorld) {
+            this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+        }
+    }
+    
+    // Inventory methods
+    @Override
+    public void clear() {
+        this.clearInventory();
+    }
+    
+    @Override
+    public int size() {
+        return INVENTORY_SIZE;
+    }
+    
+    @Override
+    public ItemStack getStack(int slot) {
+        return this.getInventoryStack(slot);
+    }
+    
+    @Override
+    public ItemStack removeStack(int slot, int amount) {
+        return this.removeInventoryStack(slot, amount);
+    }
+    
+    @Override
+    public ItemStack removeStack(int slot) {
+        return this.removeInventoryStack(slot);
+    }
+    
+    @Override
+    public void setStack(int slot, ItemStack stack) {
+        // Only accept fuel rods in slot 0 (validation also handled by screen handler)
+        if (!stack.isEmpty() && stack.getItem() != ModItems.FUEL_ROD) {
+            return;
+        }
+        this.setInventoryStack(slot, stack);
+    }
+    
+    @Override
+    public StackReference getStackReference(int mappedIndex) {
+        return this.getInventoryStackReference(mappedIndex);
+    }
+    
+    @Override
+    public void markDirty() {
+        // Mark as dirty for syncing
+    }
+    
+    @Override
+    public boolean canPlayerUse(PlayerEntity player) {
+        return this.canPlayerAccess(player);
+    }
+    
+    @Nullable
+    @Override
+    public ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
+        if (this.lootTable != null && playerEntity.isSpectator()) {
+            return null;
+        } else {
+            this.generateLoot(playerInventory.player);
+            // Create custom screen handler with blocked slots
+            return new HovercraftScreenHandler(i, playerInventory, this);
+        }
+    }
+    
+    public void generateLoot(@Nullable PlayerEntity player) {
+        this.generateInventoryLoot(player);
+    }
+    
+    @Override
+    public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
+        this.killAndDropItem(world, this.asItem());
+        this.onBroken(damageSource, world, this);
+    }
+    
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (!this.getWorld().isClient && reason.shouldDestroy()) {
+            ItemScatterer.spawn(this.getWorld(), this, this);
+        }
+        super.remove(reason);
+    }
+    
+    @Override
+    public void onClose(PlayerEntity player) {
+        this.getWorld().emitGameEvent(GameEvent.CONTAINER_CLOSE, this.getPos(), GameEvent.Emitter.of(player));
     }
 }
 

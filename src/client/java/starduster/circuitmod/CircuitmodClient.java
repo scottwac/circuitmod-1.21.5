@@ -74,6 +74,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.FLUID_TANK_SCREEN_HANDLER, FluidTankScreen::new);
 		HandledScreens.register(ModScreenHandlers.ELECTRIC_FURNACE_SCREEN_HANDLER, ElectricFurnaceScreen::new);
 		HandledScreens.register(ModScreenHandlers.XP_GENERATOR_SCREEN_HANDLER, XpGeneratorScreen::new);
+		HandledScreens.register(ModScreenHandlers.HOVERCRAFT_SCREEN_HANDLER, HovercraftScreen::new);
 
 		// Register block entity renderers
         BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
