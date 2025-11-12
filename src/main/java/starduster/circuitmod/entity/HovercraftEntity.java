@@ -1,10 +1,15 @@
 package starduster.circuitmod.entity;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MovementType;
+import net.minecraft.entity.PositionInterpolator;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.VehicleEntity;
 import net.minecraft.item.Item;
@@ -13,6 +18,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -21,27 +27,34 @@ import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animatable.manager.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
-import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.item.ModItems;
 
 public class HovercraftEntity extends VehicleEntity implements GeoEntity {
-    private static final float MOVEMENT_SPEED = 0.35F; // Base movement speed multiplier
-    private static final float VERTICAL_SPEED = 0.25F; // Vertical movement speed
-    private static final float DECELERATION = 0.85F; // Deceleration when no input
-    private static final float MAX_SPEED = 1.5F; // Maximum horizontal speed
-    private static final float MAX_VERTICAL_SPEED = 0.8F; // Maximum vertical speed
-    private static final float BOOST_MULTIPLIER = 2.0F; // Speed multiplier when boosting
+    // Tracked data for synchronization (similar to boat's paddle states)
+    private static final TrackedData<Boolean> BOOST_ACTIVE = DataTracker.registerData(HovercraftEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    
+    // Movement constants (balanced like boat physics)
+    private static final float ACCELERATION = 0.04F;
+    private static final float DECELERATION = 0.9F; // Similar to boat on land
+    private static final float MAX_SPEED = 0.35F; // Base max speed
+    private static final float MAX_VERTICAL_SPEED = 0.25F;
+    private static final float BOOST_MULTIPLIER = 1.5F;
+    private static final float ROTATION_SPEED = 2.0F;
     
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
+    private final PositionInterpolator interpolator = new PositionInterpolator(this, 3);
     
-    // Input states (set by server from client packets)
-    private boolean inputForward = false;
-    private boolean inputBackward = false;
-    private boolean inputLeft = false;
-    private boolean inputRight = false;
-    private boolean inputUp = false;
-    private boolean inputDown = false;
-    private boolean inputBoost = false;
+    // Input states (similar to boat's paddle states)
+    private boolean pressingForward;
+    private boolean pressingBack;
+    private boolean pressingLeft;
+    private boolean pressingRight;
+    private boolean pressingUp;
+    private boolean pressingDown;
+    private boolean pressingBoost;
+    
+    // Physics state
+    private float yawVelocity;
     
     public HovercraftEntity(EntityType<? extends HovercraftEntity> entityType, World world) {
         super(entityType, world);
@@ -51,27 +64,38 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     public HovercraftEntity(World world, double x, double y, double z) {
         this(ModEntityTypes.HOVERCRAFT, world);
         this.setPosition(x, y, z);
+        this.lastX = x;
+        this.lastY = y;
+        this.lastZ = z;
+    }
+    
+    @Override
+    protected void initDataTracker(DataTracker.Builder builder) {
+        super.initDataTracker(builder);
+        builder.add(BOOST_ACTIVE, false);
+    }
+    
+    @Override
+    protected Entity.MoveEffect getMoveEffect() {
+        return Entity.MoveEffect.EVENTS;
     }
     
     /**
-     * Set input states from client packet
+     * Set input states from client packet (similar to boat's setInputs)
      */
-    public void setInputs(boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down, boolean boost) {
-        this.inputForward = forward;
-        this.inputBackward = backward;
-        this.inputLeft = left;
-        this.inputRight = right;
-        this.inputUp = up;
-        this.inputDown = down;
-        this.inputBoost = boost;
+    public void setInputs(boolean forward, boolean back, boolean left, boolean right, boolean up, boolean down, boolean boost) {
+        this.pressingForward = forward;
+        this.pressingBack = back;
+        this.pressingLeft = left;
+        this.pressingRight = right;
+        this.pressingUp = up;
+        this.pressingDown = down;
+        this.pressingBoost = boost;
+        this.dataTracker.set(BOOST_ACTIVE, boost);
     }
     
-    /**
-     * Get current input states (for debugging)
-     */
-    public String getInputStates() {
-        return String.format("F=%s B=%s L=%s R=%s U=%s D=%s BOOST=%s", 
-            inputForward, inputBackward, inputLeft, inputRight, inputUp, inputDown, inputBoost);
+    public boolean isBoostActive() {
+        return this.dataTracker.get(BOOST_ACTIVE);
     }
     
     @Override
@@ -86,96 +110,168 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
-        if (player.shouldCancelInteraction()) {
+        ActionResult actionResult = super.interact(player, hand);
+        if (actionResult != ActionResult.PASS) {
+            return actionResult;
+        } else if (player.shouldCancelInteraction()) {
             return ActionResult.PASS;
+        } else {
+            // Similar to boat: allow mounting if not client and can start riding
+            return !this.getWorld().isClient && player.startRiding(this) ? ActionResult.SUCCESS : ActionResult.PASS;
         }
-        
-        if (!this.getWorld().isClient) {
-            if (this.hasPassengers()) {
-                // If someone is already riding, they get off
-                this.removeAllPassengers();
-                return ActionResult.SUCCESS;
-            } else {
-                // Player gets on
-                return player.startRiding(this) ? ActionResult.SUCCESS : ActionResult.PASS;
-            }
-        }
-        
-        return ActionResult.SUCCESS;
-    }
-    
-    @Override
-    public Vec3d getMovement() {
-        // Return our custom velocity for movement processing
-        // This ensures Entity.tick() uses our velocity for movement
-        return this.getVelocity();
     }
     
     @Override
     @Nullable
     public LivingEntity getControllingPassenger() {
-        // Return null to prevent Entity from using passenger's movement
-        // We handle movement ourselves based on input packets
-        return null;
+        Entity firstPassenger = this.getFirstPassenger();
+        return firstPassenger instanceof LivingEntity livingEntity ? livingEntity : super.getControllingPassenger();
+    }
+    
+    @Override
+    public Direction getMovementDirection() {
+        return this.getHorizontalFacing().rotateYClockwise();
+    }
+    
+    @Override
+    public PositionInterpolator getInterpolator() {
+        return this.interpolator;
     }
     
     @Override
     public void tick() {
-        if (!this.getWorld().isClient) {
-            tickServer();
+        // Handle damage wobble (from VehicleEntity)
+        if (this.getDamageWobbleTicks() > 0) {
+            this.setDamageWobbleTicks(this.getDamageWobbleTicks() - 1);
         }
-        // Call super.tick() - this will process the velocity we set above via getMovement()
+        if (this.getDamageWobbleStrength() > 0.0F) {
+            this.setDamageWobbleStrength(this.getDamageWobbleStrength() - 1.0F);
+        }
+        
         super.tick();
-    }
-
-    private void tickServer() {
-        if (this.hasPassengers() && this.getFirstPassenger() instanceof PlayerEntity player) {
-            handleMovement(player, true, true, true);
+        this.interpolator.tick();
+        
+        // Handle movement (similar to boat's tick logic)
+        if (this.isLogicalSideForUpdatingMovement()) {
+            if (!(this.getFirstPassenger() instanceof PlayerEntity)) {
+                // Reset inputs if no player is controlling
+                this.setInputs(false, false, false, false, false, false, false);
+            }
+            
+            this.updateVelocity();
+            this.move(MovementType.SELF, this.getVelocity());
         } else {
-            applyServerDeceleration();
+            this.setVelocity(Vec3d.ZERO);
+        }
+        
+        this.tickBlockCollision();
+    }
+    
+    /**
+     * Update velocity based on inputs (inspired by boat's updateVelocity and updatePaddles)
+     */
+    private void updateVelocity() {
+        if (this.hasPassengers() && this.getFirstPassenger() instanceof PlayerEntity) {
+            // Handle rotation (similar to boat turning)
+            if (this.pressingLeft) {
+                this.yawVelocity -= ROTATION_SPEED;
+            }
+            if (this.pressingRight) {
+                this.yawVelocity += ROTATION_SPEED;
+            }
+            
+            this.setYaw(this.getYaw() + this.yawVelocity);
+            this.yawVelocity *= DECELERATION; // Apply friction to rotation
+            
+            // Calculate movement acceleration
+            float speedMultiplier = this.pressingBoost ? BOOST_MULTIPLIER : 1.0F;
+            Vec3d acceleration = this.calculateAcceleration(speedMultiplier);
+            
+            // Apply acceleration to velocity
+            Vec3d velocity = this.getVelocity();
+            velocity = velocity.add(acceleration);
+            
+            // Apply deceleration (air friction)
+            velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+            
+            // Clamp to max speeds
+            velocity = this.clampVelocity(velocity, speedMultiplier);
+            
+            this.setVelocity(velocity);
+        } else {
+            // No passenger: decelerate
+            Vec3d velocity = this.getVelocity();
+            velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+            this.setVelocity(velocity);
+            this.yawVelocity *= DECELERATION;
         }
     }
-
-    private void handleMovement(PlayerEntity player, boolean applyMove, boolean markVelocityDirty, boolean logInputs) {
-        // Update rotation to match player's view
-        this.setYaw(player.getYaw());
-        this.setPitch(MathHelper.clamp(player.getPitch() * 0.5F, -45.0F, 45.0F));
-        this.setHeadYaw(this.getYaw());
-
-        double speedMultiplier = inputBoost ? BOOST_MULTIPLIER : 1.0D;
-
-        Vec3d currentVelocity = this.getVelocity();
-        Vec3d calculatedMovement = calculateMovementInput(player);
-        Vec3d newVelocity = applyMovementAcceleration(currentVelocity, calculatedMovement, speedMultiplier);
-        newVelocity = clampVelocity(newVelocity, speedMultiplier);
-
-        this.setVelocity(newVelocity);
-        if (markVelocityDirty) {
-            this.velocityDirty = true;
+    
+    /**
+     * Calculate acceleration vector from inputs (inspired by boat's movement calculation)
+     */
+    private Vec3d calculateAcceleration(float speedMultiplier) {
+        float yawRad = -this.getYaw() * (float)(Math.PI / 180.0);
+        
+        // Forward/backward in facing direction
+        Vec3d forwardVec = new Vec3d(
+            MathHelper.sin(yawRad),
+            0,
+            MathHelper.cos(yawRad)
+        );
+        
+        // Right/left perpendicular to facing direction  
+        Vec3d rightVec = new Vec3d(
+            MathHelper.cos(yawRad),
+            0,
+            MathHelper.sin(yawRad)
+        );
+        
+        Vec3d acceleration = Vec3d.ZERO;
+        
+        // Horizontal movement
+        if (this.pressingForward) {
+            acceleration = acceleration.add(forwardVec.multiply(ACCELERATION * speedMultiplier));
         }
-
-        if (applyMove && newVelocity.lengthSquared() > 0.0001) {
-            this.move(MovementType.SELF, newVelocity);
+        if (this.pressingBack) {
+            acceleration = acceleration.subtract(forwardVec.multiply(ACCELERATION * speedMultiplier * 0.5)); // Reverse slower
         }
-
-        if (logInputs && this.age % 20 == 0 && (inputForward || inputBackward || inputLeft || inputRight || inputUp || inputDown || inputBoost)) {
-            Circuitmod.LOGGER.info("[HOVERCRAFT] Pos: ({}, {}, {}) Vel: ({}, {}, {}) Inputs: {}", 
-                String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()),
-                String.format("%.2f", newVelocity.x), String.format("%.2f", newVelocity.y), String.format("%.2f", newVelocity.z),
-                getInputStates());
+        if (this.pressingLeft) {
+            acceleration = acceleration.subtract(rightVec.multiply(ACCELERATION * speedMultiplier * 0.7)); // Strafe slower
         }
+        if (this.pressingRight) {
+            acceleration = acceleration.add(rightVec.multiply(ACCELERATION * speedMultiplier * 0.7));
+        }
+        
+        // Vertical movement (unique to hovercraft)
+        if (this.pressingUp) {
+            acceleration = acceleration.add(0, ACCELERATION * speedMultiplier, 0);
+        }
+        if (this.pressingDown) {
+            acceleration = acceleration.subtract(0, ACCELERATION * speedMultiplier, 0);
+        }
+        
+        return acceleration;
     }
-
-    private void applyServerDeceleration() {
-        Vec3d velocity = this.getVelocity();
-        Vec3d deceleratedVelocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
-        deceleratedVelocity = clampVelocity(deceleratedVelocity, 1.0D);
-        this.setVelocity(deceleratedVelocity);
-        this.velocityDirty = true;
-
-        if (deceleratedVelocity.lengthSquared() > 0.0001) {
-            this.move(MovementType.SELF, deceleratedVelocity);
+    
+    /**
+     * Clamp velocity to maximum speeds
+     */
+    private Vec3d clampVelocity(Vec3d velocity, float speedMultiplier) {
+        // Clamp horizontal speed
+        Vec3d horizontal = new Vec3d(velocity.x, 0, velocity.z);
+        double horizontalSpeed = horizontal.length();
+        double maxHorizontal = MAX_SPEED * speedMultiplier;
+        
+        if (horizontalSpeed > maxHorizontal) {
+            horizontal = horizontal.normalize().multiply(maxHorizontal);
         }
+        
+        // Clamp vertical speed
+        double maxVertical = MAX_VERTICAL_SPEED * speedMultiplier;
+        double verticalSpeed = MathHelper.clamp(velocity.y, -maxVertical, maxVertical);
+        
+        return new Vec3d(horizontal.x, verticalSpeed, horizontal.z);
     }
 
     @Override
@@ -188,97 +284,54 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
         return geoCache;
     }
     
-    private Vec3d calculateMovementInput(PlayerEntity player) {
-        float yaw = player.getYaw();
-        
-        // Convert yaw to radians
-        float yawRad = yaw * 0.017453292F;
-        
-        // Calculate forward direction vector (in horizontal plane)
-        Vec3d forwardVec = new Vec3d(
-            -MathHelper.sin(yawRad),
-            0,
-            MathHelper.cos(yawRad)
-        ).normalize();
-        
-        // Calculate right direction vector (perpendicular to forward)
-        Vec3d rightVec = new Vec3d(
-            MathHelper.cos(yawRad),
-            0,
-            MathHelper.sin(yawRad)
-        ).normalize();
-        
-        // Calculate up direction (always vertical)
-        Vec3d upVec = new Vec3d(0, 1, 0);
-        
-        // Build movement vector from inputs
-        Vec3d movement = Vec3d.ZERO;
-        
-        // Forward/backward movement
-        if (inputForward) {
-            movement = movement.add(forwardVec);
-        }
-        if (inputBackward) {
-            movement = movement.subtract(forwardVec);
-        }
-        
-        // Left/right movement (strafe)
-        if (inputLeft) {
-            movement = movement.add(rightVec);
-        }
-        if (inputRight) {
-            movement = movement.subtract(rightVec);
-        }
-        
-        // Vertical movement
-        if (inputUp) {
-            movement = movement.add(upVec);
-        }
-        if (inputDown) {
-            movement = movement.subtract(upVec);
-        }
-        
-        // Normalize if there's any movement to maintain consistent speed
-        if (movement.lengthSquared() > 0.01) {
-            movement = movement.normalize();
-        }
-        
-        return movement;
+    /**
+     * Passenger attachment (similar to boat's implementation)
+     */
+    @Override
+    protected Vec3d getPassengerAttachmentPos(Entity passenger, EntityDimensions dimensions, float scaleFactor) {
+        return new Vec3d(0.0, dimensions.height() / 2.0, 0.0);
     }
     
-    private Vec3d applyMovementAcceleration(Vec3d currentVelocity, Vec3d movementInput, double speedMultiplier) {
-        // Separate horizontal and vertical components
-        Vec3d horizontalInput = new Vec3d(movementInput.x, 0, movementInput.z);
-        double verticalInput = movementInput.y;
-        
-        // Apply horizontal acceleration
-        Vec3d currentHorizontal = new Vec3d(currentVelocity.x, 0, currentVelocity.z);
-        Vec3d desiredHorizontal = horizontalInput.multiply(MOVEMENT_SPEED * speedMultiplier);
-        
-        // Interpolate horizontal velocity towards desired velocity
-        Vec3d newHorizontal = currentHorizontal.multiply(DECELERATION).add(desiredHorizontal.multiply(1.0 - DECELERATION));
-        
-        // Apply vertical acceleration
-        double desiredVertical = verticalInput * VERTICAL_SPEED * speedMultiplier;
-        double newVertical = currentVelocity.y * DECELERATION + desiredVertical * (1.0 - DECELERATION);
-        
-        return new Vec3d(newHorizontal.x, newVertical, newHorizontal.z);
+    @Override
+    public boolean collidesWith(Entity other) {
+        return canCollide(this, other);
     }
     
-    private Vec3d clampVelocity(Vec3d velocity, double speedMultiplier) {
-        // Clamp horizontal speed
-        Vec3d horizontal = new Vec3d(velocity.x, 0, velocity.z);
-        double horizontalSpeed = horizontal.length();
-        double maxHorizontal = MAX_SPEED * speedMultiplier;
-        if (horizontalSpeed > maxHorizontal) {
-            horizontal = horizontal.normalize().multiply(maxHorizontal);
+    public static boolean canCollide(Entity entity, Entity other) {
+        return (other.isCollidable() || other.isPushable()) && !entity.isConnectedThroughVehicle(other);
+    }
+    
+    @Override
+    public boolean isCollidable() {
+        return true;
+    }
+    
+    @Override
+    public boolean isPushable() {
+        return true;
+    }
+    
+    @Override
+    public void pushAwayFrom(Entity entity) {
+        if (entity instanceof HovercraftEntity) {
+            if (entity.getBoundingBox().minY < this.getBoundingBox().maxY) {
+                super.pushAwayFrom(entity);
+            }
+        } else if (entity.getBoundingBox().minY <= this.getBoundingBox().minY) {
+            super.pushAwayFrom(entity);
         }
-        
-        // Clamp vertical speed
-        double maxVertical = MAX_VERTICAL_SPEED * speedMultiplier;
-        double verticalSpeed = MathHelper.clamp(velocity.y, -maxVertical, maxVertical);
-        
-        return new Vec3d(horizontal.x, verticalSpeed, horizontal.z);
+    }
+    
+    @Override
+    public void animateDamage(float yaw) {
+        this.setDamageWobbleSide(-this.getDamageWobbleSide());
+        this.setDamageWobbleTicks(10);
+        this.setDamageWobbleStrength(this.getDamageWobbleStrength() * 11.0F);
+    }
+    
+    @Override
+    public boolean canHit() {
+        return !this.isRemoved();
     }
     
     @Override
@@ -287,6 +340,7 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
             return false;
         }
         
+        // Use boat-style damage handling
         this.setDamageWobbleSide(-this.getDamageWobbleSide());
         this.setDamageWobbleTicks(10);
         this.setDamageWobbleStrength(this.getDamageWobbleStrength() + amount * 10.0F);
@@ -307,58 +361,42 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
     
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
-        // Input states don't need to be saved - they're reset when player dismounts
+        // Minimal NBT needed - inputs are transient
     }
     
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
-        // Input states don't need to be loaded - they're reset when player dismounts
+        // Minimal NBT needed - inputs are transient
     }
-    
     
     @Override
     public boolean shouldDismountUnderwater() {
-        return false; // Don't auto-dismount underwater
+        return false; // Hovercrafts work underwater
     }
     
     @Override
     protected boolean canAddPassenger(Entity passenger) {
-        return this.getPassengerList().size() < 1; // Only allow one passenger
-    }
-    
-    @Override
-    public boolean canHit() {
-        return !this.isRemoved();
-    }
-    
-    @Override
-    public boolean isPushable() {
-        return true;
-    }
-    
-    @Override
-    public boolean isCollidable() {
-        return true;
+        return this.getPassengerList().size() < 1;
     }
     
     @Override
     protected double getGravity() {
-        return 0.0; // Override gravity since we handle it ourselves
+        return 0.0; // No gravity - hovers
     }
     
     @Override
     public boolean hasNoGravity() {
-        return true; // Disable gravity completely
+        return true;
     }
     
     @Override
     protected void applyGravity() {
-        // Do nothing - we handle our own hovering physics
+        // No gravity - we control vertical movement manually
     }
     
     @Override
     public boolean isOnGround() {
-        return false; // Always consider airborne
+        return false;
     }
     
     @Override
@@ -368,3 +406,4 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity {
         return super.updatePassengerForDismount(passenger);
     }
 }
+
