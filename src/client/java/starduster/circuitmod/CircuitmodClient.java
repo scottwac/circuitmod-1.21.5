@@ -86,6 +86,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
+		EntityRendererRegistry.register(ModEntityTypes.MISSILE, starduster.circuitmod.client.render.MissileEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntities.ROCKET, RocketEntityRenderer::new);
 
 		// Register color providers for biome-based tinting

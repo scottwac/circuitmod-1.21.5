@@ -31,6 +31,16 @@ public class ModEntityTypes {
             .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "hovercraft")))
     );
     
+    public static final EntityType<MissileEntity> MISSILE = Registry.register(
+        Registries.ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "missile"),
+        EntityType.Builder.<MissileEntity>create(MissileEntity::new, SpawnGroup.MISC)
+            .dimensions(0.5F, 1.5F) // Missile dimensions (width, height)
+            .maxTrackingRange(80) // Track from far away
+            .trackingTickInterval(1) // Update frequently for smooth movement
+            .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "missile")))
+    );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod entity types");
     }
