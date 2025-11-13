@@ -16,6 +16,7 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.machines.*;
 import starduster.circuitmod.block.machines.XpGenerator;
+import starduster.circuitmod.block.machines.HologramTableBlock;
 import starduster.circuitmod.block.networkblocks.*;
 import starduster.circuitmod.worldgen.tree.ModSaplingGenerators;
 
@@ -82,6 +83,15 @@ public final class ModBlocks {
     public static final Block BLUEPRINT_DESK = register(
             "blueprint_desk",
             BlueprintDeskBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(2.0f, 3.0f)
+    );
+
+    // Register hologram table block
+    public static final Block HOLOGRAM_TABLE = register(
+            "hologram_table",
+            HologramTableBlock::new,
             Block.Settings.create()
                     .requiresTool()
                     .strength(2.0f, 3.0f)

@@ -191,6 +191,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(BlueprintDeskBlockEntity::new, ModBlocks.BLUEPRINT_DESK).build()
     );
 
+    // Hologram table block entity
+    public static final BlockEntityType<HologramTableBlockEntity> HOLOGRAM_TABLE_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "hologram_table"),
+        FabricBlockEntityTypeBuilder.create(HologramTableBlockEntity::new, ModBlocks.HOLOGRAM_TABLE).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

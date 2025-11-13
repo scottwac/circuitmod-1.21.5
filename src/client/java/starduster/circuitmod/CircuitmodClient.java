@@ -23,6 +23,7 @@ import starduster.circuitmod.client.render.QuarryBlockEntityRenderer;
 import starduster.circuitmod.client.render.DrillBlockEntityRenderer;
 import starduster.circuitmod.client.render.LaserMiningDrillBlockEntityRenderer;
 import starduster.circuitmod.client.render.ConstructorBlockEntityRenderer;
+import starduster.circuitmod.client.render.HologramTableBlockEntityRenderer;
 import starduster.circuitmod.client.render.HovercraftEntityRenderer;
 import starduster.circuitmod.client.HovercraftInputHandler;
 import starduster.circuitmod.client.render.sky.LunaSkyRenderer;
@@ -82,6 +83,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		BlockEntityRendererFactories.register(ModBlockEntities.DRILL_BLOCK_ENTITY, DrillBlockEntityRenderer::new);
         BlockEntityRendererFactories.register(ModBlockEntities.LASER_MINING_DRILL_BLOCK_ENTITY, LaserMiningDrillBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.CONSTRUCTOR_BLOCK_ENTITY, ConstructorBlockEntityRenderer::new);
+		BlockEntityRendererFactories.register(ModBlockEntities.HOLOGRAM_TABLE_BLOCK_ENTITY, HologramTableBlockEntityRenderer::new);
 		
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
