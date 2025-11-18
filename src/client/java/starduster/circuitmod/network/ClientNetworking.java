@@ -512,6 +512,24 @@ public class ClientNetworking {
     }
     
     /**
+     * Send hologram render area update to the server
+     */
+    public static void sendHologramAreaUpdate(BlockPos tablePos, int minX, int maxX, int minZ, int maxZ, int minY, boolean reset) {
+        if (tablePos == null) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send hologram area update for null position!");
+            return;
+        }
+        
+        try {
+            ModNetworking.HologramAreaPayload payload = new ModNetworking.HologramAreaPayload(tablePos, minX, maxX, minZ, maxZ, minY, reset);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Sent hologram area update for {} (reset={}): X[{},{}] Z[{},{}] minY={}", tablePos, reset, minX, maxX, minZ, maxZ, minY);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send hologram area update: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
      * Send quarry reset height request to the server
      * 
      * @param quarryPos The position of the quarry

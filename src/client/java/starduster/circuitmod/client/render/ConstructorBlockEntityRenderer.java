@@ -13,11 +13,7 @@ import net.minecraft.util.math.Vec3d;
 import starduster.circuitmod.block.entity.ConstructorBlockEntity;
 
 import java.util.List;
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.block.BlockRenderManager;
-import org.lwjgl.opengl.GL11;
-import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.item.ItemStack;
 
@@ -88,17 +84,8 @@ public class ConstructorBlockEntityRenderer implements BlockEntityRenderer<Const
             if (ghostBlockItems.isEmpty()) {
                 System.out.println("[CONSTRUCTOR-GHOST-DEBUG] No ghost items available; skipping ghost rendering.");
             }
-            // Save OpenGL state
-            boolean wasBlendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
-            boolean wasDepthTestEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
-            boolean wasDepthMaskEnabled = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
-            boolean wasCullFaceEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
-            // Enable glowing effect
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glDepthMask(false);
-            GL11.glDisable(GL11.GL_CULL_FACE);
+            // No need for GL state manipulation in modern Minecraft rendering
+            // The render system handles this automatically
             // For each planned build position
             for (BlockPos worldPos : buildPositions) {
                 BlockPos baseBuildPos = entity.getPos().add(entity.getBuildOffset());
@@ -144,23 +131,7 @@ public class ConstructorBlockEntityRenderer implements BlockEntityRenderer<Const
                 }
             }
             System.out.println("[CONSTRUCTOR-GHOST-DEBUG] Total ghost blocks attempted for rendering: " + ghostCount);
-            // Restore OpenGL state
-            GL11.glDepthMask(wasDepthMaskEnabled);
-            if (wasDepthTestEnabled) {
-                GL11.glEnable(GL11.GL_DEPTH_TEST);
-            } else {
-                GL11.glDisable(GL11.GL_DEPTH_TEST);
-            }
-            if (wasBlendEnabled) {
-                GL11.glEnable(GL11.GL_BLEND);
-            } else {
-                GL11.glDisable(GL11.GL_BLEND);
-            }
-            if (wasCullFaceEnabled) {
-                GL11.glEnable(GL11.GL_CULL_FACE);
-            } else {
-                GL11.glDisable(GL11.GL_CULL_FACE);
-            }
+            // No need to restore GL state - render system handles it
         }
 
         matrices.pop();

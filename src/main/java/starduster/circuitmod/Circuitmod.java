@@ -29,6 +29,7 @@ import starduster.circuitmod.block.entity.ModBlockEntities;
 import starduster.circuitmod.block.entity.QuarryBlockEntity;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
 import starduster.circuitmod.block.entity.LaserMiningDrillBlockEntity;
+import starduster.circuitmod.block.entity.HologramTableBlockEntity;
 import starduster.circuitmod.item.ModToolMaterials;
 import starduster.circuitmod.network.ModNetworking;
 import starduster.circuitmod.recipe.ModRecipes;
@@ -291,6 +292,20 @@ public class Circuitmod implements ModInitializer {
 				} else {
 					LOGGER.warn("[SERVER] Hovercraft entity {} not found for input from player {}", 
 						entityId, context.player().getName().getString());
+				}
+			});
+		});
+		
+		// Register hologram table area handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.HologramAreaPayload.ID, (payload, context) -> {
+			var tablePos = payload.tablePos();
+			context.server().execute(() -> {
+				if (context.player().getWorld().getBlockEntity(tablePos) instanceof HologramTableBlockEntity table) {
+					if (payload.reset()) {
+						table.resetToChunkArea();
+					} else {
+						table.updateRenderArea(payload.minX(), payload.maxX(), payload.minZ(), payload.maxZ(), payload.minY());
+					}
 				}
 			});
 		});

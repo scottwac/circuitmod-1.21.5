@@ -54,6 +54,8 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
     private static final float MAX_VERTICAL_SPEED = 0.25F;
     private static final float BOOST_MULTIPLIER = 1.5F;
     private static final float ROTATION_SPEED = 2.0F;
+    private static final double GRAVITY = 0.04D; // Minecraft standard gravity for vehicles
+    private static final double BASE_HOVER_FORCE = GRAVITY; // Equal to gravity to maintain altitude
     
     // Fuel consumption rate (damage fuel rod every 20 ticks = 1 second, like reactor)
     private static final int FUEL_DAMAGE_INTERVAL = 20;
@@ -211,6 +213,19 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
         if (!this.getWorld().isClient) {
             ItemStack fuelStack = this.getStack(0);
             boolean hasPower = !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD && FuelRodItem.hasDurability(fuelStack);
+            boolean currentTracked = this.dataTracker.get(POWERED);
+            
+            // Debug log when power state changes on server
+            if (this.age % 20 == 0 || hasPower != currentTracked) {
+                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG SERVER] Entity {}: hasFuelRod={}, hasDurability={}, hasPower={}, currentTracked={}, updating to: {}", 
+                    this.getId(), 
+                    !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD,
+                    !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD && FuelRodItem.hasDurability(fuelStack),
+                    hasPower,
+                    currentTracked,
+                    hasPower);
+            }
+            
             this.dataTracker.set(POWERED, hasPower);
             
             // Damage fuel rod on server side whenever powered
@@ -221,13 +236,18 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
         
         // Handle movement (similar to boat's tick logic)
         if (this.isLogicalSideForUpdatingMovement()) {
-            boolean hasPassenger = this.hasPassengers();
             boolean isPlayerPassenger = this.getFirstPassenger() instanceof PlayerEntity;
             
-            // Debug logging
-            if (!this.getWorld().isClient && this.age % 20 == 0) {
-                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG] Entity {}: hasPassengers={}, isPlayerPassenger={}, pressingForward={}, pressingLeft={}, pressingRight={}, pressingUp={}", 
-                    this.getId(), hasPassenger, isPlayerPassenger, this.pressingForward, this.pressingLeft, this.pressingRight, this.pressingUp);
+            // Debug logging for power/rod state (both client and server)
+            if (this.age % 20 == 0) {
+                String side = this.getWorld().isClient ? "CLIENT" : "SERVER";
+                ItemStack fuelStack = this.getStack(0);
+                boolean hasFuelRod = !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD;
+                boolean hasDurability = hasFuelRod && FuelRodItem.hasDurability(fuelStack);
+                boolean trackedPowered = this.dataTracker.get(POWERED);
+                
+                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG {}] Entity {}: hasFuelRod={}, hasDurability={}, trackedPowered={}, pressingDown={}, velocity.y={}", 
+                    side, this.getId(), hasFuelRod, hasDurability, trackedPowered, this.pressingDown, String.format("%.3f", this.getVelocity().y));
             }
             
             if (!isPlayerPassenger) {
@@ -238,17 +258,25 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
             // Check power status (synced from server via tracked data)
             boolean powered = this.isPowered();
             
-            // Only allow movement if powered
+            // Only allow thrust input when powered, but still apply physics/gravity when unpowered
             if (powered) {
                 this.updateVelocity();
-                this.move(MovementType.SELF, this.getVelocity());
             } else {
-                // Not powered: apply deceleration only
+                // Not powered: apply horizontal deceleration (air resistance) and gravity
                 Vec3d velocity = this.getVelocity();
-                velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+                velocity = new Vec3d(velocity.x * DECELERATION, velocity.y, velocity.z * DECELERATION);
+                
+                // Apply gravity when unpowered (standard vehicle gravity, like boats/minecarts)
+                if (!this.hasNoGravity()) {
+                    velocity = velocity.add(0.0, -GRAVITY, 0.0);
+                }
+                
                 this.setVelocity(velocity);
                 this.yawVelocity *= DECELERATION;
             }
+
+            // Always integrate motion
+            this.move(MovementType.SELF, this.getVelocity());
         } else {
             this.setVelocity(Vec3d.ZERO);
         }
@@ -282,7 +310,10 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
             velocity = velocity.add(acceleration);
             
             // Apply deceleration (air friction)
-            velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+            // For vertical: only apply deceleration if player is actively controlling vertical movement
+            // Otherwise, hover force exactly cancels gravity, keeping altitude stable
+            double yDecelerationFactor = (this.pressingUp || this.pressingDown) ? DECELERATION : 1.0;
+            velocity = velocity.multiply(DECELERATION, yDecelerationFactor, DECELERATION);
             
             // Clamp to max speeds
             velocity = this.clampVelocity(velocity, speedMultiplier);
@@ -291,7 +322,12 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
         } else {
             // No passenger: decelerate (but still allow powered state to be maintained)
             Vec3d velocity = this.getVelocity();
-            velocity = velocity.multiply(DECELERATION, DECELERATION, DECELERATION);
+            velocity = new Vec3d(velocity.x * DECELERATION, velocity.y, velocity.z * DECELERATION);
+            // Only apply hover force if powered
+            if (this.isPowered()) {
+                velocity = velocity.add(0.0, BASE_HOVER_FORCE, 0.0);
+            }
+            velocity = this.clampVelocity(velocity, 1.0F);
             this.setVelocity(velocity);
             this.yawVelocity *= DECELERATION;
         }
@@ -340,12 +376,21 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
         }
         
         // Vertical movement (unique to hovercraft)
+        // Start with base hover force (keeps craft hovering)
+        double verticalForce = BASE_HOVER_FORCE;
+        
         if (this.pressingUp) {
-            acceleration = acceleration.add(0, ACCELERATION * speedMultiplier, 0);
+            // Add extra upward thrust
+            verticalForce += ACCELERATION * speedMultiplier;
         }
+        
         if (this.pressingDown) {
-            acceleration = acceleration.subtract(0, ACCELERATION * speedMultiplier, 0);
+            // Cancel hover force and apply downward thrust
+            // This should make it fall, not hover
+            verticalForce = -(ACCELERATION * speedMultiplier);
         }
+        
+        acceleration = acceleration.add(0.0, verticalForce, 0.0);
         
         return acceleration;
     }
@@ -476,23 +521,8 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
     }
     
     @Override
-    protected double getGravity() {
-        return 0.0; // No gravity - hovers
-    }
-    
-    @Override
-    public boolean hasNoGravity() {
-        return true;
-    }
-    
-    @Override
-    protected void applyGravity() {
-        // No gravity - we control vertical movement manually
-    }
-    
-    @Override
     public boolean isOnGround() {
-        return false;
+        return this.isPowered() ? false : super.isOnGround();
     }
     
     @Override

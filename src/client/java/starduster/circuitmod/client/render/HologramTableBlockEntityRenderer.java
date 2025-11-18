@@ -13,9 +13,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import org.lwjgl.opengl.GL11;
-import starduster.circuitmod.block.entity.HologramTableBlockEntity;
 import starduster.circuitmod.block.ModBlocks;
+import starduster.circuitmod.block.entity.HologramTableBlockEntity;
 
 @Environment(EnvType.CLIENT)
 public class HologramTableBlockEntityRenderer implements net.minecraft.client.render.block.entity.BlockEntityRenderer<HologramTableBlockEntity> {
@@ -35,25 +34,13 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
             return;
         }
 
-        // Get target chunk coordinates (16x16 chunk) - uses offset for chaining
-        int targetChunkX = entity.getTargetChunkX();
-        int targetChunkZ = entity.getTargetChunkZ();
+        // Determine render bounds from block entity state
+        int minX = entity.getAreaMinX();
+        int maxX = entity.getAreaMaxX();
+        int minZ = entity.getAreaMinZ();
+        int maxZ = entity.getAreaMaxZ();
         
-        // Debug: Log what chunk we're rendering
-        if (entity.getChunkOffsetX() != 0 || entity.getChunkOffsetZ() != 0) {
-            System.out.println("[HOLOGRAM-TABLE-RENDER] Entity at " + entity.getPos() + 
-                " has offset (" + entity.getChunkOffsetX() + ", " + entity.getChunkOffsetZ() + 
-                "), rendering chunk (" + targetChunkX + ", " + targetChunkZ + ")");
-        }
-        
-        // Calculate chunk bounds (16x16 area) for the target chunk
-        // Chunk X goes from targetChunkX*16 to (targetChunkX+1)*16 - 1
-        int minX = targetChunkX * 16;
-        int maxX = (targetChunkX + 1) * 16 - 1;
-        int minZ = targetChunkZ * 16;
-        int maxZ = (targetChunkZ + 1) * 16 - 1;
-        
-        // Calculate center of chunk for centering the hologram
+        // Calculate center of render area for centering the hologram
         double chunkCenterX = (minX + maxX + 1) / 2.0;
         double chunkCenterZ = (minZ + maxZ + 1) / 2.0;
         
@@ -63,15 +50,20 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
         ItemRenderer itemRenderer = client.getItemRenderer();
         var world = entity.getWorld();
         
-        // Height above the table to render the hologram
-        // Set so the lowest block starts half a block above the table surface
-        float hologramHeight = 0.5f; // Start half a block above table surface
+        // Use a fixed scale that allows the hologram to extend beyond the block
+        // This prevents blocks from overlapping when rendering large areas
+        // Scale of 1/16 means: each rendered block represents 1/16 of world size
+        float worldToHologramScale = 1.0f / 16.0f;
         
-        // Scale factor for the hologram blocks (make them smaller and prevent overlap)
-        float blockScale = 0.3f * 0.85f; // Smaller than constructor's 0.5f, scaled down to 0.85 to prevent overlap
+        // Height above the table to render the hologram
+        float hologramHeight = 1.0f; // Start half a block above table surface
+        
+        // Scale factor for individual hologram blocks
+        // Blocks are rendered at 1/16th normal size
+        float blockScale = 1.0f / 4.0f;
         
         // Helper method to check if block should be filtered
-        // Filter only fallen leaves and tall grass, but allow tree leaves and grass blocks
+        // Filter ground litter like leaves, grass, flowers, etc.
         java.util.function.Predicate<BlockState> shouldFilter = (blockState) -> {
             Block block = blockState.getBlock();
             // Filter the hologram table block itself
@@ -90,17 +82,45 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
             if (block == Blocks.VINE) {
                 return true;
             }
-            // Note: We allow tree leaves (BlockTags.LEAVES) and grass blocks (Blocks.GRASS_BLOCK)
-            // Only filter fallen leaves if they exist as a separate block type
-            // Fallen leaves are typically represented as leaf blocks with specific properties
-            // For now, we'll allow all leaves - if needed, we can filter based on block properties later
+            // Filter flowers and other small plants
+            if (block == Blocks.DANDELION || block == Blocks.POPPY || 
+                block == Blocks.BLUE_ORCHID || block == Blocks.ALLIUM ||
+                block == Blocks.AZURE_BLUET || block == Blocks.RED_TULIP ||
+                block == Blocks.ORANGE_TULIP || block == Blocks.WHITE_TULIP ||
+                block == Blocks.PINK_TULIP || block == Blocks.OXEYE_DAISY ||
+                block == Blocks.CORNFLOWER || block == Blocks.LILY_OF_THE_VALLEY ||
+                block == Blocks.WITHER_ROSE || block == Blocks.SUNFLOWER ||
+                block == Blocks.LILAC || block == Blocks.ROSE_BUSH || block == Blocks.PEONY) {
+                return true;
+            }
+            // Filter dead bushes and saplings
+            if (block == Blocks.DEAD_BUSH || block.toString().contains("sapling")) {
+                return true;
+            }
+            // Filter mushrooms
+            if (block == Blocks.RED_MUSHROOM || block == Blocks.BROWN_MUSHROOM) {
+                return true;
+            }
+            // Filter azalea (decorative ground plant)
+            if (block == Blocks.AZALEA || block == Blocks.FLOWERING_AZALEA) {
+                return true;
+            }
+            // Filter sweet berry bushes
+            if (block == Blocks.SWEET_BERRY_BUSH) {
+                return true;
+            }
+            // Filter leaf litter blocks (the actual LeafLitterBlock class)
+            if (block instanceof net.minecraft.block.LeafLitterBlock) {
+                return true;
+            }
+            // Note: Leaf BLOCKS (tree leaves) are kept - they're important for visualizing trees
+            // LeafLitterBlock is the ground clutter, not tree canopy
             return false;
         };
         
-        // Find the lowest Y to scan from (only scan surface blocks exposed to air)
-        int scanEndY = 320; // Scan to world top
-        // Only scan a limited depth below surface for surface blocks
-        int maxDepthBelowSurface = 5; // Only scan 5 blocks below surface
+        // Determine vertical scan bounds
+        int scanStartY = Math.max(entity.getMinYLevel(), world.getBottomY());
+        int scanEndY = 384; // cover entire chunk height so tall trees aren't clipped
         
         // Check if we can use cached blocks
         java.util.List<java.util.Map.Entry<BlockPos, BlockState>> blockEntries;
@@ -151,12 +171,6 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
         
             for (int x = minX; x <= maxX; x++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    // Get surface Y for this column
-                    int surfaceY = entity.getSurfaceY(x, z);
-                    // Only scan from surface down a limited depth, and up to sky
-                    int scanStartY = Math.max(world.getBottomY(), surfaceY - maxDepthBelowSurface);
-                    
-                    // Scan from limited depth below surface all the way to sky
                     for (int y = scanStartY; y <= scanEndY; y++) {
                         BlockPos scanPos = new BlockPos(x, y, z);
                         BlockState scanBlock = world.getBlockState(scanPos);
@@ -206,7 +220,7 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
         if (lowestYInHologram != Integer.MAX_VALUE && lowestYInHologram < referenceY) {
             // Blocks below sea level - ensure they don't clip into table
             // The lowest block should be at least at hologramHeight above table surface
-            double lowestBlockDy = (lowestYInHologram - referenceY) * (1.0f / 16.0f);
+            double lowestBlockDy = (lowestYInHologram - referenceY) * worldToHologramScale;
             // hologramHeight + 0.5 + lowestBlockDy should be >= hologramHeight
             // So we need: lowestBlockDy >= -0.5
             // If lowestBlockDy < -0.5, we need to add offset
@@ -215,21 +229,9 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
             }
         }
         
-        // --- BLOCK RENDERING (exactly like constructor) ---
+        // --- BLOCK RENDERING ---
         if (!blockEntries.isEmpty() && world.isClient()) {
-            // Save OpenGL state (exactly like constructor)
-            boolean wasBlendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
-            boolean wasDepthTestEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
-            boolean wasDepthMaskEnabled = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
-            boolean wasCullFaceEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
-            // Enable glowing effect (exactly like constructor)
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glDepthMask(false);
-            GL11.glDisable(GL11.GL_CULL_FACE);
-            
-            // For each block entry (exactly like constructor's loop)
+            // For each block entry
             for (java.util.Map.Entry<BlockPos, BlockState> entry : blockEntries) {
                 BlockPos worldPos = entry.getKey();
                 BlockState blockState = entry.getValue();
@@ -251,8 +253,6 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
                 double dz = worldPos.getZ() - chunkCenterZ;
                 
                 // Scale down the world coordinates to fit in hologram space
-                // 16 blocks = 1 block in hologram (chunk is 16x16)
-                float worldToHologramScale = 1.0f / 16.0f;
                 dx = dx * worldToHologramScale;
                 // Scale Y the same as X/Z to maintain proportions (can be as tall as needed)
                 // Use fixed reference Y (sea level) so chained holograms align properly
@@ -279,24 +279,6 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
                 );
                 
                 matrices.pop();
-            }
-            
-            // Restore OpenGL state (exactly like constructor)
-            GL11.glDepthMask(wasDepthMaskEnabled);
-            if (wasDepthTestEnabled) {
-                GL11.glEnable(GL11.GL_DEPTH_TEST);
-            } else {
-                GL11.glDisable(GL11.GL_DEPTH_TEST);
-            }
-            if (wasBlendEnabled) {
-                GL11.glEnable(GL11.GL_BLEND);
-            } else {
-                GL11.glDisable(GL11.GL_BLEND);
-            }
-            if (wasCullFaceEnabled) {
-                GL11.glEnable(GL11.GL_CULL_FACE);
-            } else {
-                GL11.glDisable(GL11.GL_CULL_FACE);
             }
         }
         

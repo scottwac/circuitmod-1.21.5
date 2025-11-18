@@ -61,9 +61,7 @@ public class HologramTableBlock extends BlockWithEntity {
         if (!world.isClient()) {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof HologramTableBlockEntity hologramEntity) {
-                // Request rescan on right-click
-                hologramEntity.requestRescan();
-                player.sendMessage(net.minecraft.text.Text.literal("§6[Hologram Table] Rescanning chunk..."), false);
+                player.openHandledScreen(hologramEntity);
             }
         }
         return ActionResult.SUCCESS;

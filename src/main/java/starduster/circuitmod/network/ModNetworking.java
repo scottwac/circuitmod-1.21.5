@@ -56,6 +56,7 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(CollectXpPayload.ID, CollectXpPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(HovercraftInputPayload.ID, HovercraftInputPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RocketSpacebarInputPayload.ID, RocketSpacebarInputPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(HologramAreaPayload.ID, HologramAreaPayload.CODEC);
     }
     
 
@@ -804,6 +805,30 @@ public class ModNetworking {
         public static final PacketCodec<PacketByteBuf, BlueprintNameRequestPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, BlueprintNameRequestPayload::blueprintDeskPos,
             BlueprintNameRequestPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for hologram table area updates (client -> server)
+     */
+    public record HologramAreaPayload(BlockPos tablePos, int minX, int maxX, int minZ, int maxZ, int minY, boolean reset) implements CustomPayload {
+        public static final CustomPayload.Id<HologramAreaPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "hologram_area"));
+        
+        public static final PacketCodec<PacketByteBuf, HologramAreaPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, HologramAreaPayload::tablePos,
+            PacketCodecs.INTEGER, HologramAreaPayload::minX,
+            PacketCodecs.INTEGER, HologramAreaPayload::maxX,
+            PacketCodecs.INTEGER, HologramAreaPayload::minZ,
+            PacketCodecs.INTEGER, HologramAreaPayload::maxZ,
+            PacketCodecs.INTEGER, HologramAreaPayload::minY,
+            PacketCodecs.BOOLEAN, HologramAreaPayload::reset,
+            HologramAreaPayload::new
         );
         
         @Override

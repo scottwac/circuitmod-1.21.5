@@ -83,6 +83,15 @@ public class ModScreenHandlers {
             FluidTankData::new
         );
     }
+    
+    // Data class for hologram table screen opening data
+    public record HologramTableData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, HologramTableData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            HologramTableData::pos,
+            HologramTableData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -152,6 +161,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "blueprint_desk_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new BlueprintDeskScreenHandler(syncId, inventory), BlueprintDeskData.PACKET_CODEC)
+        );
+    
+    // Register hologram table screen handler
+    public static final ExtendedScreenHandlerType<HologramTableScreenHandler, HologramTableData> HOLOGRAM_TABLE_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "hologram_table_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new HologramTableScreenHandler(syncId, inventory, data), HologramTableData.PACKET_CODEC)
         );
     
     // Register constructor screen handler
