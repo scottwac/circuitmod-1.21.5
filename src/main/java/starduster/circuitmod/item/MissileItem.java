@@ -21,32 +21,10 @@ public class MissileItem extends Item {
     
     @Override
     public ActionResult use(World world, PlayerEntity player, Hand hand) {
-        ItemStack stack = player.getStackInHand(hand);
-        
-        if (!world.isClient) {
-            // Get player position and look direction
-            Vec3d pos = player.getPos().add(0, player.getStandingEyeHeight(), 0);
-            Vec3d lookDir = player.getRotationVector();
-            
-            // Spawn missile slightly in front of player
-            Vec3d spawnPos = pos.add(lookDir.multiply(2.0));
-            
-            MissileEntity missile = new MissileEntity(world, spawnPos);
-            
-            // You can customize the target here
-            // For now it defaults to 100 blocks east
-            
-            world.spawnEntity(missile);
-            
-            Circuitmod.LOGGER.info("Missile spawned at [{}, {}, {}] by {}", 
-                spawnPos.x, spawnPos.y, spawnPos.z, player.getName().getString());
-            
-            if (!player.isCreative()) {
-                stack.decrement(1);
-            }
-        }
-        
-        return ActionResult.SUCCESS;
+        // Missiles can only be placed on Missile Control Blocks
+        // Right-clicking in the air or on the ground does nothing
+        // The MissileControlBlock handles the placement logic
+        return ActionResult.PASS;
     }
 }
 

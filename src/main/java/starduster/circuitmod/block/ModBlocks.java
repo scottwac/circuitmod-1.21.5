@@ -97,6 +97,15 @@ public final class ModBlocks {
                     .strength(2.0f, 3.0f)
     );
 
+    // Register missile control block
+    public static final Block MISSILE_CONTROL_BLOCK = register(
+            "missile_control_block",
+            starduster.circuitmod.block.machines.MissileControlBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.0f, 5.0f)
+    );
+
     // Register bloomery block
     public static final Block BLOOMERY = register(
         "bloomery", 

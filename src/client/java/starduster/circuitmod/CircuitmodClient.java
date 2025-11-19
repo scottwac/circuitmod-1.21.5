@@ -26,7 +26,6 @@ import starduster.circuitmod.client.render.ConstructorBlockEntityRenderer;
 import starduster.circuitmod.client.render.HologramTableBlockEntityRenderer;
 import starduster.circuitmod.client.render.HovercraftEntityRenderer;
 import starduster.circuitmod.client.HovercraftInputHandler;
-import starduster.circuitmod.client.render.sky.LunaSkyRenderer;
 import starduster.circuitmod.screen.*;
 import starduster.circuitmod.entity.ModEntityTypes;
 import starduster.circuitmod.entity.ModEntities;
@@ -77,6 +76,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.XP_GENERATOR_SCREEN_HANDLER, XpGeneratorScreen::new);
 		HandledScreens.register(ModScreenHandlers.HOVERCRAFT_SCREEN_HANDLER, HovercraftScreen::new);
 		HandledScreens.register(ModScreenHandlers.HOLOGRAM_TABLE_SCREEN_HANDLER, HologramTableScreen::new);
+		HandledScreens.register(ModScreenHandlers.MISSILE_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.MissileControlScreen::new);
 
 		// Register block entity renderers
         BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);

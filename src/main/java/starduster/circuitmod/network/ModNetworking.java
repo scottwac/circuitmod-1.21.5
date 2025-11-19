@@ -57,6 +57,8 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(HovercraftInputPayload.ID, HovercraftInputPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RocketSpacebarInputPayload.ID, RocketSpacebarInputPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(HologramAreaPayload.ID, HologramAreaPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(MissileControlUpdatePayload.ID, MissileControlUpdatePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(MissileFirePayload.ID, MissileFirePayload.CODEC);
     }
     
 
@@ -983,6 +985,45 @@ public class ModNetworking {
             PacketCodecs.INTEGER, RocketSpacebarInputPayload::entityId,
             PacketCodecs.BOOLEAN, RocketSpacebarInputPayload::spacePressed,
             RocketSpacebarInputPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for missile control coordinate updates (client -> server)
+     */
+    public record MissileControlUpdatePayload(BlockPos controlBlockPos, int targetX, int targetY, int targetZ) implements CustomPayload {
+        public static final CustomPayload.Id<MissileControlUpdatePayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "missile_control_update"));
+        
+        public static final PacketCodec<PacketByteBuf, MissileControlUpdatePayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, MissileControlUpdatePayload::controlBlockPos,
+            PacketCodecs.INTEGER, MissileControlUpdatePayload::targetX,
+            PacketCodecs.INTEGER, MissileControlUpdatePayload::targetY,
+            PacketCodecs.INTEGER, MissileControlUpdatePayload::targetZ,
+            MissileControlUpdatePayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for missile fire command (client -> server)
+     */
+    public record MissileFirePayload(BlockPos controlBlockPos) implements CustomPayload {
+        public static final CustomPayload.Id<MissileFirePayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "missile_fire"));
+        
+        public static final PacketCodec<PacketByteBuf, MissileFirePayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, MissileFirePayload::controlBlockPos,
+            MissileFirePayload::new
         );
         
         @Override

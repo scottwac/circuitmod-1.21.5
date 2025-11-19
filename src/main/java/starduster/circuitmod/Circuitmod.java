@@ -310,6 +310,33 @@ public class Circuitmod implements ModInitializer {
 			});
 		});
 		
+		// Register missile control coordinate update handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.MissileControlUpdatePayload.ID, (payload, context) -> {
+			var controlBlockPos = payload.controlBlockPos();
+			context.server().execute(() -> {
+				if (context.player().getWorld().getBlockEntity(controlBlockPos) instanceof starduster.circuitmod.block.entity.MissileControlBlockEntity controlBlock) {
+					controlBlock.updateTargetCoordinates(payload.targetX(), payload.targetY(), payload.targetZ());
+					LOGGER.info("[SERVER] Updated missile control block at {} with target ({}, {}, {})", 
+						controlBlockPos, payload.targetX(), payload.targetY(), payload.targetZ());
+				}
+			});
+		});
+		
+		// Register missile fire command handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.MissileFirePayload.ID, (payload, context) -> {
+			var controlBlockPos = payload.controlBlockPos();
+			context.server().execute(() -> {
+				if (context.player().getWorld().getBlockEntity(controlBlockPos) instanceof starduster.circuitmod.block.entity.MissileControlBlockEntity controlBlock) {
+					boolean success = controlBlock.fireMissile();
+					if (success) {
+						LOGGER.info("[SERVER] Fired missile from control block at {}", controlBlockPos);
+					} else {
+						LOGGER.warn("[SERVER] Failed to fire missile from control block at {} (no missile attached)", controlBlockPos);
+					}
+				}
+			});
+		});
+		
 		// Register player connection/disconnection handlers for debugging
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			LOGGER.info("[SERVER] Player joined: " + handler.player.getName().getString());

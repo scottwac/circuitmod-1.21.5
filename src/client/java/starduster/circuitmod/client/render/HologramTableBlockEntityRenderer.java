@@ -50,16 +50,8 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
         ItemRenderer itemRenderer = client.getItemRenderer();
         var world = entity.getWorld();
         
-        // Use a fixed scale that allows the hologram to extend beyond the block
-        // This prevents blocks from overlapping when rendering large areas
-        // Scale of 1/16 means: each rendered block represents 1/16 of world size
         float worldToHologramScale = 1.0f / 16.0f;
-        
-        // Height above the table to render the hologram
         float hologramHeight = 1.0f; // Start half a block above table surface
-        
-        // Scale factor for individual hologram blocks
-        // Blocks are rendered at 1/16th normal size
         float blockScale = 1.0f / 4.0f;
         
         // Helper method to check if block should be filtered

@@ -92,6 +92,15 @@ public class ModScreenHandlers {
             HologramTableData::new
         );
     }
+    
+    // Data class for missile control screen opening data
+    public record MissileControlData(BlockPos pos) {
+        public static final PacketCodec<RegistryByteBuf, MissileControlData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            MissileControlData::pos,
+            MissileControlData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -169,6 +178,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "hologram_table_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new HologramTableScreenHandler(syncId, inventory, data), HologramTableData.PACKET_CODEC)
+        );
+    
+    // Register missile control screen handler
+    public static final ExtendedScreenHandlerType<MissileControlScreenHandler, MissileControlData> MISSILE_CONTROL_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "missile_control_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new MissileControlScreenHandler(syncId, inventory, data), MissileControlData.PACKET_CODEC)
         );
     
     // Register constructor screen handler

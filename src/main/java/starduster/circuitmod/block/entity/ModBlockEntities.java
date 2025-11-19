@@ -198,6 +198,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(HologramTableBlockEntity::new, ModBlocks.HOLOGRAM_TABLE).build()
     );
 
+    // Missile control block entity
+    public static final BlockEntityType<MissileControlBlockEntity> MISSILE_CONTROL_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "missile_control_block"),
+        FabricBlockEntityTypeBuilder.create(MissileControlBlockEntity::new, ModBlocks.MISSILE_CONTROL_BLOCK).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "circuitmod:block/missile_control_block",
+    "north": "circuitmod:block/missile_control_block",
+    "east": "circuitmod:block/missile_control_block",
+    "south": "circuitmod:block/missile_control_block",
+    "west": "circuitmod:block/missile_control_block",
+    "up": "circuitmod:block/missile_control_block_top",
+    "down": "circuitmod:block/missile_control_block"
+  }
+}
+

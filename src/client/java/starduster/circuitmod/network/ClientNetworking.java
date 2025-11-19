@@ -627,4 +627,51 @@ public class ClientNetworking {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send rocket spacebar input: {}", e.getMessage(), e);
         }
     }
+    
+    /**
+     * Send missile control coordinate update to the server
+     * 
+     * @param controlBlockPos The position of the missile control block
+     * @param targetX Target X coordinate
+     * @param targetY Target Y coordinate
+     * @param targetZ Target Z coordinate
+     */
+    public static void sendMissileControlUpdate(BlockPos controlBlockPos, int targetX, int targetY, int targetZ) {
+        Circuitmod.LOGGER.info("[CLIENT] sendMissileControlUpdate called with position: {}, target: ({}, {}, {})", controlBlockPos, targetX, targetY, targetZ);
+        
+        if (controlBlockPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send missile control update for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.MissileControlUpdatePayload payload = new ModNetworking.MissileControlUpdatePayload(controlBlockPos, targetX, targetY, targetZ);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent missile control update for control block at {}", controlBlockPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send missile control update: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send missile fire command to the server
+     * 
+     * @param controlBlockPos The position of the missile control block
+     */
+    public static void sendMissileFireCommand(BlockPos controlBlockPos) {
+        Circuitmod.LOGGER.info("[CLIENT] sendMissileFireCommand called with position: {}", controlBlockPos);
+        
+        if (controlBlockPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send missile fire command for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.MissileFirePayload payload = new ModNetworking.MissileFirePayload(controlBlockPos);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent missile fire command for control block at {}", controlBlockPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send missile fire command: {}", e.getMessage(), e);
+        }
+    }
 } 

@@ -4,7 +4,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.PositionInterpolator;
-import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.nbt.NbtCompound;
@@ -31,8 +30,14 @@ public class MissileEntity extends Entity implements GeoEntity {
     // Launch position (for arc calculation)
     private Vec3d launchPos;
     
+    // Control block position (missile stays fixed here until launched)
+    private net.minecraft.util.math.BlockPos controlBlockPos;
+    
+    // Whether the missile has been launchedhh toi the next 
+    private boolean isLaunched = false;
+    
     // Movement parameters
-    private static final float SPEED = 0.15F; // Slow speed for now
+    private static final float SPEED = 0.45F; // 3x speed
     private int ticks = 0;
     
     public MissileEntity(EntityType<?> type, World world) {
@@ -45,8 +50,11 @@ public class MissileEntity extends Entity implements GeoEntity {
         this.setPosition(pos);
         this.launchPos = pos;
         
-        // Set target to 100 blocks north of spawn position
+        // Set target to 100 blocks north of spawn position (default)
         this.setTargetPosition(pos.add(0, 0, -100));
+        
+        // By default, missile is launched immediately (for backwards compatibility)
+        this.isLaunched = true;
     }
     
     @Override
@@ -68,6 +76,33 @@ public class MissileEntity extends Entity implements GeoEntity {
         return targetPos != null ? targetPos : this.getPos();
     }
     
+    /**
+     * Set the control block position - missile will stay fixed here until launched
+     */
+    public void setControlBlock(net.minecraft.util.math.BlockPos pos) {
+        this.controlBlockPos = pos;
+        this.isLaunched = false;
+        Circuitmod.LOGGER.info("[MISSILE] Attached to control block at {}", pos);
+    }
+    
+    /**
+     * Launch the missile - starts movement toward target
+     */
+    public void launch() {
+        if (!isLaunched) {
+            this.isLaunched = true;
+            this.launchPos = this.getPos();
+            Circuitmod.LOGGER.info("[MISSILE] Launched from {} toward target {}", launchPos, targetPos);
+        }
+    }
+    
+    /**
+     * Check if the missile has been launched
+     */
+    public boolean isLaunched() {
+        return isLaunched;
+    }
+    
     @Override
     public PositionInterpolator getInterpolator() {
         return this.interpolator;
@@ -79,6 +114,15 @@ public class MissileEntity extends Entity implements GeoEntity {
         
         // Tick interpolator for smooth client-side rendering
         this.interpolator.tick();
+        
+        // If missile is not launched yet, stay fixed at control block position
+        if (!isLaunched && controlBlockPos != null) {
+            // Keep missile positioned above the control block
+            Vec3d fixedPos = new Vec3d(controlBlockPos.getX() + 0.5, controlBlockPos.getY() + 1.0, controlBlockPos.getZ() + 0.5);
+            this.setPosition(fixedPos);
+            this.setVelocity(Vec3d.ZERO);
+            return; // Don't move until launched
+        }
         
         // Only update movement on the logical side (server for missiles)
         if (this.isLogicalSideForUpdatingMovement()) {
@@ -172,7 +216,7 @@ public class MissileEntity extends Entity implements GeoEntity {
     }
     
     /**
-     * Detonate the missile - spawns a lit TNT for now
+     * Detonate the missile - creates a powerful explosion (3x TNT power)
      */
     public void detonate() {
         if (!this.getWorld().isClient) {
@@ -181,10 +225,16 @@ public class MissileEntity extends Entity implements GeoEntity {
                 String.format("%.1f", this.getY()), 
                 String.format("%.1f", this.getZ()));
             
-            // Spawn lit TNT at missile position
-            TntEntity tnt = new TntEntity(this.getWorld(), this.getX(), this.getY(), this.getZ(), null);
-            tnt.setFuse(0); // Explode immediately
-            this.getWorld().spawnEntity(tnt);
+            // Create explosion with 3x TNT power (TNT = 4.0, missile = 12.0)
+            this.getWorld().createExplosion(
+                this,                           // Entity causing explosion
+                this.getX(),                    // X position
+                this.getY(),                    // Y position
+                this.getZ(),                    // Z position
+                12.0F,                          // Power (3x TNT's 4.0)
+                true,                           // Creates fire
+                World.ExplosionSourceType.TNT   // Explosion type
+            );
             
             // Remove the missile
             this.discard();
@@ -207,6 +257,14 @@ public class MissileEntity extends Entity implements GeoEntity {
                 nbt.getDouble("TargetZ").orElse(0.0)
             );
         }
+        if (nbt.contains("ControlBlockX")) {
+            this.controlBlockPos = new net.minecraft.util.math.BlockPos(
+                nbt.getInt("ControlBlockX").orElse(0),
+                nbt.getInt("ControlBlockY").orElse(0),
+                nbt.getInt("ControlBlockZ").orElse(0)
+            );
+        }
+        this.isLaunched = nbt.getBoolean("IsLaunched").orElse(false);
         this.ticks = nbt.getInt("Ticks").orElse(0);
     }
     
@@ -222,6 +280,12 @@ public class MissileEntity extends Entity implements GeoEntity {
             nbt.putDouble("TargetY", targetPos.y);
             nbt.putDouble("TargetZ", targetPos.z);
         }
+        if (controlBlockPos != null) {
+            nbt.putInt("ControlBlockX", controlBlockPos.getX());
+            nbt.putInt("ControlBlockY", controlBlockPos.getY());
+            nbt.putInt("ControlBlockZ", controlBlockPos.getZ());
+        }
+        nbt.putBoolean("IsLaunched", isLaunched);
         nbt.putInt("Ticks", ticks);
     }
     

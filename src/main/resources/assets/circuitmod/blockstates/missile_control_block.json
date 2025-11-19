@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "circuitmod:block/missile_control_block",
+      "y": 90
+    },
+
+    "facing=north": {
+      "model": "circuitmod:block/missile_control_block"
+    },
+
+    "facing=south": {
+      "model": "circuitmod:block/missile_control_block",
+      "y": 180
+    },
+
+    "facing=west": {
+      "model": "circuitmod:block/missile_control_block",
+      "y": 270
+    }
+  }
+}
+
