@@ -36,8 +36,8 @@ public class HologramTableBlock extends BlockWithEntity {
 
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
-        Direction facing = ctx.getHorizontalPlayerFacing().getOpposite();
-        return this.getDefaultState().with(HorizontalFacingBlock.FACING, facing);
+        // Always face north for consistent hologram rendering
+        return this.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.NORTH);
     }
 
     @Override

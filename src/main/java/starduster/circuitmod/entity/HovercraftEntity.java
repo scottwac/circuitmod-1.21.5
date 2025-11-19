@@ -216,15 +216,15 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
             boolean currentTracked = this.dataTracker.get(POWERED);
             
             // Debug log when power state changes on server
-            if (this.age % 20 == 0 || hasPower != currentTracked) {
-                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG SERVER] Entity {}: hasFuelRod={}, hasDurability={}, hasPower={}, currentTracked={}, updating to: {}", 
-                    this.getId(), 
-                    !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD,
-                    !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD && FuelRodItem.hasDurability(fuelStack),
-                    hasPower,
-                    currentTracked,
-                    hasPower);
-            }
+            // if (this.age % 20 == 0 || hasPower != currentTracked) {
+            //     Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG SERVER] Entity {}: hasFuelRod={}, hasDurability={}, hasPower={}, currentTracked={}, updating to: {}", 
+            //         this.getId(), 
+            //         !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD,
+            //         !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD && FuelRodItem.hasDurability(fuelStack),
+            //         hasPower,
+            //         currentTracked,
+            //         hasPower);
+            // }
             
             this.dataTracker.set(POWERED, hasPower);
             
@@ -239,16 +239,16 @@ public class HovercraftEntity extends VehicleEntity implements GeoEntity, Vehicl
             boolean isPlayerPassenger = this.getFirstPassenger() instanceof PlayerEntity;
             
             // Debug logging for power/rod state (both client and server)
-            if (this.age % 20 == 0) {
-                String side = this.getWorld().isClient ? "CLIENT" : "SERVER";
-                ItemStack fuelStack = this.getStack(0);
-                boolean hasFuelRod = !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD;
-                boolean hasDurability = hasFuelRod && FuelRodItem.hasDurability(fuelStack);
-                boolean trackedPowered = this.dataTracker.get(POWERED);
-                
-                Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG {}] Entity {}: hasFuelRod={}, hasDurability={}, trackedPowered={}, pressingDown={}, velocity.y={}", 
-                    side, this.getId(), hasFuelRod, hasDurability, trackedPowered, this.pressingDown, String.format("%.3f", this.getVelocity().y));
-            }
+            // if (this.age % 20 == 0) {
+            //     String side = this.getWorld().isClient ? "CLIENT" : "SERVER";
+            //     ItemStack fuelStack = this.getStack(0);
+            //     boolean hasFuelRod = !fuelStack.isEmpty() && fuelStack.getItem() == ModItems.FUEL_ROD;
+            //     boolean hasDurability = hasFuelRod && FuelRodItem.hasDurability(fuelStack);
+            //     boolean trackedPowered = this.dataTracker.get(POWERED);
+            //     
+            //     Circuitmod.LOGGER.info("[HOVERCRAFT-DEBUG {}] Entity {}: hasFuelRod={}, hasDurability={}, trackedPowered={}, pressingDown={}, velocity.y={}", 
+            //         side, this.getId(), hasFuelRod, hasDurability, trackedPowered, this.pressingDown, String.format("%.3f", this.getVelocity().y));
+            // }
             
             if (!isPlayerPassenger) {
                 // Reset inputs if no player is controlling

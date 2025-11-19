@@ -10,8 +10,11 @@ import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import starduster.circuitmod.block.ModBlocks;
 import starduster.circuitmod.block.entity.HologramTableBlockEntity;
@@ -53,6 +56,9 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
         float worldToHologramScale = 1.0f / 16.0f;
         float hologramHeight = 1.0f; // Start half a block above table surface
         float blockScale = 1.0f / 4.0f;
+        
+        // Get entity render dispatcher for rendering entities (like players)
+        var entityRenderDispatcher = client.getEntityRenderDispatcher();
         
         // Helper method to check if block should be filtered
         // Filter ground litter like leaves, grass, flowers, etc.
@@ -206,16 +212,13 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
             }
         }
         
-        // Calculate minimum Y offset to ensure lowest block is at least at table surface
-        // If lowest block is below referenceY, we need to offset up
+        
         double minYOffset = 0.0;
         if (lowestYInHologram != Integer.MAX_VALUE && lowestYInHologram < referenceY) {
             // Blocks below sea level - ensure they don't clip into table
             // The lowest block should be at least at hologramHeight above table surface
             double lowestBlockDy = (lowestYInHologram - referenceY) * worldToHologramScale;
-            // hologramHeight + 0.5 + lowestBlockDy should be >= hologramHeight
-            // So we need: lowestBlockDy >= -0.5
-            // If lowestBlockDy < -0.5, we need to add offset
+            
             if (lowestBlockDy < -0.5) {
                 minYOffset = -0.5 - lowestBlockDy;
             }
@@ -240,22 +243,19 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
                 }
                 
                 matrices.push();
-                // Calculate position relative to chunk center (for proper centering)
+                
                 double dx = worldPos.getX() - chunkCenterX;
                 double dz = worldPos.getZ() - chunkCenterZ;
                 
-                // Scale down the world coordinates to fit in hologram space
+               
                 dx = dx * worldToHologramScale;
-                // Scale Y the same as X/Z to maintain proportions (can be as tall as needed)
-                // Use fixed reference Y (sea level) so chained holograms align properly
+                
                 double dy = (worldPos.getY() - referenceY) * worldToHologramScale;
                 dz = dz * worldToHologramScale;
                 
-                // Translate to center of table (0.5, 0.5, 0.5) plus hologram height
-                // Add hologramHeight (0.5) so lowest block starts half a block above table surface
-                // Add minYOffset to ensure nothing clips below table
+               
                 matrices.translate(0.5 + dx, hologramHeight + 0.5 + dy + minYOffset, 0.5 + dz);
-                // Scale down the block (0.98 size to prevent overlap)
+                
                 matrices.scale(blockScale, blockScale, blockScale);
                 
                 // Render exactly like constructor (using ItemRenderer)
@@ -274,8 +274,94 @@ public class HologramTableBlockEntityRenderer implements net.minecraft.client.re
             }
         }
         
+        // --- ENTITY RENDERING ---
+        // Render nearby entities (players and mobs) as mini entities on the hologram
+        if (world.isClient() && client.player != null) {
+            // Create a bounding box for the render area
+            Box renderBox = new Box(minX, referenceY - 10, minZ, maxX + 1, referenceY + 100, maxZ + 1);
+            
+            // Get all entities in the render area
+            var entities = world.getOtherEntities(null, renderBox);
+            
+            for (Entity livingEntity : entities) {
+                // Skip invisible entities
+                if (livingEntity == null || livingEntity.isInvisible()) {
+                    continue;
+                }
+                
+                // Get interpolated position for smooth movement
+                Vec3d lerpedPos = livingEntity.getLerpedPos(tickDelta);
+                
+                // Check if entity is within the hologram rendering area using actual coordinates
+                if (lerpedPos.x < minX || lerpedPos.x > (maxX + 1) ||
+                    lerpedPos.z < minZ || lerpedPos.z > (maxZ + 1)) {
+                    continue;
+                }
+                
+                matrices.push();
+                
+                // Calculate entity's position relative to the center of the rendering area
+                double entityOffsetX = lerpedPos.x - chunkCenterX;
+                double entityOffsetY = lerpedPos.y - referenceY;
+                double entityOffsetZ = lerpedPos.z - chunkCenterZ;
+                
+                // Debug logging every ~1 second (using world time % 20 to log once per second)
+                if (world.getTime() % 20 == 0) {
+                    System.out.println(String.format("[HOLOGRAM-DEBUG] Entity: %s (Type: %s)", 
+                        livingEntity.getName().getString(), 
+                        livingEntity.getType().toString()));
+                    System.out.println(String.format("  Actual Position: X=%.2f Y=%.2f Z=%.2f Yaw=%.2f", 
+                        lerpedPos.x, lerpedPos.y, lerpedPos.z, livingEntity.getLerpedYaw(tickDelta)));
+                    System.out.println(String.format("  Hologram Center: X=%.2f Y=%d Z=%.2f", 
+                        chunkCenterX, referenceY, chunkCenterZ));
+                    System.out.println(String.format("  Offsets: X=%.2f Y=%.2f Z=%.2f", 
+                        entityOffsetX, entityOffsetY, entityOffsetZ));
+                    System.out.println(String.format("  Scaled Offsets: X=%.4f Y=%.4f Z=%.4f", 
+                        entityOffsetX * worldToHologramScale, 
+                        entityOffsetY * worldToHologramScale, 
+                        entityOffsetZ * worldToHologramScale));
+                }
+                    
+                    // Translate to center of hologram block
+                    matrices.translate(0.5, hologramHeight + 0.5 + minYOffset, 0.5);
+                    
+                    // Add entity's scaled position offset from center
+                    // Subtract worldToHologramScale from Y to fix the height offset
+                    matrices.translate(
+                        entityOffsetX * worldToHologramScale,
+                        (entityOffsetY * worldToHologramScale) - worldToHologramScale,
+                        entityOffsetZ * worldToHologramScale
+                    );
+                    
+                    // Scale down the entity model
+                    matrices.scale(worldToHologramScale, worldToHologramScale, worldToHologramScale);
+                    
+                    // Rotate to match entity's facing direction (interpolated for smooth rotation)
+                    float lerpedYaw = livingEntity.getLerpedYaw(tickDelta);
+                    matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0f - lerpedYaw));
+                    
+                    // Get block entity position for the render offset calculation
+                    BlockPos bePos = entity.getPos();
+                    
+                    // Render the entity - offset by difference between block and entity position
+                    // This tricks the renderer into placing the entity at our transformed position
+                    entityRenderDispatcher.render(livingEntity, 
+                        bePos.getX() + 0.5 + (entityOffsetX * worldToHologramScale) - lerpedPos.x, 
+                        bePos.getY() + hologramHeight + 0.5 + minYOffset + (entityOffsetY * worldToHologramScale) - worldToHologramScale - lerpedPos.y, 
+                        bePos.getZ() + 0.5 + (entityOffsetZ * worldToHologramScale) - lerpedPos.z, 
+                        tickDelta, matrices, vertexConsumers, light);
+                    
+                    matrices.pop();
+            }
+        }
+        
         matrices.pop();
     }
+
+    /**
+     * Render a small red dot/cube to mark a player's position
+     */
+    
 
     @Override
     public boolean rendersOutsideBoundingBox(HologramTableBlockEntity entity) {

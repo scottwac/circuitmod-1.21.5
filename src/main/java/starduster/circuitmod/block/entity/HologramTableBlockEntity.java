@@ -375,14 +375,14 @@ public class HologramTableBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private void initializeChunkBounds() {
-        int chunkMinX = getTargetChunkX() * 16;
-        int chunkMinZ = getTargetChunkZ() * 16;
-        areaMinX = chunkMinX;
-        areaMaxX = chunkMinX + 15;
-        areaMinZ = chunkMinZ;
-        areaMaxZ = chunkMinZ + 15;
+        // Default to 7 blocks in each direction from the table position
+        areaMinX = pos.getX() - 7;
+        areaMaxX = pos.getX() + 7;
+        areaMinZ = pos.getZ() - 7;
+        areaMaxZ = pos.getZ() + 7;
+        // Default Y level to 60
         if (minYLevel == 0) {
-            minYLevel = pos.getY();
+            minYLevel = 60;
         }
     }
 
