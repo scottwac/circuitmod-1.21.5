@@ -13,7 +13,6 @@ import net.minecraft.util.math.Vec3d;
 import starduster.circuitmod.block.entity.DrillBlockEntity;
 
 
-import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class DrillBlockEntityRenderer

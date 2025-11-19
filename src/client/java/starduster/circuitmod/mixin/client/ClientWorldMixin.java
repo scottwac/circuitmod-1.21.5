@@ -1,15 +1,10 @@
 package starduster.circuitmod.mixin.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.recipebook.ClientRecipeBook;
+
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.stat.StatHandler;
+
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import starduster.circuitmod.entity.CustomClientPlayerEntity;
+
 
 /**
  * Mixin to override client player entity creation.

@@ -2,7 +2,6 @@ package starduster.circuitmod.client.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -15,7 +14,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
-import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.block.entity.LaserMiningDrillBlockEntity;
 
 @Environment(EnvType.CLIENT)

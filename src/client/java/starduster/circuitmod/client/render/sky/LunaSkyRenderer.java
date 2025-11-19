@@ -1,26 +1,19 @@
 package starduster.circuitmod.client.render.sky;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.VertexFormat;
+
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
+
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.TriState;
-import net.minecraft.util.Util;
-import net.minecraft.util.math.ColorHelper;
+
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import starduster.circuitmod.Circuitmod;
 import starduster.circuitmod.client.render.CustomRenderLayers;
 
-import java.util.function.Function;
 
 public class LunaSkyRenderer implements DimensionRenderingRegistry.SkyRenderer {
     private static final Identifier EARTH_TEXTURE = Identifier.of(Circuitmod.MOD_ID, "textures/environment/earth_map_mirrored.png");
