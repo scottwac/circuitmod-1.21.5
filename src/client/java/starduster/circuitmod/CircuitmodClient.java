@@ -77,6 +77,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.HOVERCRAFT_SCREEN_HANDLER, HovercraftScreen::new);
 		HandledScreens.register(ModScreenHandlers.HOLOGRAM_TABLE_SCREEN_HANDLER, HologramTableScreen::new);
 		HandledScreens.register(ModScreenHandlers.MISSILE_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.MissileControlScreen::new);
+		HandledScreens.register(ModScreenHandlers.SATELLITE_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.SatelliteControlScreen::new);
 
 		// Register block entity renderers
         BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);
@@ -85,11 +86,13 @@ public class CircuitmodClient implements ClientModInitializer {
         BlockEntityRendererFactories.register(ModBlockEntities.LASER_MINING_DRILL_BLOCK_ENTITY, LaserMiningDrillBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.CONSTRUCTOR_BLOCK_ENTITY, ConstructorBlockEntityRenderer::new);
 		BlockEntityRendererFactories.register(ModBlockEntities.HOLOGRAM_TABLE_BLOCK_ENTITY, HologramTableBlockEntityRenderer::new);
+		BlockEntityRendererFactories.register(ModBlockEntities.SATELLITE_CONTROL_BLOCK_ENTITY, starduster.circuitmod.client.render.SatelliteControlBlockEntityRenderer::new);
 		
 		// Register entity renderers
 		EntityRendererRegistry.register(ModEntityTypes.MINING_EXPLOSIVE, FlyingItemEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.HOVERCRAFT, HovercraftEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntityTypes.MISSILE, starduster.circuitmod.client.render.MissileEntityRenderer::new);
+		EntityRendererRegistry.register(ModEntityTypes.SATELLITE_BEAM, starduster.circuitmod.client.render.SatelliteBeamEntityRenderer::new);
 		EntityRendererRegistry.register(ModEntities.ROCKET, RocketEntityRenderer::new);
 
 		// Register color providers for biome-based tinting

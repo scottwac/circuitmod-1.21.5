@@ -59,6 +59,10 @@ public class ModNetworking {
         PayloadTypeRegistry.playC2S().register(HologramAreaPayload.ID, HologramAreaPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(MissileControlUpdatePayload.ID, MissileControlUpdatePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(MissileFirePayload.ID, MissileFirePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(SatelliteCommandPayload.ID, SatelliteCommandPayload.CODEC);
+        
+        // Register satellite control output sync (server -> client)
+        PayloadTypeRegistry.playS2C().register(SatelliteOutputSyncPayload.ID, SatelliteOutputSyncPayload.CODEC);
     }
     
 
@@ -1030,5 +1034,54 @@ public class ModNetworking {
         public Id<? extends CustomPayload> getId() {
             return ID;
         }
+    }
+    
+    /**
+     * Payload for satellite control command (client -> server)
+     */
+    public record SatelliteCommandPayload(BlockPos controlBlockPos, String command) implements CustomPayload {
+        public static final CustomPayload.Id<SatelliteCommandPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "satellite_command"));
+        
+        public static final PacketCodec<PacketByteBuf, SatelliteCommandPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, SatelliteCommandPayload::controlBlockPos,
+            PacketCodecs.STRING, SatelliteCommandPayload::command,
+            SatelliteCommandPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for satellite control output sync (server -> client)
+     */
+    public record SatelliteOutputSyncPayload(BlockPos controlBlockPos, List<String> outputLines) implements CustomPayload {
+        public static final CustomPayload.Id<SatelliteOutputSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "satellite_output_sync"));
+        
+        public static final PacketCodec<PacketByteBuf, SatelliteOutputSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, SatelliteOutputSyncPayload::controlBlockPos,
+            PacketCodecs.collection(ArrayList::new, PacketCodecs.STRING), SatelliteOutputSyncPayload::outputLines,
+            SatelliteOutputSyncPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Send satellite output sync to a player
+     */
+    public static void sendSatelliteOutputSync(ServerPlayerEntity player, BlockPos controlBlockPos, List<String> outputLines) {
+        Circuitmod.LOGGER.info("[SERVER] Sending satellite output sync to player " + 
+            player.getName().getString() + " for control block at " + controlBlockPos);
+            
+        SatelliteOutputSyncPayload payload = new SatelliteOutputSyncPayload(controlBlockPos, new ArrayList<>(outputLines));
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
 } 

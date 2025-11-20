@@ -8,6 +8,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.util.math.BlockPos;
 import starduster.circuitmod.Circuitmod;
 
@@ -101,6 +102,17 @@ public class ModScreenHandlers {
             MissileControlData::new
         );
     }
+    
+    // Data class for satellite control screen opening data
+    public record SatelliteControlData(BlockPos pos, java.util.List<String> outputLines) {
+        public static final PacketCodec<RegistryByteBuf, SatelliteControlData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            SatelliteControlData::pos,
+            PacketCodecs.collection(java.util.ArrayList::new, PacketCodecs.STRING),
+            SatelliteControlData::outputLines,
+            SatelliteControlData::new
+        );
+    }
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -186,6 +198,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "missile_control_screen_handler"),
             new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new MissileControlScreenHandler(syncId, inventory, data), MissileControlData.PACKET_CODEC)
+        );
+    
+    // Register satellite control screen handler
+    public static final ExtendedScreenHandlerType<SatelliteControlScreenHandler, SatelliteControlData> SATELLITE_CONTROL_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "satellite_control_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new SatelliteControlScreenHandler(syncId, inventory, data), SatelliteControlData.PACKET_CODEC)
         );
     
     // Register constructor screen handler

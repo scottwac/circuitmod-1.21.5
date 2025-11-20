@@ -205,6 +205,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(MissileControlBlockEntity::new, ModBlocks.MISSILE_CONTROL_BLOCK).build()
     );
 
+    // Satellite control block entity
+    public static final BlockEntityType<SatelliteControlBlockEntity> SATELLITE_CONTROL_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "satellite_control_block"),
+        FabricBlockEntityTypeBuilder.create(SatelliteControlBlockEntity::new, ModBlocks.SATELLITE_CONTROL_BLOCK).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

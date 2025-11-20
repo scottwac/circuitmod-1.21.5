@@ -1,6 +1,7 @@
 package starduster.circuitmod;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -39,6 +40,9 @@ import starduster.circuitmod.util.CircuitmodRegistries;
 import starduster.circuitmod.util.ModBlockTags;
 import starduster.circuitmod.util.ModCreativeTabs;
 import starduster.circuitmod.util.ModItemTags;
+import net.minecraft.server.network.ServerPlayerEntity;
+import starduster.circuitmod.satellite.SatelliteSystem;
+import starduster.circuitmod.satellite.MiningOperationManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,6 +97,7 @@ public class Circuitmod implements ModInitializer {
 		// starduster.circuitmod.worldgen.ModBiomes.initialize();
 		ModCreativeTabs.initialize();
         CircuitmodRegistries.initialize();
+		SatelliteSystem.initialize();
 		
 	
 		
@@ -112,6 +117,11 @@ public class Circuitmod implements ModInitializer {
 		// Disable startup mode after initialization to reduce logging spam
 		starduster.circuitmod.power.EnergyNetwork.setStartupMode(false);
 		starduster.circuitmod.power.EnergyNetworkManager.setStartupMode(false);
+		
+		// Register world tick event for mining operations
+		ServerTickEvents.END_WORLD_TICK.register(world -> {
+			MiningOperationManager.tick(world);
+		});
 		
 		
 		// Register server-side networking handlers
@@ -333,6 +343,23 @@ public class Circuitmod implements ModInitializer {
 					} else {
 						LOGGER.warn("[SERVER] Failed to fire missile from control block at {} (no missile attached)", controlBlockPos);
 					}
+				}
+			});
+		});
+		
+		// Register satellite control command handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.SatelliteCommandPayload.ID, (payload, context) -> {
+			var controlBlockPos = payload.controlBlockPos();
+			String command = payload.command();
+			ServerPlayerEntity player = context.player();
+			context.server().execute(() -> {
+				if (player.getWorld().getBlockEntity(controlBlockPos) instanceof starduster.circuitmod.block.entity.SatelliteControlBlockEntity satelliteControl) {
+					satelliteControl.executeCommand(command);
+					LOGGER.info("[SERVER] Executed satellite command '{}' for control block at {}", command, controlBlockPos);
+					
+					// Sync output back to the player
+					java.util.List<String> output = satelliteControl.getOutputLines();
+					ModNetworking.sendSatelliteOutputSync(player, controlBlockPos, output);
 				}
 			});
 		});

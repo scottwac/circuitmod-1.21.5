@@ -393,6 +393,26 @@ public class ClientNetworking {
                 }
             });
         });
+        
+        // Register handler for satellite control output sync
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.SatelliteOutputSyncPayload.ID, (payload, context) -> {
+            BlockPos controlBlockPos = payload.controlBlockPos();
+            List<String> outputLines = payload.outputLines();
+            
+            context.client().execute(() -> {
+                // Update the screen if it's open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.currentScreen instanceof starduster.circuitmod.screen.SatelliteControlScreen satelliteScreen) {
+                    satelliteScreen.updateOutputLines(outputLines);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated satellite control screen with {} output lines", outputLines.size());
+                }
+                
+                // Also update the screen handler
+                if (client.player != null && client.player.currentScreenHandler instanceof starduster.circuitmod.screen.SatelliteControlScreenHandler handler) {
+                    handler.setOutputLines(outputLines);
+                }
+            });
+        });
 
     }
     
@@ -672,6 +692,29 @@ public class ClientNetworking {
             Circuitmod.LOGGER.info("[CLIENT] Successfully sent missile fire command for control block at {}", controlBlockPos);
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send missile fire command: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send satellite control command to the server
+     * 
+     * @param controlBlockPos The position of the satellite control block
+     * @param command The command to execute
+     */
+    public static void sendSatelliteCommand(BlockPos controlBlockPos, String command) {
+        Circuitmod.LOGGER.info("[CLIENT] sendSatelliteCommand called with position: {}, command: {}", controlBlockPos, command);
+        
+        if (controlBlockPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send satellite command for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.SatelliteCommandPayload payload = new ModNetworking.SatelliteCommandPayload(controlBlockPos, command);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent satellite command for control block at {}", controlBlockPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send satellite command: {}", e.getMessage(), e);
         }
     }
 } 

@@ -41,6 +41,16 @@ public class ModEntityTypes {
             .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "missile")))
     );
     
+    public static final EntityType<SatelliteBeamEntity> SATELLITE_BEAM = Registry.register(
+        Registries.ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "satellite_beam"),
+        EntityType.Builder.<SatelliteBeamEntity>create(SatelliteBeamEntity::new, SpawnGroup.MISC)
+            .dimensions(0.5F, 0.5F) // Small size
+            .maxTrackingRange(256) // Large tracking range for high altitude beam
+            .trackingTickInterval(1) // Update every tick for smooth rendering
+            .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Circuitmod.MOD_ID, "satellite_beam")))
+    );
+    
     public static void initialize() {
         Circuitmod.LOGGER.info("Registering mod entity types");
     }
