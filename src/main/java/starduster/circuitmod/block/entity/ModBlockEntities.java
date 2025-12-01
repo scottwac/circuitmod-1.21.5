@@ -212,6 +212,13 @@ public class ModBlockEntities {
         FabricBlockEntityTypeBuilder.create(SatelliteControlBlockEntity::new, ModBlocks.SATELLITE_CONTROL_BLOCK).build()
     );
 
+    // Expedition control block entity
+    public static final BlockEntityType<ExpeditionControlBlockEntity> EXPEDITION_CONTROL_BLOCK_ENTITY = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of(Circuitmod.MOD_ID, "expedition_control_block"),
+        FabricBlockEntityTypeBuilder.create(ExpeditionControlBlockEntity::new, ModBlocks.EXPEDITION_CONTROL_BLOCK).build()
+    );
+
     public static void initialize() {
         Circuitmod.LOGGER.info("ModBlockEntities initialized");
     }

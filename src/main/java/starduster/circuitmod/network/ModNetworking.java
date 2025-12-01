@@ -63,6 +63,10 @@ public class ModNetworking {
         
         // Register satellite control output sync (server -> client)
         PayloadTypeRegistry.playS2C().register(SatelliteOutputSyncPayload.ID, SatelliteOutputSyncPayload.CODEC);
+        
+        // Register expedition control payloads
+        PayloadTypeRegistry.playC2S().register(ExpeditionCommandPayload.ID, ExpeditionCommandPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ExpeditionOutputSyncPayload.ID, ExpeditionOutputSyncPayload.CODEC);
     }
     
 
@@ -1082,6 +1086,57 @@ public class ModNetworking {
             player.getName().getString() + " for control block at " + controlBlockPos);
             
         SatelliteOutputSyncPayload payload = new SatelliteOutputSyncPayload(controlBlockPos, new ArrayList<>(outputLines));
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    }
+    
+    /**
+     * Payload for expedition control command (client -> server)
+     */
+    public record ExpeditionCommandPayload(BlockPos controlBlockPos, String command) implements CustomPayload {
+        public static final CustomPayload.Id<ExpeditionCommandPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "expedition_command"));
+        
+        public static final PacketCodec<PacketByteBuf, ExpeditionCommandPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ExpeditionCommandPayload::controlBlockPos,
+            PacketCodecs.STRING, ExpeditionCommandPayload::command,
+            ExpeditionCommandPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Payload for expedition control output sync (server -> client)
+     */
+    public record ExpeditionOutputSyncPayload(BlockPos controlBlockPos, List<String> outputLines, int storedFuel, boolean monitorMode) implements CustomPayload {
+        public static final CustomPayload.Id<ExpeditionOutputSyncPayload> ID =
+            new CustomPayload.Id<>(Identifier.of(Circuitmod.MOD_ID, "expedition_output_sync"));
+        
+        public static final PacketCodec<PacketByteBuf, ExpeditionOutputSyncPayload> CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC, ExpeditionOutputSyncPayload::controlBlockPos,
+            PacketCodecs.collection(ArrayList::new, PacketCodecs.STRING), ExpeditionOutputSyncPayload::outputLines,
+            PacketCodecs.INTEGER, ExpeditionOutputSyncPayload::storedFuel,
+            PacketCodecs.BOOLEAN, ExpeditionOutputSyncPayload::monitorMode,
+            ExpeditionOutputSyncPayload::new
+        );
+        
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+    
+    /**
+     * Send expedition output sync to a player
+     */
+    public static void sendExpeditionOutputSync(ServerPlayerEntity player, BlockPos controlBlockPos, List<String> outputLines, int storedFuel, boolean monitorMode) {
+        Circuitmod.LOGGER.info("[SERVER] Sending expedition output sync to player " + 
+            player.getName().getString() + " for control block at " + controlBlockPos);
+            
+        ExpeditionOutputSyncPayload payload = new ExpeditionOutputSyncPayload(controlBlockPos, new ArrayList<>(outputLines), storedFuel, monitorMode);
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
     }
 } 

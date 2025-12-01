@@ -413,6 +413,30 @@ public class ClientNetworking {
                 }
             });
         });
+        
+        // Register handler for expedition control output sync
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.ExpeditionOutputSyncPayload.ID, (payload, context) -> {
+            BlockPos controlBlockPos = payload.controlBlockPos();
+            List<String> outputLines = payload.outputLines();
+            int storedFuel = payload.storedFuel();
+            boolean monitorMode = payload.monitorMode();
+            
+            context.client().execute(() -> {
+                // Update the screen if it's open
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.currentScreen instanceof starduster.circuitmod.screen.ExpeditionControlScreen expeditionScreen) {
+                    expeditionScreen.updateFromServer(outputLines, storedFuel, monitorMode);
+                    Circuitmod.LOGGER.info("[CLIENT] Updated expedition control screen with {} output lines, monitor mode: {}", outputLines.size(), monitorMode);
+                }
+                
+                // Also update the screen handler
+                if (client.player != null && client.player.currentScreenHandler instanceof starduster.circuitmod.screen.ExpeditionControlScreenHandler handler) {
+                    handler.setOutputLines(outputLines);
+                    handler.setStoredFuel(storedFuel);
+                    handler.setMonitorMode(monitorMode);
+                }
+            });
+        });
 
     }
     
@@ -715,6 +739,29 @@ public class ClientNetworking {
             Circuitmod.LOGGER.info("[CLIENT] Successfully sent satellite command for control block at {}", controlBlockPos);
         } catch (Exception e) {
             Circuitmod.LOGGER.error("[CLIENT] Failed to send satellite command: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send expedition control command to the server
+     * 
+     * @param controlBlockPos The position of the expedition control block
+     * @param command The command to execute
+     */
+    public static void sendExpeditionCommand(BlockPos controlBlockPos, String command) {
+        Circuitmod.LOGGER.info("[CLIENT] sendExpeditionCommand called with position: {}, command: {}", controlBlockPos, command);
+        
+        if (controlBlockPos.equals(BlockPos.ORIGIN)) {
+            Circuitmod.LOGGER.error("[CLIENT] Refusing to send expedition command for invalid position (0,0,0)!");
+            return;
+        }
+        
+        try {
+            ModNetworking.ExpeditionCommandPayload payload = new ModNetworking.ExpeditionCommandPayload(controlBlockPos, command);
+            ClientPlayNetworking.send(payload);
+            Circuitmod.LOGGER.info("[CLIENT] Successfully sent expedition command for control block at {}", controlBlockPos);
+        } catch (Exception e) {
+            Circuitmod.LOGGER.error("[CLIENT] Failed to send expedition command: {}", e.getMessage(), e);
         }
     }
 } 

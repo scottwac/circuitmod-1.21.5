@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "circuitmod:block/battery/side",
+    "north": "circuitmod:block/quarry/electric_panel",
+    "east": "circuitmod:block/battery/side",
+    "south": "circuitmod:block/battery/side",
+    "west": "circuitmod:block/battery/side",
+    "up": "circuitmod:block/battery/top",
+    "down": "circuitmod:block/battery/bottom"
+  }
+}
+

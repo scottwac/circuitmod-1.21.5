@@ -98,6 +98,7 @@ public class Circuitmod implements ModInitializer {
 		ModCreativeTabs.initialize();
         CircuitmodRegistries.initialize();
 		SatelliteSystem.initialize();
+		starduster.circuitmod.expedition.ExpeditionSystem.initialize();
 		
 	
 		
@@ -360,6 +361,25 @@ public class Circuitmod implements ModInitializer {
 					// Sync output back to the player
 					java.util.List<String> output = satelliteControl.getOutputLines();
 					ModNetworking.sendSatelliteOutputSync(player, controlBlockPos, output);
+				}
+			});
+		});
+		
+		// Register expedition control command handler
+		ServerPlayNetworking.registerGlobalReceiver(ModNetworking.ExpeditionCommandPayload.ID, (payload, context) -> {
+			var controlBlockPos = payload.controlBlockPos();
+			String command = payload.command();
+			ServerPlayerEntity player = context.player();
+			context.server().execute(() -> {
+				if (player.getWorld().getBlockEntity(controlBlockPos) instanceof starduster.circuitmod.block.entity.ExpeditionControlBlockEntity expeditionControl) {
+					expeditionControl.executeCommand(command, player.getUuid());
+					LOGGER.info("[SERVER] Executed expedition command '{}' for control block at {}", command, controlBlockPos);
+					
+					// Sync output back to the player
+					java.util.List<String> output = expeditionControl.getOutputLines();
+					int fuel = expeditionControl.getStoredFuel();
+					boolean monitor = expeditionControl.isMonitorMode();
+					ModNetworking.sendExpeditionOutputSync(player, controlBlockPos, output, fuel, monitor);
 				}
 			});
 		});

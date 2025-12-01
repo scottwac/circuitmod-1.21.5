@@ -78,6 +78,7 @@ public class CircuitmodClient implements ClientModInitializer {
 		HandledScreens.register(ModScreenHandlers.HOLOGRAM_TABLE_SCREEN_HANDLER, HologramTableScreen::new);
 		HandledScreens.register(ModScreenHandlers.MISSILE_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.MissileControlScreen::new);
 		HandledScreens.register(ModScreenHandlers.SATELLITE_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.SatelliteControlScreen::new);
+		HandledScreens.register(ModScreenHandlers.EXPEDITION_CONTROL_SCREEN_HANDLER, starduster.circuitmod.screen.ExpeditionControlScreen::new);
 
 		// Register block entity renderers
         BlockEntityRendererFactories.register(ModBlockEntities.QUARRY_BLOCK_ENTITY, QuarryBlockEntityRenderer::new);

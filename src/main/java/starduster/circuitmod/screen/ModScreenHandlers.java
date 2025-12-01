@@ -113,6 +113,22 @@ public class ModScreenHandlers {
             SatelliteControlData::new
         );
     }
+    
+    // Data class for expedition control screen opening data
+    public record ExpeditionControlData(BlockPos pos, java.util.List<String> outputLines, int storedFuel, boolean monitorMode) {
+        public static final PacketCodec<RegistryByteBuf, ExpeditionControlData> PACKET_CODEC = PacketCodec.tuple(
+            BlockPos.PACKET_CODEC,
+            ExpeditionControlData::pos,
+            PacketCodecs.collection(java.util.ArrayList::new, PacketCodecs.STRING),
+            ExpeditionControlData::outputLines,
+            PacketCodecs.INTEGER,
+            ExpeditionControlData::storedFuel,
+            PacketCodecs.BOOLEAN,
+            ExpeditionControlData::monitorMode,
+            ExpeditionControlData::new
+        );
+    }
+    
     // Register the quarry screen handler type
     public static final ExtendedScreenHandlerType<QuarryScreenHandler, QuarryData> QUARRY_SCREEN_HANDLER = 
         Registry.register(
@@ -269,6 +285,14 @@ public class ModScreenHandlers {
             Registries.SCREEN_HANDLER,
             Identifier.of(Circuitmod.MOD_ID, "hovercraft_screen_handler"),
             new ScreenHandlerType<>(HovercraftScreenHandler::new, FeatureSet.empty())
+        );
+    
+    // Register expedition control screen handler
+    public static final ExtendedScreenHandlerType<ExpeditionControlScreenHandler, ExpeditionControlData> EXPEDITION_CONTROL_SCREEN_HANDLER =
+        Registry.register(
+            Registries.SCREEN_HANDLER,
+            Identifier.of(Circuitmod.MOD_ID, "expedition_control_screen_handler"),
+            new ExtendedScreenHandlerType<>((syncId, inventory, data) -> new ExpeditionControlScreenHandler(syncId, inventory, data), ExpeditionControlData.PACKET_CODEC)
         );
     
     public static void initialize() {

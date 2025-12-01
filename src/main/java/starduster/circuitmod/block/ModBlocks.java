@@ -115,6 +115,15 @@ public final class ModBlocks {
                     .strength(3.0f, 5.0f)
     );
 
+    // Register expedition control block
+    public static final Block EXPEDITION_CONTROL_BLOCK = register(
+            "expedition_control_block",
+            starduster.circuitmod.block.machines.ExpeditionControlBlock::new,
+            Block.Settings.create()
+                    .requiresTool()
+                    .strength(3.0f, 5.0f)
+    );
+
     // Register bloomery block
     public static final Block BLOOMERY = register(
         "bloomery", 

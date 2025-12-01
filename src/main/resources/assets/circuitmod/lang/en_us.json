@@ -128,6 +128,7 @@
   "block.circuitmod.hologram_table": "Hologram Table",
   "block.circuitmod.missile_control_block": "Missile Control Block",
   "block.circuitmod.satellite_control_block": "Satellite Control Block",
+  "block.circuitmod.expedition_control_block": "Expedition Control",
   "block.circuitmod.fluid_tank": "Fluid Tank",
   "block.circuitmod.electric_furnace": "Electric Furnace",
   "block.circuitmod.xp_generator": "XP Generator",
